@@ -1,0 +1,6 @@
+Comment,Designator,Footprint,LCSC,Quantity
+~,"U1,U2,U3,U4",LED-SMD_4P-L3.3-W3.2_XL-3332RGBC-WS2812B,C42400839,4
+TestPoint_Keystone_5015_Micro_Mini,DOUT,TestPoint_Keystone_5015_Micro_Mini,,1
+TestPoint_Keystone_5015_Micro_Mini,VDD,TestPoint_Keystone_5015_Micro_Mini,,1
+TestPoint_Keystone_5015_Micro_Mini,GND,TestPoint_Keystone_5015_Micro_Mini,,1
+TestPoint_Keystone_5015_Micro_Mini,DIN,TestPoint_Keystone_5015_Micro_Mini,,1

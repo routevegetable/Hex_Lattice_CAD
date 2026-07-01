@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --hide-scrollbars --enable-logging=stderr --v=1 --window-size=1280,800 --virtual-time-budget=45000 --screenshot=/tmp/viewer_shot2.png http://localhost:8765/index.html)",
+      "Bash(echo \"exit=$?\")",
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --use-gl=angle --use-angle=swiftshader-webgl --enable-unsafe-swiftshader --disable-gpu --hide-scrollbars --window-size=1280,800 --virtual-time-budget=60000 --screenshot=/tmp/viewer_shot3.png http://localhost:8765/index.html)",
+      "Bash(bash claude_cmd.sh)",
+      "Bash(unzip -o \"Hinge Hexagon.zip\" -d hinge_obj)",
+      "Bash(curl -s -o /dev/null -w \"server: %{http_code}\\\\n\" http://localhost:8765/index.html)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8765/index.html)",
+      "Bash(python3 - \"/Users/lee/Viewer/hinge_obj/Hinge Hexagon.gltf\")",
+      "Bash(curl -s -o /dev/null -w \"gltf: %{http_code}\\\\n\" \"http://localhost:8765/hinge_obj/Hinge%20Hexagon.gltf\")",
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --use-gl=angle --use-angle=swiftshader-webgl --enable-unsafe-swiftshader --disable-gpu --hide-scrollbars --enable-logging=stderr --v=0 --window-size=1280,800 --virtual-time-budget=40000 --screenshot=/tmp/viewer_final.png http://localhost:8765/index.html)",
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --use-gl=angle --use-angle=swiftshader-webgl --enable-unsafe-swiftshader --disable-gpu --hide-scrollbars --enable-logging=stderr --v=0 --window-size=1000,700 --virtual-time-budget=30000 --screenshot=/tmp/viewer_ls.png http://localhost:8765/index.html)",
+      "Bash(python3 - \"/Users/lee/Viewer/hinge_obj/room.gltf\")",
+      "Bash(pkill -f \"Google Chrome\")",
+      "Bash(timeout 50 '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --use-gl=angle --use-angle=swiftshader-webgl --enable-unsafe-swiftshader --disable-gpu --hide-scrollbars --window-size=1200,780 --virtual-time-budget=15000 --screenshot=/tmp/viewer_room2.png http://localhost:8765/index.html)",
+      "Bash(rm -f /tmp/viewer_room3.png)",
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --use-gl=angle --use-angle=swiftshader-webgl --enable-unsafe-swiftshader --disable-gpu --hide-scrollbars --window-size=1200,780 --virtual-time-budget=40000 --screenshot=/tmp/viewer_room3.png http://localhost:8765/index.html)",
+      "Bash(echo \"chrome-exit=$?\")",
+      "Bash(rm -f /tmp/viewer_fil.png)",
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --use-gl=angle --use-angle=swiftshader-webgl --enable-unsafe-swiftshader --disable-gpu --hide-scrollbars --window-size=1200,780 --virtual-time-budget=40000 --screenshot=/tmp/viewer_fil.png http://localhost:8765/index.html)",
+      "Bash(md5 -q /tmp/viewer_room3.png /tmp/viewer_fil.png)",
+      "Bash(pkill -f \"crp\\\\.\")",
+      "Bash(pkill -f \"s=$\")",
+      "Bash(pkill -f \"Google Chrome.*headless\")",
+      "Bash(rm -rf /tmp/crp.* /tmp/crprof.* /tmp/cr_profile_*)"
+    ]
+  }
+}

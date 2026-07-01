@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hinge Hexagon — Lattice Viewer</title>
+<style>
+  :root { --bg:#1e2127; --panel:#282c34; --ink:#dce1e8; --accent:#61afef; --muted:#7f8798; }
+  * { box-sizing: border-box; }
+  html,body { margin:0; height:100%; overflow:hidden; background:var(--bg);
+              color:var(--ink); font:13px/1.4 system-ui, sans-serif; }
+  #app { display:flex; height:100%; }
+  #view { flex:1; position:relative; }
+  #view canvas { display:block; }
+  #panel { width:320px; background:var(--panel); padding:16px; overflow-y:auto;
+           border-left:1px solid #00000040; }
+  h1 { font-size:15px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 16px; font-size:12px; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em;
+       color:var(--muted); margin:18px 0 8px; border-bottom:1px solid #ffffff14; padding-bottom:4px; }
+  label { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:8px 0; }
+  input[type=number], textarea, select {
+    background:#1b1e24; color:var(--ink); border:1px solid #ffffff1f; border-radius:5px;
+    padding:6px 8px; font:inherit; width:100%; }
+  input[type=number] { width:90px; }
+  textarea { width:100%; height:64px; resize:vertical; font-family:ui-monospace,monospace; }
+  button { background:var(--accent); color:#0b1220; border:0; border-radius:5px;
+           padding:8px 10px; font:inherit; font-weight:600; cursor:pointer; width:100%; margin-top:6px; }
+  button.ghost { background:#3a3f4b; color:var(--ink); }
+  .row { display:flex; gap:6px; }
+  .row > * { flex:1; }
+  .hint { color:var(--muted); font-size:11px; margin:4px 0 0; }
+  #status { position:absolute; left:12px; top:12px; background:#0009; padding:6px 10px;
+            border-radius:6px; font-size:12px; pointer-events:none; }
+  .presets button { width:auto; flex:1; }
+</style>
+<script type="importmap">
+{ "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="app">
+  <div id="view"><div id="status">Loading segment…</div></div>
+  <div id="panel">
+    <h1>Hinge Hexagon Lattice</h1>
+    <p class="sub">Repeating segment · vertical hinges every 992.4&nbsp;mm · stacks every 1320&nbsp;mm</p>
+
+    <h2>Lateral hinge angles (°)</h2>
+    <textarea id="angles">20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20</textarea>
+    <p class="hint">Comma/space separated. N angles ⇒ N+1 segments in a row. Angle = fold at each joint.</p>
+    <div class="row presets">
+      <button class="ghost" data-preset="ring14">14-gon ring</button>
+      <button class="ghost" data-preset="hex">Hex 60°</button>
+      <button class="ghost" data-preset="wave">Wave</button>
+      <button class="ghost" data-preset="flat">Flat</button>
+    </div>
+
+    <h2>Vertical stacking</h2>
+    <label>Levels <input type="number" id="levels" value="4" min="1" max="40" step="1"></label>
+    <label>Increment (mm) <input type="number" id="stack" value="1320" step="1"></label>
+
+    <h2>Placement in room (m)</h2>
+    <label>Start X <input type="number" id="posx" value="4.5" step="0.1"></label>
+    <label>Start Y <input type="number" id="posy" value="2.1" step="0.1"></label>
+    <label>Start Z <input type="number" id="posz" value="0" step="0.1"></label>
+    <label>Initial angle (°) <input type="number" id="rot" value="0" step="1"></label>
+
+    <h2>Camera</h2>
+    <label>Eye height (m) <input type="number" id="eye" value="1.727" step="0.01"></label>
+    <p class="hint">≈ 5 ft 8 in. <b>Arrow keys / WASD</b> to walk · <b>drag</b> to look around.</p>
+
+    <h2>Room</h2>
+    <label>Transparent walls <input type="checkbox" id="wallsClear"></label>
+
+    <h2>Ambient light (HSV)</h2>
+    <label>H <input type="range" id="ah" min="0" max="360" step="1" value="308"></label>
+    <label>S <input type="range" id="as" min="0" max="100" step="1" value="45"></label>
+    <label>V <input type="range" id="av" min="0" max="100" step="1" value="10"></label>
+    <p class="hint">Dim by default. V is brightness — raise for more fill.</p>
+
+    <h2>Display</h2>
+    <label>Show centers &amp; hinges <input type="checkbox" id="axes"></label>
+    <p class="hint">🟢 center (apex) · 🔴 left pin · 🔵 right pin · 🟡 module origin (+ XYZ triad)</p>
+    <button id="apply">Rebuild</button>
+    <button class="ghost" id="fit">Reset view</button>
+    <p class="hint" id="info"></p>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+// ---- Segment constants — see MEASUREMENTS.md ----
+// The hinge axis is DEFINED by the segment's hinge tube: the leftmost
+// "Small-Small Tube" is concentric with the left hinge. We read its axis from
+// the geometry, and mirror it about the apex center for the right hinge.
+const M_PER_UNIT_Z = 1.000;   // vertical: 1 unit = 1 m (stack input is mm)
+let LEFT_PIN_X  = 0;          // set in setPinsFromSegment() once loaded
+let RIGHT_PIN_X = 1;
+let PIVOT_Y     = 0;
+let CENTER_X = 0, CENTER_Y = 0, TOP_Z = 1, MESH_MINZ = 0, MESH_MAXZ = 1;
+let baseParts = [];           // [{geometry, material}] merged per material, in segment frame
+
+// Merge the segment's ~950 primitives into one baked geometry per material, so
+// each material becomes a single InstancedMesh (a few draw calls, not hundreds).
+function buildMergedParts(obj) {
+  obj.updateMatrixWorld(true);
+  const byMat = new Map();
+  obj.traverse(o => {
+    if (!o.isMesh) return;
+    let g = o.geometry.clone();
+    g.applyMatrix4(o.matrixWorld);                    // bake node transform
+    for (const name of Object.keys(g.attributes))     // keep only position+normal
+      if (name !== 'position' && name !== 'normal') g.deleteAttribute(name);
+    if (g.index) g = g.toNonIndexed();
+    if (!g.attributes.normal) g.computeVertexNormals();
+    const key = o.material.uuid;
+    if (!byMat.has(key)) byMat.set(key, { material: o.material, geoms: [] });
+    byMat.get(key).geoms.push(g);
+  });
+  baseParts = [];
+  for (const { material, geoms } of byMat.values())
+    baseParts.push({ geometry: mergeGeometries(geoms, false), material });
+}
+
+// ---- Filaments (see scheme.md) --------------------------------------------
+// module -> edge(tube)[0..11] -> filament[0..3] -> end[0..1].
+// A module = 2 segments; each of its 6 tubes carries 4 filaments arranged in a
+// ~10 mm square, each a gently random-curved strand running end to end.
+let segTubes = [];                      // per-segment tube frames (6), in segment space
+let filColorAttr = null, filColors = null, moduleStates = [], moduleCount = 0;
+const FILAMENT_HALF = 0.005;            // ±5 mm -> 10 mm square
+const FIL_OFFSETS = [ [+1,+1], [+1,-1], [-1,+1], [-1,-1] ];  // filament[0..3] corner
+const FIL_SEGMENTS = 10;                // tubular segments along the curved run
+const FIL_RADIAL = 5;                   // radial segments of each strand tube
+const FIL_RADIUS = 0.0015;              // 3 mm diameter
+const VPF = (FIL_SEGMENTS + 1) * (FIL_RADIAL + 1);          // vertices per filament tube
+const EMISSIVE_GAIN = 2.4;              // push colours past 1.0 so bloom lights them
+// t (0..1 along the strand) for each vertex of a TubeGeometry, used to colour it.
+const VERT_T = (() => { const a = new Float32Array(VPF);
+  for (let v = 0; v < VPF; v++) a[v] = Math.floor(v / (FIL_RADIAL + 1)) / FIL_SEGMENTS;
+  return a; })();
+
+// The data type that matches scheme.md. `ends[k].color` is RGB in 0..1; the
+// strand is coloured by interpolating between its two end colours.
+function createModule() {
+  return { edges: Array.from({ length: 12 }, (_, e) => ({
+    index: e,
+    filaments: Array.from({ length: 4 }, (_, f) => ({
+      index: f,
+      ends: [ { color: [0, 0, 0] }, { color: [0, 0, 0] } ]
+    }))
+  })) };
+}
+
+// Axis endpoints + a perpendicular frame for one tube (PCA of its vertices).
+// Takes all the meshes that make up a single tube instance.
+function extractTubeFromMeshes(meshes) {
+  const pts = [], c = new THREE.Vector3(), v = new THREE.Vector3();
+  for (const mesh of meshes) {
+    const p = mesh.geometry.attributes.position, M = mesh.matrixWorld;
+    for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(M); pts.push(v.clone()); c.add(v); }
+  }
+  c.multiplyScalar(1 / pts.length);
+  let xx=0,xy=0,xz=0,yy=0,yz=0,zz=0;
+  for (const q of pts) { const dx=q.x-c.x, dy=q.y-c.y, dz=q.z-c.z;
+    xx+=dx*dx; xy+=dx*dy; xz+=dx*dz; yy+=dy*dy; yz+=dy*dz; zz+=dz*dz; }
+  const w = new THREE.Vector3(0, 0, 1);           // power-iterate the top eigenvector
+  for (let it = 0; it < 40; it++) {
+    const nx=xx*w.x+xy*w.y+xz*w.z, ny=xy*w.x+yy*w.y+yz*w.z, nz=xz*w.x+yz*w.y+zz*w.z;
+    w.set(nx, ny, nz); if (w.lengthSq() < 1e-12) { w.set(0, 0, 1); break; } w.normalize();
+  }
+  let tmin = Infinity, tmax = -Infinity;
+  for (const q of pts) { const t = q.clone().sub(c).dot(w); if (t<tmin) tmin=t; if (t>tmax) tmax=t; }
+  const end0 = c.clone().addScaledVector(w, tmin), end1 = c.clone().addScaledVector(w, tmax);
+  const ref = Math.abs(w.z) < 0.9 ? new THREE.Vector3(0,0,1) : new THREE.Vector3(1,0,0);
+  const u = ref.clone().cross(w).normalize();
+  const vv = w.clone().cross(u).normalize();
+  return { end0, end1, u, v: vv };
+}
+
+// Find the 6 tube instances, make the tube material translucent (so filaments
+// show), and order them for stable edge indices 0..5.
+// GLTFLoader names each tube instance a GROUP ("…Small-Small Tube…") whose child
+// meshes have unrelated names — so we key off the outermost tube-named node and
+// gather every mesh beneath it.
+function prepFilaments(obj) {
+  obj.updateMatrixWorld(true);
+
+  // outermost tube-named nodes = the 6 tube instances
+  const roots = [];
+  obj.traverse(o => {
+    if (!/tube/i.test(o.name)) return;
+    for (let p = o.parent; p; p = p.parent) if (/tube/i.test(p.name)) return;  // keep outermost
+    roots.push(o);
+  });
+
+  // make the (grey) tube material translucent
+  let tubeMat = null;
+  for (const r of roots) r.traverse(o => { if (o.isMesh && !tubeMat) tubeMat = o.material; });
+  if (tubeMat) { tubeMat.transparent = true; tubeMat.opacity = 0.2; tubeMat.depthWrite = false; }
+
+  // one tube frame per instance
+  const tubes = [];
+  for (const r of roots) {
+    const meshes = [];
+    r.traverse(o => { if (o.isMesh) meshes.push(o); });
+    if (meshes.length) tubes.push(extractTubeFromMeshes(meshes));
+  }
+  tubes.sort((A, B) => {
+    const ax = (A.end0.x+A.end1.x)/2, bx = (B.end0.x+B.end1.x)/2;
+    return Math.abs(ax-bx) > 1e-4 ? ax-bx : (A.end0.z+A.end1.z) - (B.end0.z+B.end1.z);
+  });
+  segTubes = tubes;
+  console.log(`filaments: found ${tubes.length} tubes; tubeMat=${tubeMat ? tubeMat.name : 'none'}`);
+}
+
+// Build every filament as a 3 mm emissive tube, merged into one mesh.
+function buildFilaments(modules) {
+  filamentGroup.clear();
+  filColorAttr = null; filColors = null;
+  moduleCount = modules.length;
+  moduleStates = Array.from({ length: moduleCount }, createModule);
+  const filsTotal = moduleCount * 12 * 4;
+  if (!filsTotal || segTubes.length < 6) return;
+
+  const geoms = new Array(filsTotal);
+  const pathPts = [];
+  for (let t = 0; t <= FIL_SEGMENTS; t++) pathPts.push(new THREE.Vector3());
+  let fi = 0;
+  for (let m = 0; m < moduleCount; m++) {
+    const mod = modules[m];
+    for (let e = 0; e < 12; e++) {
+      const seg = e < 6 ? mod[0] : mod[1];           // edges 0..5 seg A, 6..11 seg B
+      const tube = segTubes[e % 6];
+      for (let f = 0; f < 4; f++, fi++) {
+        const [oa, ob] = FIL_OFFSETS[f];
+        const cu = [], cv = [];                      // smooth random wander (0 at both ends)
+        for (let k = 1; k <= 3; k++) { const amp = 0.0035 / k;
+          cu.push((Math.random()*2-1)*amp); cv.push((Math.random()*2-1)*amp); }
+        for (let i = 0; i <= FIL_SEGMENTS; i++) {
+          const t = i / FIL_SEGMENTS, out = pathPts[i];
+          out.copy(tube.end0).lerp(tube.end1, t);
+          let du = oa*FILAMENT_HALF, dv = ob*FILAMENT_HALF;
+          for (let k = 1; k <= 3; k++) { const s = Math.sin(k*Math.PI*t); du += cu[k-1]*s; dv += cv[k-1]*s; }
+          out.addScaledVector(tube.u, du).addScaledVector(tube.v, dv).applyMatrix4(seg);
+        }
+        const curve = new THREE.CatmullRomCurve3(pathPts.map(p => p.clone()));
+        const tg = new THREE.TubeGeometry(curve, FIL_SEGMENTS, FIL_RADIUS, FIL_RADIAL, false);
+        tg.deleteAttribute('uv');
+        geoms[fi] = tg;
+      }
+    }
+  }
+  const merged = mergeGeometries(geoms, false);
+  geoms.forEach(g => g.dispose());
+  filColors = new Float32Array(merged.attributes.position.count * 3);
+  merged.setAttribute('color', new THREE.BufferAttribute(filColors, 3));
+  filColorAttr = merged.getAttribute('color');
+  const mat = new THREE.MeshBasicMaterial({ vertexColors: true });
+  mat.toneMapped = false;                            // keep HDR colours for bloom
+  const mesh = new THREE.Mesh(merged, mat);
+  mesh.frustumCulled = false;
+  filamentGroup.add(mesh);
+}
+
+// Each frame: run the user hook per module, then paint every filament tube by
+// interpolating its two end colours along the strand (VPF verts per filament).
+function updateFilaments(timeSeconds) {
+  if (!filColorAttr) return;
+  let fi = 0;
+  for (let m = 0; m < moduleCount; m++) {
+    const mod = moduleStates[m];
+    updateModule(timeSeconds, mod, m);               // <-- user hook mutates the object
+    for (let e = 0; e < 12; e++) {
+      const fils = mod.edges[e].filaments;
+      for (let f = 0; f < 4; f++, fi++) {
+        const c0 = fils[f].ends[0].color, c1 = fils[f].ends[1].color, vBase = fi * VPF;
+        for (let vv = 0; vv < VPF; vv++) {
+          const tt = VERT_T[vv], j = (vBase + vv) * 3;
+          filColors[j]   = (c0[0] + (c1[0]-c0[0])*tt) * EMISSIVE_GAIN;
+          filColors[j+1] = (c0[1] + (c1[1]-c0[1])*tt) * EMISSIVE_GAIN;
+          filColors[j+2] = (c0[2] + (c1[2]-c0[2])*tt) * EMISSIVE_GAIN;
+        }
+      }
+    }
+  }
+  filColorAttr.needsUpdate = true;
+}
+
+// ====== USER HOOK ============================================================
+// Called at frame rate with (timeSeconds, module, moduleIndex). Mutate `module`
+// in place — set each filament's two end colours (RGB 0..1). After it returns,
+// the module object is used to light all of that module's filaments.
+// Default: a per-edge hue with a wave travelling along each strand.
+const _hookColor = new THREE.Color();
+function updateModule(time, module, moduleIndex) {
+  for (let e = 0; e < module.edges.length; e++) {
+    const fils = module.edges[e].filaments;
+    for (let f = 0; f < fils.length; f++) {
+      const ends = fils[f].ends;
+      for (let k = 0; k < 2; k++) {
+        const wave = 0.5 + 0.5 * Math.sin(time*2 - e*0.4 - f*0.25 - k*0.9 + moduleIndex*0.5);
+        _hookColor.setHSL(((e/12) + f*0.02 + moduleIndex*0.03) % 1, 1.0, 0.5*wave);
+        const col = ends[k].color; col[0]=_hookColor.r; col[1]=_hookColor.g; col[2]=_hookColor.b;
+      }
+    }
+  }
+}
+
+// Find the leftmost hinge tube's axis (world-space bbox center).
+function leftmostTubeAxis(obj) {
+  let best = null;
+  obj.traverse(o => {
+    if (!o.isMesh || !/tube/i.test(o.name)) return;
+    const box = new THREE.Box3().setFromObject(o);
+    const c = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    // hinge pins are compact in X (the long diagonal struts are not)
+    if (size.x > 0.1) return;
+    if (!best || c.x < best.x) best = c;
+  });
+  return best;
+}
+
+// Derive hinge pins + apex center from the loaded segment.
+// glTF stores vertices in each part's LOCAL frame and positions parts with node
+// matrices, so every vertex must be transformed by its mesh matrixWorld.
+function setPinsFromSegment(obj) {
+  obj.updateMatrixWorld(true);
+  const v = new THREE.Vector3();
+  const eachVertex = (cb) => obj.traverse(o => {
+    const p = o.geometry?.attributes?.position;
+    if (!p) return;
+    const m = o.matrixWorld;
+    for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(m); cb(v); }
+  });
+
+  let maxZ = -Infinity, minZ = Infinity;
+  eachVertex(pt => { if (pt.z > maxZ) maxZ = pt.z; if (pt.z < minZ) minZ = pt.z; });
+
+  const tol = 0.002;               // points within ~2 mm of the apex
+  let sx = 0, sy = 0, n = 0;
+  eachVertex(pt => { if (pt.z >= maxZ - tol) { sx += pt.x; sy += pt.y; n++; } });
+
+  CENTER_X = sx / n; CENTER_Y = sy / n; TOP_Z = maxZ;
+  MESH_MINZ = minZ; MESH_MAXZ = maxZ;
+
+  // Left hinge = leftmost tube axis; right hinge = its mirror about the center.
+  const tube = leftmostTubeAxis(obj);
+  if (tube) {
+    LEFT_PIN_X  = tube.x;
+    RIGHT_PIN_X = 2 * CENTER_X - tube.x;
+    PIVOT_Y     = tube.y;
+  } else {                          // fallback if the tube can't be found
+    LEFT_PIN_X = CENTER_X - 0.381; RIGHT_PIN_X = CENTER_X + 0.381; PIVOT_Y = CENTER_Y;
+  }
+
+  console.log(`center X=${CENTER_X.toFixed(5)} Y=${CENTER_Y.toFixed(5)} topZ=${maxZ.toFixed(5)}`
+            + ` -> pins ${LEFT_PIN_X.toFixed(5)}, ${RIGHT_PIN_X.toFixed(5)}`);
+}
+
+const viewEl = document.getElementById('view');
+const statusEl = document.getElementById('status');
+const infoEl = document.getElementById('info');
+
+// ---- three.js scene ----
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+viewEl.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0b0e);
+
+const camera = new THREE.PerspectiveCamera(60, 1, 0.02, 500);
+camera.up.set(0, 0, 1);                       // Z is up (matches the OBJ)
+camera.position.set(4.5, -3, 1.727);
+
+// Ambient hemisphere light; colour driven by the HSV selector (default dim plum).
+const hemi = new THREE.HemisphereLight(0xffffff, 0x000000, 1.0);
+scene.add(hemi);
+function hsvToRGB(h, s, v) {                     // h,s,v in 0..1 -> [r,g,b] 0..1
+  const i = Math.floor(h * 6), f = h * 6 - i;
+  const p = v*(1-s), q = v*(1-f*s), t = v*(1-(1-f)*s);
+  switch (i % 6) {
+    case 0: return [v,t,p]; case 1: return [q,v,p]; case 2: return [p,v,t];
+    case 3: return [p,q,v]; case 4: return [t,p,v]; default: return [v,p,q];
+  }
+}
+function applyAmbient() {
+  const h = (+document.getElementById('ah').value) / 360;
+  const s = (+document.getElementById('as').value) / 100;
+  const v = (+document.getElementById('av').value) / 100;
+  const [r, g, b] = hsvToRGB(h, s, v);
+  hemi.color.setRGB(r, g, b);
+  hemi.groundColor.setRGB(r*0.3, g*0.3, b*0.3);
+}
+
+const lattice = new THREE.Group();  scene.add(lattice);
+const axesGroup = new THREE.Group(); scene.add(axesGroup);
+const filamentGroup = new THREE.Group(); scene.add(filamentGroup);
+const cushionGroup = new THREE.Group(); scene.add(cushionGroup);
+
+// ---- Post-processing: bloom so the filaments read as light emitters ----
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+// (resolution, strength, radius, threshold) — subtle glow only
+const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.28, 0.35, 0.85);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+// ---- First-person walk controls: arrow keys move, mouse-drag looks ----
+const walker = {
+  yaw: Math.PI / 2, pitch: 0,          // face +Y into the room
+  speed: 2.2,                          // m/s
+  move: { f: 0, s: 0 },
+  eye: 1.727,
+  dragging: false, lx: 0, ly: 0,
+};
+function walkerForward() {
+  return new THREE.Vector3(Math.cos(walker.yaw) * Math.cos(walker.pitch),
+                           Math.sin(walker.yaw) * Math.cos(walker.pitch),
+                           Math.sin(walker.pitch));
+}
+function updateWalker(dt) {
+  const fwdH = new THREE.Vector3(Math.cos(walker.yaw), Math.sin(walker.yaw), 0);
+  const right = new THREE.Vector3(Math.sin(walker.yaw), -Math.cos(walker.yaw), 0);
+  camera.position.addScaledVector(fwdH, walker.move.f * walker.speed * dt);
+  camera.position.addScaledVector(right, walker.move.s * walker.speed * dt);
+  camera.position.z = walker.eye;
+  camera.lookAt(camera.position.clone().add(walkerForward()));
+}
+renderer.domElement.addEventListener('pointerdown', e => {
+  walker.dragging = true; walker.lx = e.clientX; walker.ly = e.clientY;
+  renderer.domElement.setPointerCapture(e.pointerId);
+});
+renderer.domElement.addEventListener('pointerup', e => { walker.dragging = false; });
+renderer.domElement.addEventListener('pointermove', e => {
+  if (!walker.dragging) return;
+  walker.yaw   -= (e.clientX - walker.lx) * 0.0045;
+  walker.pitch -= (e.clientY - walker.ly) * 0.0045;
+  walker.pitch = Math.max(-1.45, Math.min(1.45, walker.pitch));
+  walker.lx = e.clientX; walker.ly = e.clientY;
+});
+const KEYMAP = { ArrowUp:['f',1], ArrowDown:['f',-1], ArrowLeft:['s',-1], ArrowRight:['s',1],
+                 KeyW:['f',1], KeyS:['f',-1], KeyA:['s',-1], KeyD:['s',1] };
+addEventListener('keydown', e => { const m = KEYMAP[e.code]; if (m) { walker.move[m[0]] = m[1]; e.preventDefault(); } });
+addEventListener('keyup',   e => { const m = KEYMAP[e.code]; if (m && walker.move[m[0]] === m[1]) walker.move[m[0]] = 0; });
+
+// ---- Placement math ----
+// Consecutive segments share a hinge pin: segment i's RIGHT pin coincides with
+// segment i+1's LEFT pin, and the fold angle θ rotates about the vertical (Z)
+// axis through that shared pin.
+//   M[i+1] = M[i] · T(rightPin) · Rz(θ) · T(-leftPin)
+// θ = 0 gives a pure lateral step of (rightPin - leftPin) = 0.8079 units.
+function stepMatrix(theta) {
+  const toRightPin  = new THREE.Matrix4().makeTranslation(RIGHT_PIN_X, PIVOT_Y, 0);
+  const rot         = new THREE.Matrix4().makeRotationZ(theta);
+  const fromLeftPin = new THREE.Matrix4().makeTranslation(-LEFT_PIN_X, -PIVOT_Y, 0);
+  return toRightPin.multiply(rot).multiply(fromLeftPin);
+}
+
+// M0 = where the lattice starts in the room: translate to (x,y,z), then rotate
+// the whole structure about vertical by the initial angle.
+function startMatrix() {
+  const x = +document.getElementById('posx').value || 0;
+  const y = +document.getElementById('posy').value || 0;
+  const z = +document.getElementById('posz').value || 0;
+  const a = (+document.getElementById('rot').value || 0) * Math.PI / 180;
+  return new THREE.Matrix4().makeTranslation(x, y, z)
+    .multiply(new THREE.Matrix4().makeRotationZ(a));
+}
+
+function segmentMatrices(anglesDeg) {
+  const mats = [ startMatrix() ];                 // segment 0 at the start pose
+  let m = mats[0];
+  for (const a of anglesDeg) {
+    m = m.clone().multiply(stepMatrix(a * Math.PI / 180));
+    mats.push(m);
+  }
+  return mats;
+}
+
+// ---- Load the base segment once, then instance it ----
+let baseSegment = null;
+
+function loadGLTF(file) {
+  return new Promise((resolve, reject) => {
+    new GLTFLoader().setPath('hinge_obj/').load(file,
+      (gltf) => resolve(gltf.scene),
+      (e) => { if (e.total) statusEl.textContent =
+                 `Loading ${file}… ${(100*e.loaded/e.total|0)}%`; },
+      reject);
+  });
+}
+const loadSegment = () => loadGLTF('Hinge Hexagon.gltf');
+
+// Load the room shell: beige, very diffuse, mildly specular; opaque unless the
+// "Transparent walls" box is checked.
+let roomMat = null, roomBox = null;
+async function loadRoom() {
+  try {
+    const room = await loadGLTF('room.gltf');
+    roomMat = new THREE.MeshStandardMaterial({
+      color: 0xd8ccae, roughness: 0.82, metalness: 0.0, side: THREE.DoubleSide });
+    room.traverse(o => { if (o.isMesh) { o.material = roomMat; o.receiveShadow = true; o.castShadow = false; } });
+    scene.add(room);
+    room.updateMatrixWorld(true);
+    roomBox = new THREE.Box3().setFromObject(room);
+    applyWallTransparency();
+    buildCushions();
+  } catch (e) { console.warn('room.gltf not loaded:', e); }
+}
+function applyWallTransparency() {
+  if (!roomMat) return;
+  const clear = document.getElementById('wallsClear').checked;
+  roomMat.transparent = clear;
+  roomMat.opacity = clear ? 0.16 : 1.0;
+  roomMat.depthWrite = !clear;
+  roomMat.needsUpdate = true;
+}
+
+// Carpet the room floor with 3-inch blue/purple cushions.
+function buildCushions() {
+  cushionGroup.clear();
+  if (!roomBox) return;
+  const CH = 0.0762;                                // 3 inches high
+  const minX = roomBox.min.x, maxX = roomBox.max.x, minY = roomBox.min.y, maxY = roomBox.max.y;
+  const cw = 0.5;                                   // cushion footprint
+  const geo = new THREE.BoxGeometry(cw*0.96, cw*0.96, CH, 1, 1, 1);
+  const mat = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.0, vertexColors: false });
+  const cols = [];
+  const positions = [];
+  const c = new THREE.Color();
+  for (let x = minX + cw/2; x < maxX; x += cw)
+    for (let y = minY + cw/2; y < maxY; y += cw) {
+      const jx = (Math.random()-0.5)*0.12, jy = (Math.random()-0.5)*0.12;
+      const yaw = (Math.random()-0.5)*0.5;
+      const h = CH * (0.85 + Math.random()*0.3);
+      positions.push({ x: x+jx, y: y+jy, z: h/2, yaw, sz: h/CH });
+      c.setHSL(0.66 + Math.random()*0.13, 0.55 + Math.random()*0.25, 0.32 + Math.random()*0.14); // blue→purple
+      cols.push(c.clone());
+    }
+  const inst = new THREE.InstancedMesh(geo, mat, positions.length);
+  inst.castShadow = true; inst.receiveShadow = true;
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+  for (let i = 0; i < positions.length; i++) {
+    const p = positions[i];
+    q.setFromAxisAngle(new THREE.Vector3(0,0,1), p.yaw);
+    s.set(1, 1, p.sz);
+    m4.compose(new THREE.Vector3(p.x, p.y, p.z), q, s);
+    inst.setMatrixAt(i, m4);
+    inst.setColorAt(i, cols[i]);
+  }
+  inst.instanceMatrix.needsUpdate = true;
+  cushionGroup.add(inst);
+}
+
+// Debug overlay drawn in a segment's local frame:
+//   green sphere  = computed center (apex point, X±HALF_SPAN gives the pins)
+//   red  line/dot = LEFT hinge pin axis (vertical)
+//   blue line/dot = RIGHT hinge pin axis (vertical)
+function markerHelper() {
+  const g = new THREE.Group();
+  const z0 = MESH_MINZ, z1 = MESH_MAXZ;
+  const dotGeo = new THREE.SphereGeometry(0.02, 12, 12);
+
+  // center apex
+  const c = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({ color: 0x33dd55 }));
+  c.position.set(CENTER_X, CENTER_Y, TOP_Z);
+  g.add(c);
+
+  // module origin (0,0,0) — yellow sphere + small XYZ triad
+  const o = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({ color: 0xffdd33 }));
+  g.add(o);                                   // at local (0,0,0)
+  const triad = new THREE.AxesHelper(0.15);   // X=red-ish, Y=green, Z=blue (three.js default)
+  g.add(triad);
+
+  // pin axes + dots
+  for (const [x, col] of [[LEFT_PIN_X, 0xff4444], [RIGHT_PIN_X, 0x4488ff]]) {
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(x, PIVOT_Y, z0 - 0.15),
+        new THREE.Vector3(x, PIVOT_Y, z1 + 0.15)]),
+      new THREE.LineBasicMaterial({ color: col }));
+    g.add(line);
+    const d = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({ color: col }));
+    d.position.set(x, PIVOT_Y, (z0 + z1) / 2);
+    g.add(d);
+  }
+  g.renderOrder = 999;
+  return g;
+}
+
+function build() {
+  // dispose previous instanced meshes before clearing
+  lattice.traverse(o => { if (o.isInstancedMesh) o.dispose(); });
+  lattice.clear(); axesGroup.clear();
+
+  const angles = parseAngles();
+  const levels = clamp(+document.getElementById('levels').value | 0, 1, 60);
+  const stack  = (+document.getElementById('stack').value || 1320) / 1000 / M_PER_UNIT_Z; // mm -> units
+  const mats   = segmentMatrices(angles);
+
+  // All segment placement matrices (one per segment per level).
+  const placements = [];
+  for (let k = 0; k < levels; k++) {
+    const lift = new THREE.Matrix4().makeTranslation(0, 0, stack * k);
+    for (const base of mats)
+      placements.push(new THREE.Matrix4().multiplyMatrices(lift, base));
+  }
+  const total = placements.length;
+
+  // One InstancedMesh per material (geometry already baked in the segment
+  // frame) → just a few draw calls total, regardless of segment count.
+  for (const part of baseParts) {
+    const inst = new THREE.InstancedMesh(part.geometry, part.material, total);
+    for (let j = 0; j < total; j++) inst.setMatrixAt(j, placements[j]);
+    inst.instanceMatrix.needsUpdate = true;
+    inst.frustumCulled = false;
+    inst.castShadow = true; inst.receiveShadow = true;
+    lattice.add(inst);
+  }
+
+  // Debug markers (few, optional) still drawn per placement.
+  if (document.getElementById('axes').checked)
+    for (const P of placements) {
+      const ax = markerHelper();
+      ax.applyMatrix4(P);
+      axesGroup.add(ax);
+    }
+
+  // Group segments into modules (pairs of lateral neighbours within a level)
+  // and generate their filaments.
+  const S = mats.length, modules = [];
+  for (let k = 0; k < levels; k++) {
+    const b = k * S;
+    for (let i = 0; i + 1 < S; i += 2) modules.push([ placements[b+i], placements[b+i+1] ]);
+  }
+  buildFilaments(modules);
+
+  statusEl.textContent = `${mats.length} segments × ${levels} levels = ${total}`;
+  infoEl.textContent = `${total} segments · ${modules.length} modules · ${modules.length*48} filaments`;
+}
+
+// ---- UI helpers ----
+function parseAngles() {
+  return document.getElementById('angles').value
+    .split(/[,\s]+/).map(Number).filter(v => !Number.isNaN(v));
+}
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+// Stand the walker back from the lattice start, facing it, at eye height.
+function fitView() {
+  const sx = +document.getElementById('posx').value || 0;
+  const sy = +document.getElementById('posy').value || 0;
+  camera.position.set(sx, Math.max(0.6, sy - 3), walker.eye);   // stand back, stay in the room
+  walker.yaw = Math.PI / 2; walker.pitch = -0.05;
+}
+function applyEyeHeight() {
+  walker.eye = +document.getElementById('eye').value || 1.727;
+  camera.position.z = walker.eye;
+}
+
+const PRESETS = {
+  ring14: Array(13).fill(+(360 / 14).toFixed(3)).join(', '),  // 14-gon: 25.714° × 14 = 360°
+  hex:    Array(5).fill(60).join(', '),
+  wave:   Array.from({length:18}, (_,i)=> (i%2? -25: 25)).join(', '),
+  flat:   Array(10).fill(0).join(', '),
+};
+document.querySelectorAll('[data-preset]').forEach(b =>
+  b.onclick = () => { document.getElementById('angles').value = PRESETS[b.dataset.preset];
+                      saveSettings(); build(); });
+
+document.getElementById('apply').onclick = () => { saveSettings(); build(); };
+document.getElementById('fit').onclick = () => fitView();
+document.getElementById('axes').onchange = () => { saveSettings(); build(); };
+document.getElementById('wallsClear').onchange = () => { saveSettings(); applyWallTransparency(); };
+for (const id of ['ah','as','av'])
+  document.getElementById(id).addEventListener('input', () => { applyAmbient(); saveSettings(); });
+// placement inputs rebuild the lattice in the room
+for (const id of ['posx','posy','posz','rot'])
+  document.getElementById(id).addEventListener('change', () => { saveSettings(); build(); });
+document.getElementById('eye').addEventListener('change', () => { saveSettings(); applyEyeHeight(); });
+
+// ---- settings persistence (localStorage) ----
+const STORE_KEY = 'hingeViewer.settings';
+const FIELDS = ['angles', 'levels', 'stack', 'posx', 'posy', 'posz', 'rot', 'eye', 'ah', 'as', 'av'];  // value inputs
+const FLAGS  = ['axes', 'wallsClear'];               // checkboxes
+function saveSettings() {
+  const s = {};
+  for (const id of FIELDS) s[id] = document.getElementById(id).value;
+  for (const id of FLAGS)  s[id] = document.getElementById(id).checked;
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch {}
+}
+function loadSettings() {
+  let s; try { s = JSON.parse(localStorage.getItem(STORE_KEY)); } catch {}
+  if (!s) return;
+  for (const id of FIELDS) if (s[id] != null) document.getElementById(id).value = s[id];
+  for (const id of FLAGS)  if (s[id] != null) document.getElementById(id).checked = s[id];
+}
+// persist edits to the value inputs as they change
+for (const id of FIELDS) document.getElementById(id).addEventListener('change', saveSettings);
+
+// ---- resize / render loop ----
+function resize() {
+  const w = viewEl.clientWidth, h = viewEl.clientHeight;
+  renderer.setSize(w, h); composer.setSize(w, h);
+  bloom.setSize(w, h);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+
+let lastT = performance.now();
+function tick() {
+  requestAnimationFrame(tick);
+  const now = performance.now(), dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  updateWalker(dt);
+  updateFilaments(now / 1000);                 // run the per-module hook + light filaments
+  composer.render();
+}
+
+// ---- boot ----
+(async () => {
+  try {
+    baseSegment = await loadSegment();
+    setPinsFromSegment(baseSegment);
+    buildMergedParts(baseSegment);
+    prepFilaments(baseSegment);       // tube frames + translucent tubes
+    loadSettings();
+    applyAmbient();                   // dim plum ambient from the HSV sliders
+    loadRoom();                       // async, non-blocking
+    resize(); build(); applyEyeHeight(); fitView(); tick();
+  } catch (err) {
+    statusEl.textContent = 'Failed to load — serve over http (python3 serve.py).';
+    console.error(err);
+  }
+})();
+</script>
+</body>
+</html>
