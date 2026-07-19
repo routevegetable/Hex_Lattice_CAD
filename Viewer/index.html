@@ -112,24 +112,34 @@ let baseParts = [];           // [{geometry, material}] merged per material, in 
 
 // Merge the segment's ~950 primitives into one baked geometry per material, so
 // each material becomes a single InstancedMesh (a few draw calls, not hundreds).
+// The topmost tube is split into its own part ({topOnly:true}) so it can be
+// drawn on interior segments but omitted on the top-level ones.
 function buildMergedParts(obj) {
   obj.updateMatrixWorld(true);
   const byMat = new Map();
-  obj.traverse(o => {
-    if (!o.isMesh) return;
+  const topGeoms = []; let topMat = null;
+  const bake = (o) => {
     let g = o.geometry.clone();
     g.applyMatrix4(o.matrixWorld);                    // bake node transform
     for (const name of Object.keys(g.attributes))     // keep only position+normal
       if (name !== 'position' && name !== 'normal') g.deleteAttribute(name);
     if (g.index) g = g.toNonIndexed();
     if (!g.attributes.normal) g.computeVertexNormals();
+    return g;
+  };
+  obj.traverse(o => {
+    if (!o.isMesh) return;
+    const g = bake(o);
+    if (hiddenTubeMeshes.has(o)) { topGeoms.push(g); topMat = o.material; return; }
     const key = o.material.uuid;
     if (!byMat.has(key)) byMat.set(key, { material: o.material, geoms: [] });
     byMat.get(key).geoms.push(g);
   });
   baseParts = [];
   for (const { material, geoms } of byMat.values())
-    baseParts.push({ geometry: mergeGeometries(geoms, false), material });
+    baseParts.push({ geometry: mergeGeometries(geoms, false), material, topOnly: false });
+  if (topGeoms.length)
+    baseParts.push({ geometry: mergeGeometries(topGeoms, false), material: topMat, topOnly: true });
 }
 
 // ---- Filaments (see scheme.md) --------------------------------------------
@@ -137,6 +147,13 @@ function buildMergedParts(obj) {
 // A module = 2 segments; each of its 6 tubes carries 4 filaments arranged in a
 // ~10 mm square, each a gently random-curved strand running end to end.
 let segTubes = [];                      // per-segment tube frames (6), in segment space
+let TOP_TUBE_IDX = -1;                  // index (0..5) of each segment's topmost tube
+const hiddenTubeMeshes = new Set();     // its meshes, split into the {topOnly} lattice part
+let moduleIsTop = [];                   // per-module: is it in the top-level (highest) ring?
+let moduleHeight = [], moduleLateral = [];   // per-module: stacking row, position along ring
+let moduleGrid = [];                    // moduleGrid[height][lateral] -> module state (Frame shape)
+// The topmost tube is hidden only on top-level modules (the crown of the structure).
+const isHiddenEdge = (m, e) => TOP_TUBE_IDX >= 0 && moduleIsTop[m] && (e % 6) === TOP_TUBE_IDX;
 let filColorAttr = null, filColors = null, moduleStates = [], moduleCount = 0;
 const FILAMENT_HALF = 0.005;            // ±5 mm -> 10 mm square
 const FIL_OFFSETS = [ [+1,+1], [+1,-1], [-1,+1], [-1,-1] ];  // filament[0..3] corner
@@ -209,19 +226,32 @@ function prepFilaments(obj) {
   for (const r of roots) r.traverse(o => { if (o.isMesh && !tubeMat) tubeMat = o.material; });
   if (tubeMat) { tubeMat.transparent = true; tubeMat.opacity = 0.2; tubeMat.depthWrite = false; }
 
-  // one tube frame per instance
+  // one tube frame per instance (keep its meshes alongside the frame)
   const tubes = [];
   for (const r of roots) {
     const meshes = [];
     r.traverse(o => { if (o.isMesh) meshes.push(o); });
-    if (meshes.length) tubes.push(extractTubeFromMeshes(meshes));
+    if (meshes.length) tubes.push({ frame: extractTubeFromMeshes(meshes), meshes });
   }
   tubes.sort((A, B) => {
-    const ax = (A.end0.x+A.end1.x)/2, bx = (B.end0.x+B.end1.x)/2;
-    return Math.abs(ax-bx) > 1e-4 ? ax-bx : (A.end0.z+A.end1.z) - (B.end0.z+B.end1.z);
+    const ax = (A.frame.end0.x+A.frame.end1.x)/2, bx = (B.frame.end0.x+B.frame.end1.x)/2;
+    return Math.abs(ax-bx) > 1e-4 ? ax-bx
+         : (A.frame.end0.z+A.frame.end1.z) - (B.frame.end0.z+B.frame.end1.z);
   });
-  segTubes = tubes;
-  console.log(`filaments: found ${tubes.length} tubes; tubeMat=${tubeMat ? tubeMat.name : 'none'}`);
+  segTubes = tubes.map(t => t.frame);
+
+  // Topmost tube (highest Z) is hidden visually: record its index + meshes.
+  hiddenTubeMeshes.clear();
+  TOP_TUBE_IDX = -1;
+  let topZ = -Infinity;
+  tubes.forEach((t, i) => {
+    const z = (t.frame.end0.z + t.frame.end1.z) / 2;
+    if (z > topZ) { topZ = z; TOP_TUBE_IDX = i; }
+  });
+  if (TOP_TUBE_IDX >= 0) tubes[TOP_TUBE_IDX].meshes.forEach(m => hiddenTubeMeshes.add(m));
+
+  console.log(`filaments: ${tubes.length} tubes; hidden top tube idx=${TOP_TUBE_IDX}; `
+            + `tubeMat=${tubeMat ? tubeMat.name : 'none'}`);
 }
 
 // Build every filament as a 3 mm emissive tube, merged into one mesh.
@@ -230,19 +260,26 @@ function buildFilaments(modules) {
   filColorAttr = null; filColors = null;
   moduleCount = modules.length;
   moduleStates = Array.from({ length: moduleCount }, createModule);
+  // Nested Frame view: moduleGrid[height][lateral] -> the same module objects.
+  moduleGrid = [];
+  for (let m = 0; m < moduleCount; m++) {
+    (moduleGrid[moduleHeight[m]] ||= [])[moduleLateral[m]] = moduleStates[m];
+  }
   const filsTotal = moduleCount * 12 * 4;
   if (!filsTotal || segTubes.length < 6) return;
 
-  const geoms = new Array(filsTotal);
+  // Visible filaments only — the topmost tube's edges are skipped (same order
+  // as updateFilaments, so the merged vertex layout stays index-aligned).
+  const geoms = [];
   const pathPts = [];
   for (let t = 0; t <= FIL_SEGMENTS; t++) pathPts.push(new THREE.Vector3());
-  let fi = 0;
   for (let m = 0; m < moduleCount; m++) {
     const mod = modules[m];
     for (let e = 0; e < 12; e++) {
+      if (isHiddenEdge(m, e)) continue;              // top tube hidden on top-level modules
       const seg = e < 6 ? mod[0] : mod[1];           // edges 0..5 seg A, 6..11 seg B
       const tube = segTubes[e % 6];
-      for (let f = 0; f < 4; f++, fi++) {
+      for (let f = 0; f < 4; f++) {
         const [oa, ob] = FIL_OFFSETS[f];
         const cu = [], cv = [];                      // smooth random wander (0 at both ends)
         for (let k = 1; k <= 3; k++) { const amp = 0.0035 / k;
@@ -257,10 +294,11 @@ function buildFilaments(modules) {
         const curve = new THREE.CatmullRomCurve3(pathPts.map(p => p.clone()));
         const tg = new THREE.TubeGeometry(curve, FIL_SEGMENTS, FIL_RADIUS, FIL_RADIAL, false);
         tg.deleteAttribute('uv');
-        geoms[fi] = tg;
+        geoms.push(tg);
       }
     }
   }
+  if (!geoms.length) return;
   const merged = mergeGeometries(geoms, false);
   geoms.forEach(g => g.dispose());
   filColors = new Float32Array(merged.attributes.position.count * 3);
@@ -273,18 +311,35 @@ function buildFilaments(modules) {
   filamentGroup.add(mesh);
 }
 
-// Each frame: run the user hook per module, then paint every filament tube by
-// interpolating its two end colours along the strand (VPF verts per filament).
+// The installed render(t) -> Frame comes from app.ts (hot-reloaded). Until it
+// loads (or if it throws) we fall back to the built-in wave.
+let renderFn = null;
+let renderErr = false;
+const BLACK = [0, 0, 0];
+function builtinRender(t) {
+  for (let m = 0; m < moduleCount; m++) updateModule(t, moduleStates[m], m);
+  return moduleGrid;                                 // Module[][] (rows) — the Frame shape
+}
+
+// Each frame: ask render(t) for the whole frame (rows of modules), then paint
+// every filament tube by interpolating its two end colours (VPF verts each).
 function updateFilaments(timeSeconds) {
   if (!filColorAttr) return;
+  let frame = null;
+  try { frame = (renderFn || builtinRender)(timeSeconds); renderErr = false; }
+  catch (e) { if (!renderErr) { renderErr = true; console.warn('render() threw:', e); } }
   let fi = 0;
   for (let m = 0; m < moduleCount; m++) {
-    const mod = moduleStates[m];
-    updateModule(timeSeconds, mod, m);               // <-- user hook mutates the object
+    const row = frame ? frame[moduleHeight[m]] : null;
+    const mod = row ? row[moduleLateral[m]] : null;
     for (let e = 0; e < 12; e++) {
-      const fils = mod.edges[e].filaments;
+      if (isHiddenEdge(m, e)) continue;              // top tube has no geometry here
+      const fils = (mod && mod.edges && mod.edges[e]) ? mod.edges[e].filaments : null;
       for (let f = 0; f < 4; f++, fi++) {
-        const c0 = fils[f].ends[0].color, c1 = fils[f].ends[1].color, vBase = fi * VPF;
+        const fil = fils ? fils[f] : null;
+        const c0 = fil ? fil.ends[0].color : BLACK;
+        const c1 = fil ? fil.ends[1].color : BLACK;
+        const vBase = fi * VPF;
         for (let vv = 0; vv < VPF; vv++) {
           const tt = VERT_T[vv], j = (vBase + vv) * 3;
           filColors[j]   = (c0[0] + (c1[0]-c0[0])*tt) * EMISSIVE_GAIN;
@@ -414,6 +469,59 @@ const axesGroup = new THREE.Group(); scene.add(axesGroup);
 const filamentGroup = new THREE.Group(); scene.add(filamentGroup);
 const cushionGroup = new THREE.Group(); scene.add(cushionGroup);
 
+// Reflection probe: a cube camera at room centre renders the scene into an
+// environment map, so glossy surfaces (walls, cushions, lattice) reflect the
+// glowing filaments. Refreshed on a throttle to keep it cheap.
+const cubeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
+const cubeCam = new THREE.CubeCamera(0.1, 100, cubeRT);
+cubeCam.position.set(4.5, 2.1, 1.3);
+scene.add(cubeCam);
+scene.environment = cubeRT.texture;
+let envTick = 0;
+function updateEnvProbe() {
+  if ((envTick++ % 12) !== 0) return;     // refresh every 12th frame
+  cubeCam.update(renderer, scene);
+  cubeRT.texture.needsPMREMUpdate = true; // re-derive the PMREM from the new cube
+}
+
+// Box-project the cube reflection against the room AABB so reflections show
+// correct parallax as you walk around (instead of behaving like an infinite
+// skybox). Patches the standard-material env chunk; no-ops if the anchor
+// (three.js version) doesn't match, so it can't break rendering.
+function applyBoxProjection(material, center, size) {
+  const anchor = 'reflectVec = inverseTransformDirection( reflectVec, viewMatrix );';
+  const chunk = THREE.ShaderChunk.envmap_physical_pars_fragment;
+  if (!chunk.includes(anchor)) { console.warn('box-projection anchor not found'); return; }
+  const patchedChunk = chunk.replace(anchor, anchor + '\n\t\t\treflectVec = boxProject( reflectVec );');
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.envMapPosition = { value: center };
+    shader.uniforms.envMapSize = { value: size };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vBoxWorldPos;')
+      .replace('#include <worldpos_vertex>',
+        '#include <worldpos_vertex>\n#ifdef USE_ENVMAP\n\tvBoxWorldPos = worldPosition.xyz;\n#endif');
+    const parallax = `
+      uniform vec3 envMapPosition;
+      uniform vec3 envMapSize;
+      varying vec3 vBoxWorldPos;
+      vec3 boxProject( vec3 dir ) {
+        vec3 nDir = normalize( dir );
+        vec3 rbmax = (  .5 * envMapSize + envMapPosition - vBoxWorldPos ) / nDir;
+        vec3 rbmin = ( -.5 * envMapSize + envMapPosition - vBoxWorldPos ) / nDir;
+        vec3 rb = vec3( nDir.x > 0. ? rbmax.x : rbmin.x,
+                        nDir.y > 0. ? rbmax.y : rbmin.y,
+                        nDir.z > 0. ? rbmax.z : rbmin.z );
+        float d = min( min( rb.x, rb.y ), rb.z );
+        return ( vBoxWorldPos + nDir * d ) - envMapPosition;
+      }`;
+    // patch the include DIRECTIVE (directives aren't expanded yet at this stage)
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\n' + parallax)
+      .replace('#include <envmap_physical_pars_fragment>', patchedChunk);
+  };
+  material.needsUpdate = true;
+}
+
 // ---- Post-processing: bloom so the filaments read as light emitters ----
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
@@ -515,11 +623,17 @@ async function loadRoom() {
   try {
     const room = await loadGLTF('room.gltf');
     roomMat = new THREE.MeshStandardMaterial({
-      color: 0xd8ccae, roughness: 0.82, metalness: 0.0, side: THREE.DoubleSide });
+      color: 0xd8ccae, roughness: 0.15, metalness: 0.1,
+      envMapIntensity: 1.6, side: THREE.DoubleSide });
     room.traverse(o => { if (o.isMesh) { o.material = roomMat; o.receiveShadow = true; o.castShadow = false; } });
     scene.add(room);
     room.updateMatrixWorld(true);
     roomBox = new THREE.Box3().setFromObject(room);
+    // Centre the reflection probe in the room and box-project the walls.
+    const center = roomBox.getCenter(new THREE.Vector3());
+    const size = roomBox.getSize(new THREE.Vector3());
+    cubeCam.position.copy(center);
+    applyBoxProjection(roomMat, center, size);
     applyWallTransparency();
     buildCushions();
   } catch (e) { console.warn('room.gltf not loaded:', e); }
@@ -616,6 +730,7 @@ function build() {
   const mats   = segmentMatrices(angles);
 
   // All segment placement matrices (one per segment per level).
+  const S = mats.length;
   const placements = [];
   for (let k = 0; k < levels; k++) {
     const lift = new THREE.Matrix4().makeTranslation(0, 0, stack * k);
@@ -623,12 +738,16 @@ function build() {
       placements.push(new THREE.Matrix4().multiplyMatrices(lift, base));
   }
   const total = placements.length;
+  const topStart = (levels - 1) * S;       // placements at/after this are the top ring
 
-  // One InstancedMesh per material (geometry already baked in the segment
-  // frame) → just a few draw calls total, regardless of segment count.
+  // One InstancedMesh per material (geometry already baked in the segment frame)
+  // → just a few draw calls total. The top-tube part is instanced only on the
+  // interior placements, so the top-level segments render without their apex tube.
   for (const part of baseParts) {
-    const inst = new THREE.InstancedMesh(part.geometry, part.material, total);
-    for (let j = 0; j < total; j++) inst.setMatrixAt(j, placements[j]);
+    const list = part.topOnly ? placements.slice(0, topStart) : placements;
+    if (!list.length) continue;
+    const inst = new THREE.InstancedMesh(part.geometry, part.material, list.length);
+    for (let j = 0; j < list.length; j++) inst.setMatrixAt(j, list[j]);
     inst.instanceMatrix.needsUpdate = true;
     inst.frustumCulled = false;
     inst.castShadow = true; inst.receiveShadow = true;
@@ -643,17 +762,26 @@ function build() {
       axesGroup.add(ax);
     }
 
-  // Group segments into modules (pairs of lateral neighbours within a level)
-  // and generate their filaments.
-  const S = mats.length, modules = [];
+  // Group segments into modules (pairs of lateral neighbours within a level).
+  // Each module gets a height index (stacking row k) and a lateral index (0..N).
+  const modules = [];
+  moduleIsTop = []; moduleHeight = []; moduleLateral = [];
   for (let k = 0; k < levels; k++) {
     const b = k * S;
-    for (let i = 0; i + 1 < S; i += 2) modules.push([ placements[b+i], placements[b+i+1] ]);
+    let lateral = 0;
+    for (let i = 0; i + 1 < S; i += 2, lateral++) {
+      modules.push([ placements[b+i], placements[b+i+1] ]);
+      moduleIsTop.push(k === levels - 1);
+      moduleHeight.push(k);
+      moduleLateral.push(lateral);
+    }
   }
   buildFilaments(modules);
 
   statusEl.textContent = `${mats.length} segments × ${levels} levels = ${total}`;
-  infoEl.textContent = `${total} segments · ${modules.length} modules · ${modules.length*48} filaments`;
+  const topMods = moduleIsTop.filter(Boolean).length;  // each hides 2 apex-tube edges
+  const shown = ((modules.length - topMods) * 12 + topMods * (TOP_TUBE_IDX >= 0 ? 10 : 12)) * 4;
+  infoEl.textContent = `${total} segments · ${modules.length} modules · ${shown} filaments shown`;
 }
 
 // ---- UI helpers ----
@@ -730,7 +858,37 @@ function tick() {
   const now = performance.now(), dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
   updateWalker(dt);
   updateFilaments(now / 1000);                 // run the per-module hook + light filaments
+  updateEnvProbe();                            // refresh reflections (throttled)
   composer.render();
+}
+
+// ---- Hot-reloadable render module (app.ts) ----
+// Poll the server; on any content change, transpile the TypeScript (Sucrase,
+// from a CDN) to an ES module, import it, and swap in its exported render().
+let appSig = null, sucrasePromise = null;
+const getSucrase = () => (sucrasePromise ||= import('https://esm.sh/sucrase@3.35.0'));
+
+async function installApp(src) {
+  const s = await getSucrase();
+  const transform = s.transform || (s.default && s.default.transform);
+  const js = transform(src, { transforms: ['typescript'] }).code;   // strip types, keep ESM
+  const url = URL.createObjectURL(new Blob([js], { type: 'text/javascript' }));
+  try {
+    const mod = await import(url);
+    if (typeof mod.render === 'function') { renderFn = mod.render; console.log('app.ts installed'); }
+    else console.warn('app.ts: no exported render(t)');
+  } finally { URL.revokeObjectURL(url); }
+}
+async function pollApp() {
+  try {
+    const res = await fetch('app.ts', { cache: 'no-store' });
+    if (!res.ok) return;
+    const src = await res.text();
+    const sig = (res.headers.get('last-modified') || '') + ':' + src.length + ':' + src;
+    if (sig === appSig) return;                        // unchanged -> keep current render
+    appSig = sig;
+    await installApp(src);
+  } catch (e) { /* app.ts may be absent or mid-save; keep the built-in render */ }
 }
 
 // ---- boot ----
@@ -738,12 +896,13 @@ function tick() {
   try {
     baseSegment = await loadSegment();
     setPinsFromSegment(baseSegment);
-    buildMergedParts(baseSegment);
-    prepFilaments(baseSegment);       // tube frames + translucent tubes
+    prepFilaments(baseSegment);       // tube frames, translucent tubes, pick hidden top tube
+    buildMergedParts(baseSegment);    // (after prepFilaments so the top tube is excluded)
     loadSettings();
     applyAmbient();                   // dim plum ambient from the HSV sliders
     loadRoom();                       // async, non-blocking
     resize(); build(); applyEyeHeight(); fitView(); tick();
+    pollApp(); setInterval(pollApp, 1500);   // hot-reload app.ts
   } catch (err) {
     statusEl.textContent = 'Failed to load — serve over http (python3 serve.py).';
     console.error(err);

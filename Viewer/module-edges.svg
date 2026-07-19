@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="600" viewBox="0 0 720 600" font-family="system-ui, sans-serif">
+  <rect width="720" height="600" fill="#fbfaf7"/>
+  <text x="40" y="46" font-size="22" font-weight="700" fill="#222">Module edges (A–L)</text>
+
+  <!-- neighbouring-module edges, coloured by which neighbour they come from -->
+  <g stroke-width="8" stroke-linecap="round" fill="none" stroke-dasharray="2 10">
+    <g stroke="#5c6bc0"> <!-- right -->
+      <line x1="512.8" y1="197.5" x2="512.8" y2="302.5"/>   <!-- NE.R = E -->
+      <line x1="512.8" y1="302.5" x2="603.73" y2="355"/>    <!-- SE.TR = D -->
+      <line x1="603.73" y1="355" x2="603.73" y2="455"/>     <!-- SE.R = K -->
+    </g>
+    <g stroke="#26a69a"> <!-- bottom -->
+      <line x1="240" y1="455" x2="330.93" y2="507.5"/>      <!-- SW.BL = A -->
+      <line x1="330.93" y1="507.5" x2="421.87" y2="455"/>   <!-- SW.BR = J -->
+      <line x1="421.87" y1="455" x2="512.8" y2="507.5"/>    <!-- SE.BL = G -->
+    </g>
+    <g stroke="#8d6e63"> <!-- bottom-right -->
+      <line x1="512.8" y1="507.5" x2="603.73" y2="455"/>    <!-- SE.BR = F -->
+    </g>
+  </g>
+
+  <!-- module edges (all green) -->
+  <g stroke-width="12" stroke-linecap="round" stroke="#2e7d32">
+    <!-- NW -->
+    <line x1="240" y1="145" x2="330.93" y2="197.5"/>   <!-- A -->
+    <line x1="330.93" y1="197.5" x2="330.93" y2="302.5"/> <!-- B -->
+    <line x1="330.93" y1="302.5" x2="240" y2="355"/>   <!-- C -->
+    <line x1="240" y1="355" x2="149.07" y2="302.5"/>   <!-- D -->
+    <line x1="149.07" y1="302.5" x2="149.07" y2="197.5"/> <!-- E -->
+    <line x1="149.07" y1="197.5" x2="240" y2="145"/>   <!-- F -->
+    <!-- NE -->
+    <line x1="421.87" y1="145" x2="512.8" y2="197.5"/> <!-- G -->
+    <line x1="512.8" y1="302.5" x2="421.87" y2="355"/> <!-- H -->
+    <line x1="421.87" y1="355" x2="330.93" y2="302.5"/> <!-- I -->
+    <line x1="330.93" y1="197.5" x2="421.87" y2="145"/> <!-- J -->
+    <!-- K, L -->
+    <line x1="240" y1="355" x2="240" y2="455"/>        <!-- K -->
+    <line x1="421.87" y1="355" x2="421.87" y2="455"/>  <!-- L -->
+  </g>
+
+  <!-- top-end (red) / bottom-end (blue) markers on module edges -->
+  <g fill="#e53935">
+    <circle cx="260.8" cy="157" r="5.5"/><circle cx="330.93" cy="221.5" r="5.5"/><circle cx="310.13" cy="314.5" r="5.5"/>
+    <circle cx="169.9" cy="314.5" r="5.5"/><circle cx="149.07" cy="221.5" r="5.5"/><circle cx="219.2" cy="157" r="5.5"/>
+    <circle cx="442.7" cy="157" r="5.5"/><circle cx="492" cy="314.5" r="5.5"/><circle cx="351.7" cy="314.5" r="5.5"/>
+    <circle cx="401" cy="157" r="5.5"/><circle cx="240" cy="379" r="5.5"/><circle cx="421.87" cy="379" r="5.5"/>
+  </g>
+  <g fill="#1e88e5">
+    <circle cx="310.13" cy="185.5" r="5.5"/><circle cx="330.93" cy="278.5" r="5.5"/><circle cx="260.8" cy="343" r="5.5"/>
+    <circle cx="219.2" cy="343" r="5.5"/><circle cx="149.07" cy="278.5" r="5.5"/><circle cx="169.9" cy="185.5" r="5.5"/>
+    <circle cx="492" cy="185.5" r="5.5"/><circle cx="442.7" cy="343" r="5.5"/><circle cx="401" cy="343" r="5.5"/>
+    <circle cx="351.7" cy="185.5" r="5.5"/><circle cx="240" cy="431" r="5.5"/><circle cx="421.87" cy="431" r="5.5"/>
+  </g>
+
+  <!-- hex labels (centred, dark) -->
+  <g text-anchor="middle" fill="#222">
+    <text x="240" y="247" font-size="18" font-weight="700">NW</text>
+    <text x="240" y="265" font-size="12" fill="#555">(0, 0)</text>
+    <text x="421.87" y="247" font-size="18" font-weight="700">NE</text>
+    <text x="421.87" y="265" font-size="12" fill="#555">(1, 0)</text>
+    <text x="330.93" y="402" font-size="18" font-weight="700">SW</text>
+    <text x="330.93" y="420" font-size="12" fill="#555">(0, 1)</text>
+    <text x="512.8" y="402" font-size="18" font-weight="700">SE</text>
+    <text x="512.8" y="420" font-size="12" fill="#555">(1, 1)</text>
+  </g>
+
+  <!-- neighbour edge letters (coloured by neighbour) -->
+  <g font-size="15" font-weight="700" text-anchor="middle" fill="#fff">
+    <g><circle cx="512.8"  cy="250"    r="13" fill="#5c6bc0"/><text x="512.8"  y="255">E</text></g>
+    <g><circle cx="558.27" cy="328.75" r="13" fill="#5c6bc0"/><text x="558.27" y="333.5">D</text></g>
+    <g><circle cx="603.73" cy="405"    r="13" fill="#5c6bc0"/><text x="603.73" y="410">K</text></g>
+    <g><circle cx="285.47" cy="481.25" r="13" fill="#26a69a"/><text x="285.47" y="486">A</text></g>
+    <g><circle cx="376.4"  cy="481.25" r="13" fill="#26a69a"/><text x="376.4"  y="486">J</text></g>
+    <g><circle cx="467.33" cy="481.25" r="13" fill="#26a69a"/><text x="467.33" y="486">G</text></g>
+    <g><circle cx="558.27" cy="481.25" r="13" fill="#8d6e63"/><text x="558.27" y="486">F</text></g>
+  </g>
+
+  <!-- module edge letters (green) -->
+  <g font-size="17" font-weight="700" text-anchor="middle" fill="#fff">
+    <g><circle cx="285.47" cy="171.25" r="15" fill="#2e7d32"/><text x="285.47" y="177">A</text></g>
+    <g><circle cx="330.93" cy="250"    r="15" fill="#2e7d32"/><text x="330.93" y="255.5">B</text></g>
+    <g><circle cx="285.47" cy="328.75" r="15" fill="#2e7d32"/><text x="285.47" y="334.25">C</text></g>
+    <g><circle cx="194.53" cy="328.75" r="15" fill="#2e7d32"/><text x="194.53" y="334.25">D</text></g>
+    <g><circle cx="149.07" cy="250"    r="15" fill="#2e7d32"/><text x="149.07" y="255.5">E</text></g>
+    <g><circle cx="194.53" cy="171.25" r="15" fill="#2e7d32"/><text x="194.53" y="177">F</text></g>
+    <g><circle cx="467.33" cy="171.25" r="15" fill="#2e7d32"/><text x="467.33" y="177">G</text></g>
+    <g><circle cx="467.33" cy="328.75" r="15" fill="#2e7d32"/><text x="467.33" y="334.25">H</text></g>
+    <g><circle cx="376.4"  cy="328.75" r="15" fill="#2e7d32"/><text x="376.4"  y="334.25">I</text></g>
+    <g><circle cx="376.4"  cy="171.25" r="15" fill="#2e7d32"/><text x="376.4"  y="177">J</text></g>
+    <g><circle cx="240"    cy="405" r="15" fill="#2e7d32"/><text x="240"    y="410.5">K</text></g>
+    <g><circle cx="421.87" cy="405" r="15" fill="#2e7d32"/><text x="421.87" y="410.5">L</text></g>
+  </g>
+
+  <!-- keys -->
+  <g font-size="13" fill="#555">
+    <circle cx="52" cy="546" r="6" fill="#e53935"/><text x="66" y="551">top end</text>
+    <circle cx="142" cy="546" r="6" fill="#1e88e5"/><text x="156" y="551">bottom end</text>
+    <text x="40" y="577" font-weight="700" fill="#333">neighbour:</text>
+    <line x1="120" y1="573" x2="148" y2="573" stroke="#5c6bc0" stroke-width="7" stroke-dasharray="2 8"/>
+    <text x="158" y="578">right</text>
+    <line x1="212" y1="573" x2="240" y2="573" stroke="#26a69a" stroke-width="7" stroke-dasharray="2 8"/>
+    <text x="250" y="578">bottom</text>
+    <line x1="322" y1="573" x2="350" y2="573" stroke="#8d6e63" stroke-width="7" stroke-dasharray="2 8"/>
+    <text x="360" y="578">bottom-right</text>
+  </g>
+</svg>
