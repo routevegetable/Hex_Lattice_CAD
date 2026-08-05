@@ -10,7 +10,7 @@
 // may exceed 1 to drive the bloom). Anything out of range stays dark.
 
 import { ModuleEdge, ModuleFrame } from "./frame";
-import { EndRef, HexGridCoord, TileRef, VertexClass, VertexRef } from "./graph";
+import { EdgeRef, EndRef, HexGridCoord, TileRef, VertexClass, VertexRef } from "./graph";
 
 export type RGB = [number, number, number];
 export type EndFrame = [RGB, RGB, RGB, RGB];             // 4 filaments at one end
@@ -51,33 +51,59 @@ function module(color: (edge: ModuleEdge, filament: number, end: number) => RGB)
   return edges;
 }
 
+// 32-bit int -> int hash. Deterministic, well-distributed.
+function hash(x: number): number {
+  x = Math.imul(x ^ (x >>> 16), 0x7feb352d);
+  x = Math.imul(x ^ (x >>> 15), 0x846ca68b);
+  x ^=        x >>> 16;
+  return (x >>> 0) / (0xFFFFFFFF >>> 0);               // unsigned 32-bit
+}
+
+function rand_period(now: number, salt: number, period_ms: number): number {
+  return hash(Math.floor(now / period_ms) + salt)
+}
+
+
 // --- the render function ---------------------------------------------------
 // Called every frame with the time in seconds. Edit freely and save — it live
 // reloads. Default: a per-edge hue with a wave travelling down each strand.
 export function render(t: number): Frame {
+
+  const now = Math.floor(t * 1000);
+
   const frame: Frame = [];
 
+  console.log();
 
   for (let height = 0; height < ROWS; height++) {
     const row: ModuleFrame[] = [];
     for (let lateral = 0; lateral < PER_ROW; lateral++) {
-      row.push(module((edge, filament, end) => [0.2,0.2,0.2]));
+      row.push(module((edge, filament, end) => [0.0,0.2,0.2]));
     }
     frame.push(row);
   }
 
-  for(let x = 0; x < 5; x++)
-    for(let y = 0; y < 3; y++)
-      for(let end of HexGridCoord.ends({x, y})) {
+
+
+  //for(let x = 0; x < 5; x++)
+    //for(let y = 0; y < 3; y++)
+      for(let end of HexGridCoord.ends({
+                      x: Math.floor(rand_period(now, 0, 200) * 14),
+                      y: Math.floor(rand_period(now, 2, 200) * 3)
+                    })) {
         const ef = end_frame(frame, end);
+        const [top, btm] = EdgeRef.ends(end).map(r => end_frame(frame, r));
+
+        top[0] = btm[0]
 
         for(let led of ef) {
           led[0] = 0
           led[1] = 0
           led[2] = 0
         }
-        const c = Math.random()
-        let led = ef[Math.floor((Math.random() * 4) % 4)]
+        const c = 1//rand_period(now, 3, 400)
+        console.log(c)
+        let led = ef[0];//ef[Math.floor((rand_period(now, 5, 30) * 4) % 4)]
         led[0] = c
         led[1] = 0
         led[2] = 1-c
