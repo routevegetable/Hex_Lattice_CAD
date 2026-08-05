@@ -12,7 +12,7 @@ import time
 
 # Make the repo root importable so `py.lib` resolves.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-from py.lib import ModuleFrame, LatticeClient   # noqa: E402
+from py.lib import ModuleFrame, LatticeClient, ModuleEdge   # noqa: E402
 
 ROWS = 2          # stacked rings
 PER_ROW = 32      # modules per ring

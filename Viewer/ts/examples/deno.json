@@ -1,0 +1,13 @@
+{
+  // Deno's equivalent of a requirements.txt: dependency/config manifest.
+  // These examples use only Deno built-ins + the local ../lib modules, so there
+  // are no external dependencies to import — just the unstable "net" feature
+  // (unix datagram sockets) and run tasks.
+  //
+  //   cd ts/examples && deno task wave     # or: deno task app
+  "unstable": ["net"],
+  "tasks": {
+    "wave": "deno run --allow-net --allow-write --allow-env wave.ts",
+    "app": "deno run --allow-net --allow-write --allow-env app.ts"
+  }
+}

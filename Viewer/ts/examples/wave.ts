@@ -40,6 +40,8 @@ function paint(mf: ModuleFrame, t: number, h: number, l: number): void {
 }
 
 const client = new LatticeClient();     // socket path from HINGE_SOCK / default
+Deno.addSignalListener("SIGINT", () => { client.close(); Deno.exit(0); });
+console.log(`wave: ${ROWS}x${PER_ROW} modules @ ${FPS}fps`);
 
 const buffers: ModuleFrame[][] = [];
 for (let h = 0; h < ROWS; h++) {
@@ -47,8 +49,6 @@ for (let h = 0; h < ROWS; h++) {
   for (let l = 0; l < PER_ROW; l++) buffers[h][l] = ModuleFrame.blank();
 }
 
-Deno.addSignalListener("SIGINT", () => { client.close(); Deno.exit(0); });
-console.log(`wave: ${ROWS}x${PER_ROW} modules @ ${FPS}fps`);
 
 let t = 0;
 setInterval(async () => {

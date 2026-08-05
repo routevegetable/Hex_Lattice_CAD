@@ -33,6 +33,14 @@
   #status { position:absolute; left:12px; top:12px; background:#0009; padding:6px 10px;
             border-radius:6px; font-size:12px; pointer-events:none; }
   .presets button { width:auto; flex:1; }
+  .modal-overlay { position:fixed; inset:0; background:#000a; display:none;
+                   align-items:center; justify-content:center; z-index:1000; }
+  .modal { background:#20242c; border:1px solid #ffffff1f; border-radius:10px;
+           padding:16px 18px; width:min(90vw,460px); box-shadow:0 12px 48px #000a; }
+  .modal h3 { margin:0 0 6px; }
+  .modal textarea { height:96px; word-break:break-all; margin:8px 0 0; }
+  .modal-row { display:flex; gap:8px; margin-top:10px; }
+  .modal-row button { width:auto; flex:1; margin-top:0; }
 </style>
 <script type="importmap">
 { "imports": {
@@ -88,7 +96,7 @@
     <p class="hint">Floats each edge's name at its tube — check against module-edges.svg.</p>
     <button id="apply">Rebuild</button>
     <button class="ghost" id="fit">Reset view</button>
-    <button class="ghost" id="share">Copy link</button>
+    <button class="ghost" id="share">Settings code</button>
     <p class="hint" id="info"></p>
   </div>
 </div>
@@ -882,44 +890,73 @@ function collectSettings() {
   const s = {};
   for (const id of FIELDS) s[id] = document.getElementById(id).value;
   for (const id of FLAGS)  s[id] = document.getElementById(id).checked;
+  // First-person camera pose (position + look angles); z is the eye height.
+  s.cam = { x: camera.position.x, y: camera.position.y,
+            yaw: walker.yaw, pitch: walker.pitch };
   return s;
 }
 function applySettings(s) {
   if (!s) return;
   for (const id of FIELDS) if (s[id] != null) document.getElementById(id).value = s[id];
   for (const id of FLAGS)  if (s[id] != null) document.getElementById(id).checked = s[id];
+  if (s.cam) {
+    camera.position.x = s.cam.x; camera.position.y = s.cam.y;
+    walker.yaw = s.cam.yaw; walker.pitch = s.cam.pitch;   // z stays the eye height
+  }
 }
 function saveSettings() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(collectSettings())); } catch {}
 }
-// Settings encoded in the URL hash (a shareable permalink) take priority over
-// localStorage when the page loads.
-function settingsFromHash() {
-  const h = location.hash.replace(/^#/, '');
-  if (!h) return null;
-  try { return JSON.parse(decodeURIComponent(h)); } catch { return null; }
-}
 function loadSettings() {
-  const fromHash = settingsFromHash();
-  if (fromHash) { applySettings(fromHash); return; }   // permalink wins over localStorage
   let s; try { s = JSON.parse(localStorage.getItem(STORE_KEY)); } catch {}
   applySettings(s);
 }
-// Copy a permalink (current panel settings encoded after '#') to the clipboard.
-async function copyShareLink() {
-  const encoded = encodeURIComponent(JSON.stringify(collectSettings()));
-  const url = location.origin + location.pathname + '#' + encoded;
-  const btn = document.getElementById('share'), label = btn.textContent;
-  const flash = (msg) => { btn.textContent = msg; setTimeout(() => { btn.textContent = label; }, 1200); };
-  try {
-    await navigator.clipboard.writeText(url);
-    flash('Copied!');
-  } catch {
-    location.hash = encoded;                            // fallback: address bar is now shareable
-    flash('URL updated');
-  }
+
+// ---- shareable settings code (base64) via a pop-up box ----
+// The current panel settings are shown base64-encoded; copy it to share, or
+// paste someone else's code in and Apply to load it.
+function settingsToCode() { return btoa(JSON.stringify(collectSettings())); }
+function applySettingsCode(code) {
+  const s = JSON.parse(atob(code.trim()));             // throws on bad input -> caught by caller
+  applySettings(s);
+  saveSettings();
+  applyAmbient(); applyWallTransparency(); applyEyeHeight();
+  build(); buildEdgeLabels(lastModules);
 }
-document.getElementById('share').onclick = copyShareLink;
+
+let codeModal = null;
+function buildCodeModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML =
+    '<div class="modal">'
+    + '<h3>Settings code</h3>'
+    + '<p class="hint">Copy this to share your settings — or paste a code in and Apply.</p>'
+    + '<textarea spellcheck="false" autocomplete="off"></textarea>'
+    + '<p class="hint" data-msg></p>'
+    + '<div class="modal-row"><button class="ghost" data-act="close">Close</button>'
+    + '<button data-act="apply">Apply</button></div>'
+    + '</div>';
+  const close = () => { overlay.style.display = 'none'; };
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  overlay.querySelector('[data-act="close"]').onclick = close;
+  overlay.querySelector('[data-act="apply"]').onclick = () => {
+    const ta = overlay.querySelector('textarea'), msg = overlay.querySelector('[data-msg]');
+    try { applySettingsCode(ta.value); close(); }
+    catch { msg.textContent = 'Not a valid settings code.'; }
+  };
+  document.body.appendChild(overlay);
+  return overlay;
+}
+function openSettingsCode() {
+  if (!codeModal) codeModal = buildCodeModal();
+  const ta = codeModal.querySelector('textarea');
+  ta.value = settingsToCode();
+  codeModal.querySelector('[data-msg]').textContent = '';
+  codeModal.style.display = 'flex';
+  ta.focus(); ta.select();
+}
+document.getElementById('share').onclick = openSettingsCode;
 // persist edits to the value inputs as they change
 for (const id of FIELDS) document.getElementById(id).addEventListener('change', saveSettings);
 
