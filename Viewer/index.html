@@ -84,6 +84,8 @@
     <h2>Display</h2>
     <label>Show centers &amp; hinges <input type="checkbox" id="axes"></label>
     <p class="hint">🟢 center (apex) · 🔴 left pin · 🔵 right pin · 🟡 module origin (+ XYZ triad)</p>
+    <label>Label edges (A1–F2) <input type="checkbox" id="labels"></label>
+    <p class="hint">Floats each edge's name at its tube — check against module-edges.svg.</p>
     <button id="apply">Rebuild</button>
     <button class="ghost" id="fit">Reset view</button>
     <p class="hint" id="info"></p>
@@ -112,8 +114,8 @@ let baseParts = [];           // [{geometry, material}] merged per material, in 
 
 // Merge the segment's ~950 primitives into one baked geometry per material, so
 // each material becomes a single InstancedMesh (a few draw calls, not hundreds).
-// The topmost tube is split into its own part ({topOnly:true}) so it can be
-// drawn on interior segments but omitted on the top-level ones.
+// The F/leg tube is split into its own part ({topOnly:true}) so it can be
+// drawn on interior segments but omitted on the bottom-ring ones.
 function buildMergedParts(obj) {
   obj.updateMatrixWorld(true);
   const byMat = new Map();
@@ -149,11 +151,12 @@ function buildMergedParts(obj) {
 let segTubes = [];                      // per-segment tube frames (6), in segment space
 let TOP_TUBE_IDX = -1;                  // index (0..5) of each segment's topmost tube
 const hiddenTubeMeshes = new Set();     // its meshes, split into the {topOnly} lattice part
-let moduleIsTop = [];                   // per-module: is it in the top-level (highest) ring?
+let moduleHidesF = [];                  // per-module: is it in the bottom ring (hide F/leg)?
 let moduleHeight = [], moduleLateral = [];   // per-module: stacking row, position along ring
 let moduleGrid = [];                    // moduleGrid[height][lateral] -> ModuleFrame
+let lastModules = [];                   // last build()'s module placements (for label overlay)
 // The topmost tube is hidden only on top-level modules (the crown of the structure).
-const isHiddenEdge = (m, e) => TOP_TUBE_IDX >= 0 && moduleIsTop[m] && (e % 6) === TOP_TUBE_IDX;
+const isHiddenEdge = (m, e) => TOP_TUBE_IDX >= 0 && moduleHidesF[m] && (e % 6) === TOP_TUBE_IDX;
 let filColorAttr = null, filColors = null, moduleStates = [], moduleCount = 0;
 const FILAMENT_HALF = 0.005;            // ±5 mm -> 10 mm square
 const FIL_OFFSETS = [ [+1,+1], [+1,-1], [-1,+1], [-1,-1] ];  // filament[0..3] corner
@@ -233,25 +236,51 @@ function prepFilaments(obj) {
     r.traverse(o => { if (o.isMesh) meshes.push(o); });
     if (meshes.length) tubes.push({ frame: extractTubeFromMeshes(meshes), meshes });
   }
-  tubes.sort((A, B) => {
-    const ax = (A.frame.end0.x+A.frame.end1.x)/2, bx = (B.frame.end0.x+B.frame.end1.x)/2;
-    return Math.abs(ax-bx) > 1e-4 ? ax-bx
-         : (A.frame.end0.z+A.frame.end1.z) - (B.frame.end0.z+B.frame.end1.z);
+  // Classify the 6 tubes into edge classes A,B,C,D,E,F (see module-edges.svg):
+  // the two verticals are C (leftmost) and F (leg); the four diagonals split
+  // upper/lower (Z) then left/right (X) into A/B (top) and D/E (bottom).
+  //   segTubes ordered [A,B,C,D,E,F] so ModuleEdge e%6 maps straight in.
+  const CLASS = { A: 0, B: 1, C: 2, D: 3, E: 4, F: 5 };
+  const info = tubes.map(t => {
+    const f = t.frame;
+    return {
+      t,
+      xcen: (f.end0.x + f.end1.x) / 2, zcen: (f.end0.z + f.end1.z) / 2,
+      vertical: Math.abs(f.end1.z - f.end0.z) > 2 * Math.abs(f.end1.x - f.end0.x),
+    };
   });
-  segTubes = tubes.map(t => t.frame);
+  const verticals = info.filter(i => i.vertical).sort((a, b) => a.xcen - b.xcen);
+  const diagByZ   = info.filter(i => !i.vertical).sort((a, b) => b.zcen - a.zcen);
+  const ordered = new Array(6);
+  if (verticals.length === 2 && diagByZ.length === 4) {
+    ordered[CLASS.C] = verticals[0].t;                 // leftmost vertical = C (L)
+    ordered[CLASS.F] = verticals[1].t;                 // other vertical    = F (leg)
+    const upper = diagByZ.slice(0, 2).sort((a, b) => a.xcen - b.xcen);
+    const lower = diagByZ.slice(2, 4).sort((a, b) => a.xcen - b.xcen);
+    ordered[CLASS.A] = upper[0].t; ordered[CLASS.B] = upper[1].t;  // TL, TR
+    ordered[CLASS.D] = lower[0].t; ordered[CLASS.E] = lower[1].t;  // BL, BR
+  } else {
+    tubes.forEach((t, i) => ordered[i] = t);           // fallback: keep found order
+    console.warn(`filaments: expected 2 verticals + 4 diagonals, got`,
+                 verticals.length, diagByZ.length);
+  }
 
-  // Topmost tube (highest Z) is hidden visually: record its index + meshes.
+  // Orient each tube so end0 is the TOP end (the ABF/high-Z side).
+  for (const o of ordered) {
+    if (o && o.frame.end0.z < o.frame.end1.z) {
+      const f = o.frame; const tmp = f.end0; f.end0 = f.end1; f.end1 = tmp;
+    }
+  }
+  segTubes = ordered.map(o => o && o.frame);
+
+  // On top-level modules the F (leg) tube is hidden — it's the dangling connector
+  // with no module beyond it. Record its meshes for exclusion from the lattice.
   hiddenTubeMeshes.clear();
-  TOP_TUBE_IDX = -1;
-  let topZ = -Infinity;
-  tubes.forEach((t, i) => {
-    const z = (t.frame.end0.z + t.frame.end1.z) / 2;
-    if (z > topZ) { topZ = z; TOP_TUBE_IDX = i; }
-  });
-  if (TOP_TUBE_IDX >= 0) tubes[TOP_TUBE_IDX].meshes.forEach(m => hiddenTubeMeshes.add(m));
+  TOP_TUBE_IDX = CLASS.F;
+  if (ordered[TOP_TUBE_IDX]) ordered[TOP_TUBE_IDX].meshes.forEach(m => hiddenTubeMeshes.add(m));
 
-  console.log(`filaments: ${tubes.length} tubes; hidden top tube idx=${TOP_TUBE_IDX}; `
-            + `tubeMat=${tubeMat ? tubeMat.name : 'none'}`);
+  console.log(`filaments: classified 6 tubes [A,B,C,D,E,F]; hidden top tube = F `
+            + `(idx ${TOP_TUBE_IDX}); tubeMat=${tubeMat ? tubeMat.name : 'none'}`);
 }
 
 // Build every filament as a 3 mm emissive tube, merged into one mesh.
@@ -309,6 +338,42 @@ function buildFilaments(modules) {
   const mesh = new THREE.Mesh(merged, mat);
   mesh.frustumCulled = false;
   filamentGroup.add(mesh);
+}
+
+// A cached sprite material per label text (12 edge names shared across modules).
+const EDGE_NAMES = ['A1','B1','C1','D1','E1','F1','A2','B2','C2','D2','E2','F2'];
+const _labelMats = new Map();
+function labelMaterial(text) {
+  let mat = _labelMats.get(text);
+  if (mat) return mat;
+  const S = 128, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d');
+  g.fillStyle = '#000';
+  g.beginPath(); g.roundRect ? g.roundRect(8, 34, 112, 60, 12) : g.rect(8, 34, 112, 60); g.fill();
+  g.font = 'bold 46px system-ui, sans-serif'; g.fillStyle = '#ffd24a';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(text, S/2, 64);
+  mat = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, toneMapped: false });
+  _labelMats.set(text, mat);
+  return mat;
+}
+
+// Label every module's 12 edges (A1..F2) at their tube midpoints, for verification.
+function buildEdgeLabels(modules) {
+  labelGroup.clear();
+  if (!document.getElementById('labels').checked || !modules.length || segTubes.length < 6) return;
+  const p = new THREE.Vector3();
+  for (const mod of modules) {
+    for (let e = 0; e < 12; e++) {
+      const tube = segTubes[e % 6]; if (!tube) continue;
+      const seg = e < 6 ? mod[0] : mod[1];
+      p.copy(tube.end0).add(tube.end1).multiplyScalar(0.5).applyMatrix4(seg);
+      const spr = new THREE.Sprite(labelMaterial(EDGE_NAMES[e]));
+      spr.scale.set(0.11, 0.11, 1); spr.renderOrder = 1000;
+      spr.position.copy(p);
+      labelGroup.add(spr);
+    }
+  }
 }
 
 // The installed render(t) -> ModuleFrame[height][lateral] comes from app.ts
@@ -466,6 +531,7 @@ const lattice = new THREE.Group();  scene.add(lattice);
 const axesGroup = new THREE.Group(); scene.add(axesGroup);
 const filamentGroup = new THREE.Group(); scene.add(filamentGroup);
 const cushionGroup = new THREE.Group(); scene.add(cushionGroup);
+const labelGroup = new THREE.Group(); scene.add(labelGroup);   // debug edge labels
 
 // Reflection probe: a cube camera at room centre renders the scene into an
 // environment map, so glossy surfaces (walls, cushions, lattice) reflect the
@@ -614,6 +680,19 @@ function loadGLTF(file) {
 }
 const loadSegment = () => loadGLTF('Hinge Hexagon.gltf');
 
+// The glTF segment is modelled leg-up. Flip it 180° about its own centre (about
+// the lateral X axis) so the F/leg tube points down. Done before any geometry is
+// read, so pins, tubes, classification and stacking are all derived right-side-up.
+function flipSegmentVertically(obj) {
+  obj.updateMatrixWorld(true);
+  const c = new THREE.Box3().setFromObject(obj).getCenter(new THREE.Vector3());
+  const m = new THREE.Matrix4().makeTranslation(c.x, c.y, c.z)
+    .multiply(new THREE.Matrix4().makeRotationX(Math.PI))
+    .multiply(new THREE.Matrix4().makeTranslation(-c.x, -c.y, -c.z));
+  obj.applyMatrix4(m);
+  obj.updateMatrixWorld(true);
+}
+
 // Load the room shell: beige, very diffuse, mildly specular; opaque unless the
 // "Transparent walls" box is checked.
 let roomMat = null, roomBox = null;
@@ -736,13 +815,12 @@ function build() {
       placements.push(new THREE.Matrix4().multiplyMatrices(lift, base));
   }
   const total = placements.length;
-  const topStart = (levels - 1) * S;       // placements at/after this are the top ring
 
   // One InstancedMesh per material (geometry already baked in the segment frame)
-  // → just a few draw calls total. The top-tube part is instanced only on the
-  // interior placements, so the top-level segments render without their apex tube.
+  // → just a few draw calls total. The F/leg tube ({topOnly}) is instanced on all
+  // but the bottom ring (placements[0, S)), so bottom-level segments hide their leg.
   for (const part of baseParts) {
-    const list = part.topOnly ? placements.slice(0, topStart) : placements;
+    const list = part.topOnly ? placements.slice(S) : placements;
     if (!list.length) continue;
     const inst = new THREE.InstancedMesh(part.geometry, part.material, list.length);
     for (let j = 0; j < list.length; j++) inst.setMatrixAt(j, list[j]);
@@ -763,22 +841,24 @@ function build() {
   // Group segments into modules (pairs of lateral neighbours within a level).
   // Each module gets a height index (stacking row k) and a lateral index (0..N).
   const modules = [];
-  moduleIsTop = []; moduleHeight = []; moduleLateral = [];
+  moduleHidesF = []; moduleHeight = []; moduleLateral = [];
   for (let k = 0; k < levels; k++) {
     const b = k * S;
     let lateral = 0;
     for (let i = 0; i + 1 < S; i += 2, lateral++) {
       modules.push([ placements[b+i], placements[b+i+1] ]);
-      moduleIsTop.push(k === levels - 1);
+      moduleHidesF.push(k === 0);        // bottom ring: the F/leg dangles, so hide it
       moduleHeight.push(k);
       moduleLateral.push(lateral);
     }
   }
   buildFilaments(modules);
+  lastModules = modules;
+  buildEdgeLabels(modules);
 
   statusEl.textContent = `${mats.length} segments × ${levels} levels = ${total}`;
-  const topMods = moduleIsTop.filter(Boolean).length;  // each hides 2 apex-tube edges
-  const shown = ((modules.length - topMods) * 12 + topMods * (TOP_TUBE_IDX >= 0 ? 10 : 12)) * 4;
+  const hideMods = moduleHidesF.filter(Boolean).length;  // each hides 2 F-tube edges
+  const shown = ((modules.length - hideMods) * 12 + hideMods * (TOP_TUBE_IDX >= 0 ? 10 : 12)) * 4;
   infoEl.textContent = `${total} segments · ${modules.length} modules · ${shown} filaments shown`;
 }
 
@@ -814,6 +894,7 @@ document.querySelectorAll('[data-preset]').forEach(b =>
 document.getElementById('apply').onclick = () => { saveSettings(); build(); };
 document.getElementById('fit').onclick = () => fitView();
 document.getElementById('axes').onchange = () => { saveSettings(); build(); };
+document.getElementById('labels').onchange = () => { saveSettings(); buildEdgeLabels(lastModules); };
 document.getElementById('wallsClear').onchange = () => { saveSettings(); applyWallTransparency(); };
 for (const id of ['ah','as','av'])
   document.getElementById(id).addEventListener('input', () => { applyAmbient(); saveSettings(); });
@@ -825,7 +906,7 @@ document.getElementById('eye').addEventListener('change', () => { saveSettings()
 // ---- settings persistence (localStorage) ----
 const STORE_KEY = 'hingeViewer.settings';
 const FIELDS = ['angles', 'levels', 'stack', 'posx', 'posy', 'posz', 'rot', 'eye', 'ah', 'as', 'av'];  // value inputs
-const FLAGS  = ['axes', 'wallsClear'];               // checkboxes
+const FLAGS  = ['axes', 'wallsClear', 'labels'];     // checkboxes
 function saveSettings() {
   const s = {};
   for (const id of FIELDS) s[id] = document.getElementById(id).value;
@@ -936,6 +1017,7 @@ async function pollApp() {
 (async () => {
   try {
     baseSegment = await loadSegment();
+    flipSegmentVertically(baseSegment);   // glTF is modelled leg-up; flip so F points down
     setPinsFromSegment(baseSegment);
     prepFilaments(baseSegment);       // tube frames, translucent tubes, pick hidden top tube
     buildMergedParts(baseSegment);    // (after prepFilaments so the top tube is excluded)

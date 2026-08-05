@@ -61,22 +61,27 @@ export function render(t: number): Frame {
   for (let height = 0; height < ROWS; height++) {
     const row: ModuleFrame[] = [];
     for (let lateral = 0; lateral < PER_ROW; lateral++) {
-      row.push(module((edge, filament, end) => [1,1,1]));
+      row.push(module((edge, filament, end) => [0.2,0.2,0.2]));
     }
     frame.push(row);
   }
 
-  for(let end of HexGridCoord.ends({x: 0, y: 0})) {
-    const ef = end_frame(frame, end);
+  for(let x = 0; x < 5; x++)
+    for(let y = 0; y < 3; y++)
+      for(let end of HexGridCoord.ends({x, y})) {
+        const ef = end_frame(frame, end);
 
-    for(let led of ef) {
-      led[0] = 1
-      led[1] = 0
-      led[2] = 1
-    }
-  }
+        for(let led of ef) {
+          led[0] = 0
+          led[1] = 0
+          led[2] = 0
+        }
+        const c = Math.random()
+        let led = ef[Math.floor((Math.random() * 4) % 4)]
+        led[0] = c
+        led[1] = 0
+        led[2] = 1-c
+      }
 
-
-  TileRef.from(0,0).vertex(VertexClass.CDE)
   return frame;
 }
