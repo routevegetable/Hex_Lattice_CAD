@@ -60,18 +60,6 @@
 		(layer "F.SilkS")
 		(uuid "05888304-970f-4838-bd64-d2203ac53858")
 	)
-	(fp_poly
-		(pts
-			(xy -1.905 0.508) (xy -1.905 1.905) (xy -0.635 1.905)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(fill yes)
-		(layer "Dwgs.User")
-		(uuid "3050a04b-9ee2-477b-96bf-c1a9d6354ca2")
-	)
 	(fp_rect
 		(start -1.85 -1.9)
 		(end 1.85 1.9)
@@ -82,6 +70,18 @@
 		(fill no)
 		(layer "F.CrtYd")
 		(uuid "3cc8b96e-084b-4d17-9b05-e3a3e85e2c86")
+	)
+	(fp_poly
+		(pts
+			(xy -1.905 0.508) (xy -1.905 1.905) (xy -0.635 1.905)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill yes)
+		(layer "F.Fab")
+		(uuid "3050a04b-9ee2-477b-96bf-c1a9d6354ca2")
 	)
 	(fp_text user "${REFERENCE}"
 		(at 0 0 0)

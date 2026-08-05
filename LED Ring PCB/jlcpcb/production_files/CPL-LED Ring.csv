@@ -1,9 +1,13 @@
 Designator,Val,Package,Mid X,Mid Y,Rotation,Layer
+DIN,TestPoint_Keystone_5015_Micro_Mini,TestPoint_Keystone_5015_Micro_Mini,6.75,7.0,225.0,bottom
 DIN,TestPoint_Keystone_5015_Micro_Mini,TestPoint_Keystone_5015_Micro_Mini,6.0,6.0,45.0,top
 DOUT,TestPoint_Keystone_5015_Micro_Mini,TestPoint_Keystone_5015_Micro_Mini,-6.0,6.0,-45.0,top
+DOUT,TestPoint_Keystone_5015_Micro_Mini,TestPoint_Keystone_5015_Micro_Mini,-6.75,6.5,135.0,bottom
 GND,TestPoint_Keystone_5015_Micro_Mini,TestPoint_Keystone_5015_Micro_Mini,5.0,-5.0,45.0,top
+GND,TestPoint_Keystone_5015_Micro_Mini,TestPoint_Keystone_5015_Micro_Mini,8.5,-0.0,0.0,bottom
 U1,~,LED-SMD_4P-L3.3-W3.2_XL-3332RGBC-WS2812B,8.0,-0.0,-90.0,top
 U2,~,LED-SMD_4P-L3.3-W3.2_XL-3332RGBC-WS2812B,0.0,-8.0,180.0,top
 U3,~,LED-SMD_4P-L3.3-W3.2_XL-3332RGBC-WS2812B,-8.0,-0.0,90.0,top
 U4,~,LED-SMD_4P-L3.3-W3.2_XL-3332RGBC-WS2812B,0.0,8.0,0.0,top
-VDD,TestPoint_Keystone_5015_Micro_Mini,TestPoint_Keystone_5015_Micro_Mini,-6.0,-5.5,45.0,top
+VDD,TestPoint_Keystone_5015_Micro_Mini,TestPoint_Keystone_5015_Micro_Mini,-6.25,-6.25,45.0,bottom
+VDD,TestPoint_Keystone_5015_Micro_Mini,TestPoint_Keystone_5015_Micro_Mini,-6.5,-6.0,-45.0,top

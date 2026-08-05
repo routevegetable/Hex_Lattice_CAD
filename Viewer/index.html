@@ -151,7 +151,7 @@ let TOP_TUBE_IDX = -1;                  // index (0..5) of each segment's topmos
 const hiddenTubeMeshes = new Set();     // its meshes, split into the {topOnly} lattice part
 let moduleIsTop = [];                   // per-module: is it in the top-level (highest) ring?
 let moduleHeight = [], moduleLateral = [];   // per-module: stacking row, position along ring
-let moduleGrid = [];                    // moduleGrid[height][lateral] -> module state (Frame shape)
+let moduleGrid = [];                    // moduleGrid[height][lateral] -> ModuleFrame
 // The topmost tube is hidden only on top-level modules (the crown of the structure).
 const isHiddenEdge = (m, e) => TOP_TUBE_IDX >= 0 && moduleIsTop[m] && (e % 6) === TOP_TUBE_IDX;
 let filColorAttr = null, filColors = null, moduleStates = [], moduleCount = 0;
@@ -167,16 +167,16 @@ const VERT_T = (() => { const a = new Float32Array(VPF);
   for (let v = 0; v < VPF; v++) a[v] = Math.floor(v / (FIL_RADIAL + 1)) / FIL_SEGMENTS;
   return a; })();
 
-// The data type that matches scheme.md. `ends[k].color` is RGB in 0..1; the
-// strand is coloured by interpolating between its two end colours.
+// A ModuleFrame (see frame.ts): 12 edges (A1..F2), each with a top and bottom
+// end, each end carrying 4 filament RGBs (0..1). render(t) returns these arranged
+// as frame[height][lateral]; the strand is coloured top-end -> bottom-end.
 function createModule() {
-  return { edges: Array.from({ length: 12 }, (_, e) => ({
-    index: e,
-    filaments: Array.from({ length: 4 }, (_, f) => ({
-      index: f,
-      ends: [ { color: [0, 0, 0] }, { color: [0, 0, 0] } ]
-    }))
-  })) };
+  return Array.from({ length: 12 }, () => ({
+    ends: {
+      top:    [[0,0,0], [0,0,0], [0,0,0], [0,0,0]],
+      bottom: [[0,0,0], [0,0,0], [0,0,0], [0,0,0]],
+    },
+  }));
 }
 
 // Axis endpoints + a perpendicular frame for one tube (PCA of its vertices).
@@ -311,14 +311,14 @@ function buildFilaments(modules) {
   filamentGroup.add(mesh);
 }
 
-// The installed render(t) -> Frame comes from app.ts (hot-reloaded). Until it
-// loads (or if it throws) we fall back to the built-in wave.
+// The installed render(t) -> ModuleFrame[height][lateral] comes from app.ts
+// (hot-reloaded). Until it loads (or if it throws) we fall back to the built-in wave.
 let renderFn = null;
 let renderErr = false;
 const BLACK = [0, 0, 0];
 function builtinRender(t) {
   for (let m = 0; m < moduleCount; m++) updateModule(t, moduleStates[m], m);
-  return moduleGrid;                                 // Module[][] (rows) — the Frame shape
+  return moduleGrid;                                 // ModuleFrame[][] (rows × lateral)
 }
 
 // Each frame: ask render(t) for the whole frame (rows of modules), then paint
@@ -334,11 +334,10 @@ function updateFilaments(timeSeconds) {
     const mod = row ? row[moduleLateral[m]] : null;
     for (let e = 0; e < 12; e++) {
       if (isHiddenEdge(m, e)) continue;              // top tube has no geometry here
-      const fils = (mod && mod.edges && mod.edges[e]) ? mod.edges[e].filaments : null;
+      const edge = mod ? mod[e] : null;              // ModuleFrame edge {ends:{top,bottom}}
       for (let f = 0; f < 4; f++, fi++) {
-        const fil = fils ? fils[f] : null;
-        const c0 = fil ? fil.ends[0].color : BLACK;
-        const c1 = fil ? fil.ends[1].color : BLACK;
+        const c0 = edge ? edge.ends.top[f]    : BLACK;
+        const c1 = edge ? edge.ends.bottom[f] : BLACK;
         const vBase = fi * VPF;
         for (let vv = 0; vv < VPF; vv++) {
           const tt = VERT_T[vv], j = (vBase + vv) * 3;
@@ -352,21 +351,20 @@ function updateFilaments(timeSeconds) {
   filColorAttr.needsUpdate = true;
 }
 
-// ====== USER HOOK ============================================================
-// Called at frame rate with (timeSeconds, module, moduleIndex). Mutate `module`
-// in place — set each filament's two end colours (RGB 0..1). After it returns,
-// the module object is used to light all of that module's filaments.
-// Default: a per-edge hue with a wave travelling along each strand.
+// ====== USER HOOK (built-in fallback) ========================================
+// Fills a ModuleFrame in place — for each edge, sets the 4 filament RGBs (0..1)
+// at the top and bottom ends. Default: a per-edge hue with a wave along each
+// strand. app.ts's render(t) replaces this when it loads.
 const _hookColor = new THREE.Color();
 function updateModule(time, module, moduleIndex) {
-  for (let e = 0; e < module.edges.length; e++) {
-    const fils = module.edges[e].filaments;
-    for (let f = 0; f < fils.length; f++) {
-      const ends = fils[f].ends;
+  for (let e = 0; e < 12; e++) {
+    const ends = module[e].ends;
+    for (let f = 0; f < 4; f++) {
       for (let k = 0; k < 2; k++) {
         const wave = 0.5 + 0.5 * Math.sin(time*2 - e*0.4 - f*0.25 - k*0.9 + moduleIndex*0.5);
         _hookColor.setHSL(((e/12) + f*0.02 + moduleIndex*0.03) % 1, 1.0, 0.5*wave);
-        const col = ends[k].color; col[0]=_hookColor.r; col[1]=_hookColor.g; col[2]=_hookColor.b;
+        const col = (k === 0 ? ends.top : ends.bottom)[f];
+        col[0]=_hookColor.r; col[1]=_hookColor.g; col[2]=_hookColor.b;
       }
     }
   }
@@ -862,33 +860,76 @@ function tick() {
   composer.render();
 }
 
-// ---- Hot-reloadable render module (app.ts) ----
-// Poll the server; on any content change, transpile the TypeScript (Sucrase,
-// from a CDN) to an ES module, import it, and swap in its exported render().
-let appSig = null, sucrasePromise = null;
+// ---- Hot-reloadable render module (app.ts + its local imports) ----
+// Poll the server; on any change, transpile the TypeScript (Sucrase from a CDN)
+// AND resolve relative imports (./frame, ./graph, …) into a small bundle of blob
+// modules, then import it and swap in the exported render(). Load errors surface.
+let appSig = null, appErr = null, watched = ['app.ts'], sucrasePromise = null;
 const getSucrase = () => (sucrasePromise ||= import('https://esm.sh/sucrase@3.35.0'));
 
-async function installApp(src) {
+async function transpileTS(src) {
   const s = await getSucrase();
   const transform = s.transform || (s.default && s.default.transform);
-  const js = transform(src, { transforms: ['typescript'] }).code;   // strip types, keep ESM
+  return transform(src, { transforms: ['typescript'] }).code;   // strip types, keep ESM
+}
+
+// Resolve a relative specifier against a file path, adding a .ts extension.
+function resolveModulePath(fromPath, spec) {
+  const base = fromPath.split('/').slice(0, -1);
+  for (const part of spec.split('/')) {
+    if (part === '' || part === '.') continue;
+    else if (part === '..') base.pop();
+    else base.push(part);
+  }
+  let p = base.join('/');
+  if (!/\.[mc]?[jt]s$/.test(p)) p += '.ts';
+  return p;
+}
+
+// Fetch + transpile a module and its relative deps; return its blob URL.
+async function bundleModule(path, cache, files) {
+  if (cache.has(path)) return cache.get(path);
+  const res = await fetch(path + '?t=' + Date.now(), { cache: 'no-store' });
+  if (!res.ok) throw new Error(`${path} -> HTTP ${res.status}`);
+  files.add(path);
+  let js = await transpileTS(await res.text());
+  const specRe = /((?:import|export)\b[^'"]*?\bfrom\s*|import\s*)(['"])(\.\.?\/[^'"]+)\2/g;
+  const specs = new Set(); let m;
+  while ((m = specRe.exec(js))) specs.add(m[3]);
+  for (const spec of specs) {
+    const depUrl = await bundleModule(resolveModulePath(path, spec), cache, files);
+    js = js.split(`'${spec}'`).join(`'${depUrl}'`).split(`"${spec}"`).join(`"${depUrl}"`);
+  }
   const url = URL.createObjectURL(new Blob([js], { type: 'text/javascript' }));
+  cache.set(path, url);
+  return url;
+}
+
+async function installApp() {
+  const cache = new Map(), files = new Set();
+  const url = await bundleModule('app.ts', cache, files);
+  watched = [...files];                                // watch deps too
   try {
     const mod = await import(url);
-    if (typeof mod.render === 'function') { renderFn = mod.render; console.log('app.ts installed'); }
-    else console.warn('app.ts: no exported render(t)');
-  } finally { URL.revokeObjectURL(url); }
+    if (typeof mod.render === 'function') { renderFn = mod.render; appErr = null; console.log('app.ts installed'); }
+    else console.warn('app.ts: no exported render(t) — keeping previous');
+  } finally { for (const u of cache.values()) URL.revokeObjectURL(u); }
 }
+
 async function pollApp() {
   try {
-    const res = await fetch('app.ts', { cache: 'no-store' });
-    if (!res.ok) return;
-    const src = await res.text();
-    const sig = (res.headers.get('last-modified') || '') + ':' + src.length + ':' + src;
-    if (sig === appSig) return;                        // unchanged -> keep current render
+    let sig = '';
+    for (const f of watched) {
+      const r = await fetch(f + '?t=' + Date.now(), { cache: 'no-store' });
+      sig += f + '#' + (r.ok ? await r.text() : '<missing>') + '\n';
+    }
+    if (sig === appSig) return;                        // nothing changed
     appSig = sig;
-    await installApp(src);
-  } catch (e) { /* app.ts may be absent or mid-save; keep the built-in render */ }
+    await installApp();
+  } catch (e) {
+    const msg = String((e && e.message) || e);
+    if (msg !== appErr) { appErr = msg; console.error('app.ts load failed:', e); }  // once per error
+  }
 }
 
 // ---- boot ----

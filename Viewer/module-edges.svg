@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="720" height="600" viewBox="0 0 720 600" font-family="system-ui, sans-serif">
   <rect width="720" height="600" fill="#fbfaf7"/>
-  <text x="40" y="46" font-size="22" font-weight="700" fill="#222">Module edges (A–L)</text>
+  <text x="40" y="46" font-size="22" font-weight="700" fill="#222">Module: edges &amp; vertices</text>
 
   <!-- neighbouring-module edges, coloured by which neighbour they come from -->
   <g stroke-width="8" stroke-linecap="round" fill="none" stroke-dasharray="2 10">
@@ -52,43 +52,53 @@
     <circle cx="351.7" cy="185.5" r="5.5"/><circle cx="240" cy="431" r="5.5"/><circle cx="421.87" cy="431" r="5.5"/>
   </g>
 
-  <!-- hex labels (centred, dark) -->
-  <g text-anchor="middle" fill="#222">
-    <text x="240" y="247" font-size="18" font-weight="700">NW</text>
-    <text x="240" y="265" font-size="12" fill="#555">(0, 0)</text>
-    <text x="421.87" y="247" font-size="18" font-weight="700">NE</text>
-    <text x="421.87" y="265" font-size="12" fill="#555">(1, 0)</text>
-    <text x="330.93" y="402" font-size="18" font-weight="700">SW</text>
-    <text x="330.93" y="420" font-size="12" fill="#555">(0, 1)</text>
-    <text x="512.8" y="402" font-size="18" font-weight="700">SE</text>
-    <text x="512.8" y="420" font-size="12" fill="#555">(1, 1)</text>
-  </g>
-
   <!-- neighbour edge letters (coloured by neighbour) -->
   <g font-size="15" font-weight="700" text-anchor="middle" fill="#fff">
-    <g><circle cx="512.8"  cy="250"    r="13" fill="#5c6bc0"/><text x="512.8"  y="255">E</text></g>
-    <g><circle cx="558.27" cy="328.75" r="13" fill="#5c6bc0"/><text x="558.27" y="333.5">D</text></g>
-    <g><circle cx="603.73" cy="405"    r="13" fill="#5c6bc0"/><text x="603.73" y="410">K</text></g>
-    <g><circle cx="285.47" cy="481.25" r="13" fill="#26a69a"/><text x="285.47" y="486">A</text></g>
-    <g><circle cx="376.4"  cy="481.25" r="13" fill="#26a69a"/><text x="376.4"  y="486">J</text></g>
-    <g><circle cx="467.33" cy="481.25" r="13" fill="#26a69a"/><text x="467.33" y="486">G</text></g>
-    <g><circle cx="558.27" cy="481.25" r="13" fill="#8d6e63"/><text x="558.27" y="486">F</text></g>
+    <g><circle cx="512.8"  cy="250"    r="13" fill="#5c6bc0"/><text x="512.8"  y="255">C1</text></g>
+    <g><circle cx="558.27" cy="328.75" r="13" fill="#5c6bc0"/><text x="558.27" y="333.5">D1</text></g>
+    <g><circle cx="603.73" cy="405"    r="13" fill="#5c6bc0"/><text x="603.73" y="410">F1</text></g>
+    <g><circle cx="285.47" cy="481.25" r="13" fill="#26a69a"/><text x="285.47" y="486">B1</text></g>
+    <g><circle cx="376.4"  cy="481.25" r="13" fill="#26a69a"/><text x="376.4"  y="486">A2</text></g>
+    <g><circle cx="467.33" cy="481.25" r="13" fill="#26a69a"/><text x="467.33" y="486">B2</text></g>
+    <g><circle cx="558.27" cy="481.25" r="13" fill="#8d6e63"/><text x="558.27" y="486">A1</text></g>
   </g>
 
   <!-- module edge letters (green) -->
   <g font-size="17" font-weight="700" text-anchor="middle" fill="#fff">
-    <g><circle cx="285.47" cy="171.25" r="15" fill="#2e7d32"/><text x="285.47" y="177">A</text></g>
-    <g><circle cx="330.93" cy="250"    r="15" fill="#2e7d32"/><text x="330.93" y="255.5">B</text></g>
-    <g><circle cx="285.47" cy="328.75" r="15" fill="#2e7d32"/><text x="285.47" y="334.25">C</text></g>
-    <g><circle cx="194.53" cy="328.75" r="15" fill="#2e7d32"/><text x="194.53" y="334.25">D</text></g>
-    <g><circle cx="149.07" cy="250"    r="15" fill="#2e7d32"/><text x="149.07" y="255.5">E</text></g>
-    <g><circle cx="194.53" cy="171.25" r="15" fill="#2e7d32"/><text x="194.53" y="177">F</text></g>
-    <g><circle cx="467.33" cy="171.25" r="15" fill="#2e7d32"/><text x="467.33" y="177">G</text></g>
-    <g><circle cx="467.33" cy="328.75" r="15" fill="#2e7d32"/><text x="467.33" y="334.25">H</text></g>
-    <g><circle cx="376.4"  cy="328.75" r="15" fill="#2e7d32"/><text x="376.4"  y="334.25">I</text></g>
-    <g><circle cx="376.4"  cy="171.25" r="15" fill="#2e7d32"/><text x="376.4"  y="177">J</text></g>
-    <g><circle cx="240"    cy="405" r="15" fill="#2e7d32"/><text x="240"    y="410.5">K</text></g>
-    <g><circle cx="421.87" cy="405" r="15" fill="#2e7d32"/><text x="421.87" y="410.5">L</text></g>
+    <g><circle cx="285.47" cy="171.25" r="15" fill="#2e7d32"/><text x="285.47" y="177">B1</text></g>
+    <g><circle cx="330.93" cy="250"    r="15" fill="#2e7d32"/><text x="330.93" y="255.5">C2</text></g>
+    <g><circle cx="285.47" cy="328.75" r="15" fill="#2e7d32"/><text x="285.47" y="334.25">E1</text></g>
+    <g><circle cx="194.53" cy="328.75" r="15" fill="#2e7d32"/><text x="194.53" y="334.25">D1</text></g>
+    <g><circle cx="149.07" cy="250"    r="15" fill="#2e7d32"/><text x="149.07" y="255.5">C1</text></g>
+    <g><circle cx="194.53" cy="171.25" r="15" fill="#2e7d32"/><text x="194.53" y="177">A1</text></g>
+    <g><circle cx="467.33" cy="171.25" r="15" fill="#2e7d32"/><text x="467.33" y="177">B2</text></g>
+    <g><circle cx="467.33" cy="328.75" r="15" fill="#2e7d32"/><text x="467.33" y="334.25">E2</text></g>
+    <g><circle cx="376.4"  cy="328.75" r="15" fill="#2e7d32"/><text x="376.4"  y="334.25">D2</text></g>
+    <g><circle cx="376.4"  cy="171.25" r="15" fill="#2e7d32"/><text x="376.4"  y="177">A2</text></g>
+    <g><circle cx="240"    cy="405" r="15" fill="#2e7d32"/><text x="240"    y="410.5">F1</text></g>
+    <g><circle cx="421.87" cy="405" r="15" fill="#2e7d32"/><text x="421.87" y="410.5">F2</text></g>
+  </g>
+
+  <!-- tile vertices (named by the 3 edges they join) -->
+  <g fill="#ad1457">
+    <circle cx="240" cy="145" r="4"/>
+    <circle cx="149.07" cy="197.5" r="4"/>
+    <circle cx="149.07" cy="302.5" r="4"/>
+    <circle cx="240" cy="355" r="4"/>
+    <circle cx="421.87" cy="145" r="4"/>
+    <circle cx="330.93" cy="197.5" r="4"/>
+    <circle cx="330.93" cy="302.5" r="4"/>
+    <circle cx="421.87" cy="355" r="4"/>
+  </g>
+  <g font-size="11.5" font-weight="700" fill="#ad1457">
+    <text x="240" y="131" text-anchor="middle">ABF1</text>
+    <text x="141" y="192" text-anchor="end">ABC1</text>
+    <text x="141" y="312" text-anchor="end">CDE1</text>
+    <text x="262" y="360" text-anchor="start">DEF1</text>
+    <text x="421.87" y="131" text-anchor="middle">ABF2</text>
+    <text x="330.93" y="186" text-anchor="middle">ABC2</text>
+    <text x="330.93" y="320" text-anchor="middle">CDE2</text>
+    <text x="446" y="360" text-anchor="start">DEF2</text>
   </g>
 
   <!-- keys -->

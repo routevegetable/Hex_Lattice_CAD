@@ -24,7 +24,16 @@
       "Bash(pkill -f \"crp\\\\.\")",
       "Bash(pkill -f \"s=$\")",
       "Bash(pkill -f \"Google Chrome.*headless\")",
-      "Bash(rm -rf /tmp/crp.* /tmp/crprof.* /tmp/cr_profile_*)"
+      "Bash(rm -rf /tmp/crp.* /tmp/crprof.* /tmp/cr_profile_*)",
+      "Read(//Users/lee/Viewer/**)",
+      "Read(//Users/lee/**)",
+      "Bash(md5 -q /Users/lee/Viewer/index.html)",
+      "Bash(md5 -q /Users/lee/dev/Hex_Lattice_CAD/Viewer/index.html)",
+      "Bash(curl -s -o /dev/null -w \"app.ts: %{http_code}\\\\n\" \"http://localhost:8765/app.ts\")",
+      "Bash(command -v brew)",
+      "Bash(brew --version)",
+      "Bash(curl -s \"http://localhost:8765/frame.ts\" -o /dev/null -w \"frame.ts: %{http_code}\\\\n\")",
+      "Bash(curl -s \"http://localhost:8765/index.html\")"
     ]
   }
 }
