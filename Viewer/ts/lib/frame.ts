@@ -1,4 +1,4 @@
-import { EdgeClass, EndRef } from "./graph";
+import { EdgeClass, EndRef } from "./graph.ts";
 
 // Frame of data for one module
 export enum ModuleEdge {
@@ -117,5 +117,51 @@ export const ModuleFrame = {
             }
         }
         return out;
-    }
+    },
+
+    // Read 4 filament RGBs (bytes -> 0..1) into an end, in place.
+    deserialize_end_frame(e: EndFrame, arr: Uint8Array, offset: number): number {
+        let o = offset;
+        for (let i = 0; i < 4; i++) {
+            e[i][0] = arr[o++] / 255; // R
+            e[i][1] = arr[o++] / 255; // G
+            e[i][2] = arr[o++] / 255; // B
+        }
+        return o;
+    },
+
+    // Inverse of serialize: parse the channel/edge byte stream back into `f`,
+    // mutating its ends in place. `f` must already have its 12 edges allocated
+    // (see ModuleFrame.blank).
+    deserialize(arr: Uint8Array, f: ModuleFrame): void {
+        const CHANNELS = 4;
+        let o = 0;
+        for (let iChannel = 0; iChannel < CHANNELS; iChannel++) {
+            o++;                                     // skip the pixel-count byte
+            for (const edge_seq of CHANNEL_EDGES[iChannel]) {
+                const edge = f[edge_seq.edge];
+                if (edge_seq.points_up) {
+                    o = ModuleFrame.deserialize_end_frame(edge.ends.bottom, arr, o);
+                    o = ModuleFrame.deserialize_end_frame(edge.ends.top, arr, o);
+                } else {
+                    o = ModuleFrame.deserialize_end_frame(edge.ends.top, arr, o);
+                    o = ModuleFrame.deserialize_end_frame(edge.ends.bottom, arr, o);
+                }
+            }
+        }
+    },
+
+    // A fresh all-black ModuleFrame with every edge/end/filament allocated.
+    blank(): ModuleFrame {
+        const f = {} as ModuleFrame;
+        for (let e = 0; e < 12; e++) {
+            f[e as ModuleEdge] = {
+                ends: {
+                    top: [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+                    bottom: [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+                },
+            };
+        }
+        return f;
+    },
 }

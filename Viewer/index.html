@@ -88,6 +88,7 @@
     <p class="hint">Floats each edge's name at its tube — check against module-edges.svg.</p>
     <button id="apply">Rebuild</button>
     <button class="ghost" id="fit">Reset view</button>
+    <button class="ghost" id="share">Copy link</button>
     <p class="hint" id="info"></p>
   </div>
 </div>
@@ -376,30 +377,19 @@ function buildEdgeLabels(modules) {
   }
 }
 
-// The installed render(t) -> ModuleFrame[height][lateral] comes from app.ts
-// (hot-reloaded). Until it loads (or if it throws) we fall back to the built-in wave.
-let renderFn = null;
-let renderErr = false;
+// Each module owns a ModuleFrame buffer (moduleStates[m]); those buffers are
+// filled by incoming WebSocket frames (see setupLedSocket). Every animation
+// frame we just paint each filament tube from its buffer, interpolating the
+// strand from its top-end colour to its bottom-end colour (VPF verts each).
 const BLACK = [0, 0, 0];
-function builtinRender(t) {
-  for (let m = 0; m < moduleCount; m++) updateModule(t, moduleStates[m], m);
-  return moduleGrid;                                 // ModuleFrame[][] (rows × lateral)
-}
-
-// Each frame: ask render(t) for the whole frame (rows of modules), then paint
-// every filament tube by interpolating its two end colours (VPF verts each).
-function updateFilaments(timeSeconds) {
+function updateFilaments() {
   if (!filColorAttr) return;
-  let frame = null;
-  try { frame = (renderFn || builtinRender)(timeSeconds); renderErr = false; }
-  catch (e) { if (!renderErr) { renderErr = true; console.warn('render() threw:', e); } }
   let fi = 0;
   for (let m = 0; m < moduleCount; m++) {
-    const row = frame ? frame[moduleHeight[m]] : null;
-    const mod = row ? row[moduleLateral[m]] : null;
+    const mod = moduleStates[m];                   // this module's ModuleFrame buffer
     for (let e = 0; e < 12; e++) {
-      if (isHiddenEdge(m, e)) continue;              // top tube has no geometry here
-      const edge = mod ? mod[e] : null;              // ModuleFrame edge {ends:{top,bottom}}
+      if (isHiddenEdge(m, e)) continue;            // F/leg tube has no geometry here
+      const edge = mod ? mod[e] : null;            // ModuleFrame edge {ends:{top,bottom}}
       for (let f = 0; f < 4; f++, fi++) {
         const c0 = edge ? edge.ends.top[f]    : BLACK;
         const c1 = edge ? edge.ends.bottom[f] : BLACK;
@@ -414,25 +404,6 @@ function updateFilaments(timeSeconds) {
     }
   }
   filColorAttr.needsUpdate = true;
-}
-
-// ====== USER HOOK (built-in fallback) ========================================
-// Fills a ModuleFrame in place — for each edge, sets the 4 filament RGBs (0..1)
-// at the top and bottom ends. Default: a per-edge hue with a wave along each
-// strand. app.ts's render(t) replaces this when it loads.
-const _hookColor = new THREE.Color();
-function updateModule(time, module, moduleIndex) {
-  for (let e = 0; e < 12; e++) {
-    const ends = module[e].ends;
-    for (let f = 0; f < 4; f++) {
-      for (let k = 0; k < 2; k++) {
-        const wave = 0.5 + 0.5 * Math.sin(time*2 - e*0.4 - f*0.25 - k*0.9 + moduleIndex*0.5);
-        _hookColor.setHSL(((e/12) + f*0.02 + moduleIndex*0.03) % 1, 1.0, 0.5*wave);
-        const col = (k === 0 ? ends.top : ends.bottom)[f];
-        col[0]=_hookColor.r; col[1]=_hookColor.g; col[2]=_hookColor.b;
-      }
-    }
-  }
 }
 
 // Find the leftmost hinge tube's axis (world-space bbox center).
@@ -907,18 +878,48 @@ document.getElementById('eye').addEventListener('change', () => { saveSettings()
 const STORE_KEY = 'hingeViewer.settings';
 const FIELDS = ['angles', 'levels', 'stack', 'posx', 'posy', 'posz', 'rot', 'eye', 'ah', 'as', 'av'];  // value inputs
 const FLAGS  = ['axes', 'wallsClear', 'labels'];     // checkboxes
-function saveSettings() {
+function collectSettings() {
   const s = {};
   for (const id of FIELDS) s[id] = document.getElementById(id).value;
   for (const id of FLAGS)  s[id] = document.getElementById(id).checked;
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch {}
+  return s;
 }
-function loadSettings() {
-  let s; try { s = JSON.parse(localStorage.getItem(STORE_KEY)); } catch {}
+function applySettings(s) {
   if (!s) return;
   for (const id of FIELDS) if (s[id] != null) document.getElementById(id).value = s[id];
   for (const id of FLAGS)  if (s[id] != null) document.getElementById(id).checked = s[id];
 }
+function saveSettings() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(collectSettings())); } catch {}
+}
+// Settings encoded in the URL hash (a shareable permalink) take priority over
+// localStorage when the page loads.
+function settingsFromHash() {
+  const h = location.hash.replace(/^#/, '');
+  if (!h) return null;
+  try { return JSON.parse(decodeURIComponent(h)); } catch { return null; }
+}
+function loadSettings() {
+  const fromHash = settingsFromHash();
+  if (fromHash) { applySettings(fromHash); return; }   // permalink wins over localStorage
+  let s; try { s = JSON.parse(localStorage.getItem(STORE_KEY)); } catch {}
+  applySettings(s);
+}
+// Copy a permalink (current panel settings encoded after '#') to the clipboard.
+async function copyShareLink() {
+  const encoded = encodeURIComponent(JSON.stringify(collectSettings()));
+  const url = location.origin + location.pathname + '#' + encoded;
+  const btn = document.getElementById('share'), label = btn.textContent;
+  const flash = (msg) => { btn.textContent = msg; setTimeout(() => { btn.textContent = label; }, 1200); };
+  try {
+    await navigator.clipboard.writeText(url);
+    flash('Copied!');
+  } catch {
+    location.hash = encoded;                            // fallback: address bar is now shareable
+    flash('URL updated');
+  }
+}
+document.getElementById('share').onclick = copyShareLink;
 // persist edits to the value inputs as they change
 for (const id of FIELDS) document.getElementById(id).addEventListener('change', saveSettings);
 
@@ -936,16 +937,19 @@ function tick() {
   requestAnimationFrame(tick);
   const now = performance.now(), dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
   updateWalker(dt);
-  updateFilaments(now / 1000);                 // run the per-module hook + light filaments
+  updateFilaments();                           // paint filaments from the module buffers
   updateEnvProbe();                            // refresh reflections (throttled)
   composer.render();
 }
 
-// ---- Hot-reloadable render module (app.ts + its local imports) ----
-// Poll the server; on any change, transpile the TypeScript (Sucrase from a CDN)
-// AND resolve relative imports (./frame, ./graph, …) into a small bundle of blob
-// modules, then import it and swap in the exported render(). Load errors surface.
-let appSig = null, appErr = null, watched = ['app.ts'], sucrasePromise = null;
+// ---- LED frame source (frame.ts + WebSocket bridge) ----
+// The render logic now lives OUTSIDE the browser (app.ts under Deno). It sends
+// per-module frames to serve.py's UNIX socket, which forwards them here over a
+// WebSocket. We only need frame.ts's ModuleFrame.deserialize to decode them, so
+// we transpile frame.ts (Sucrase from a CDN), resolving its ./graph import into
+// a small bundle of blob modules, and import it once at boot.
+let ModuleFrameLib = null;                         // frame.ts's ModuleFrame companion
+let sucrasePromise = null;
 const getSucrase = () => (sucrasePromise ||= import('https://esm.sh/sucrase@3.35.0'));
 
 async function transpileTS(src) {
@@ -986,31 +990,42 @@ async function bundleModule(path, cache, files) {
   return url;
 }
 
-async function installApp() {
+// Transpile + import frame.ts once; expose its ModuleFrame companion (deserialize).
+async function loadFrameLib() {
   const cache = new Map(), files = new Set();
-  const url = await bundleModule('app.ts', cache, files);
-  watched = [...files];                                // watch deps too
+  const url = await bundleModule('ts/lib/frame.ts', cache, files);
   try {
     const mod = await import(url);
-    if (typeof mod.render === 'function') { renderFn = mod.render; appErr = null; console.log('app.ts installed'); }
-    else console.warn('app.ts: no exported render(t) — keeping previous');
+    ModuleFrameLib = mod.ModuleFrame;
+    console.log('frame.ts loaded (deserialize ready)');
   } finally { for (const u of cache.values()) URL.revokeObjectURL(u); }
 }
 
-async function pollApp() {
-  try {
-    let sig = '';
-    for (const f of watched) {
-      const r = await fetch(f + '?t=' + Date.now(), { cache: 'no-store' });
-      sig += f + '#' + (r.ok ? await r.text() : '<missing>') + '\n';
-    }
-    if (sig === appSig) return;                        // nothing changed
-    appSig = sig;
-    await installApp();
-  } catch (e) {
-    const msg = String((e && e.message) || e);
-    if (msg !== appErr) { appErr = msg; console.error('app.ts load failed:', e); }  // once per error
-  }
+// Connect to serve.py's WebSocket bridge. Each binary message is one module frame:
+//   [1 byte: location length][location ascii "H-L"][payload = ModuleFrame.serialize]
+// Parse the location, then deserialize the payload into that module's buffer.
+const _td = new TextDecoder();
+function routeLedMessage(buf) {                       // buf: Uint8Array
+  if (!ModuleFrameLib || buf.length < 1) return;
+  const len = buf[0];
+  const loc = _td.decode(buf.subarray(1, 1 + len));   // "height-lateral", e.g. "0-0"
+  const dash = loc.indexOf('-');
+  const h = +loc.slice(0, dash), l = +loc.slice(dash + 1);
+  const mod = moduleGrid[h] && moduleGrid[h][l];      // the module's ModuleFrame buffer
+  if (!mod) return;                                    // frame for a module we don't have
+  ModuleFrameLib.deserialize(buf.subarray(1 + len), mod);
+}
+
+let _ledWs = null;
+function setupLedSocket() {
+  const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
+  const ws = new WebSocket(url);
+  _ledWs = ws;
+  ws.binaryType = 'arraybuffer';
+  ws.onopen    = () => console.log('LED socket connected:', url);
+  ws.onmessage = (ev) => routeLedMessage(new Uint8Array(ev.data));
+  ws.onclose   = () => { _ledWs = null; setTimeout(setupLedSocket, 1000); };  // auto-reconnect
+  ws.onerror   = () => ws.close();
 }
 
 // ---- boot ----
@@ -1025,7 +1040,8 @@ async function pollApp() {
     applyAmbient();                   // dim plum ambient from the HSV sliders
     loadRoom();                       // async, non-blocking
     resize(); build(); applyEyeHeight(); fitView(); tick();
-    pollApp(); setInterval(pollApp, 1500);   // hot-reload app.ts
+    await loadFrameLib();                    // frame.ts ModuleFrame.deserialize
+    setupLedSocket();                        // receive per-module frames over WebSocket
   } catch (err) {
     statusEl.textContent = 'Failed to load — serve over http (python3 serve.py).';
     console.error(err);
