@@ -1,7 +1,8 @@
 """Python port of ts/lib/lattice-client.ts — the client that sends module frames
-to the lattice (the LED hardware, emulated by serve.py's UNIX socket).
+to the lattice (the LED hardware, and the viewer via serve.py).
 
-Each frame is one datagram:
+Transport is UDP multicast: one send reaches every local consumer that has joined
+the group (serve.py, other tools, real hardware). Each frame is one datagram:
 
     [1 byte: length of location][location ascii, e.g. "0-0"][ModuleFrame.serialize]
 """
@@ -13,7 +14,9 @@ try:                                    # as a package (py.lib.lattice_client)
 except ImportError:                     # as loose modules on sys.path
     from frame import ModuleFrame
 
-DEFAULT_SOCK = "/tmp/hinge-leds.sock"
+DEFAULT_GROUP = "239.69.69.69"          # administratively-scoped (RFC 2365)
+DEFAULT_PORT = 6969
+DEFAULT_IFACE = "127.0.0.1"             # egress interface (loopback = stay local)
 
 
 def _pascal(s: str) -> bytes:
@@ -22,23 +25,31 @@ def _pascal(s: str) -> bytes:
 
 
 class LatticeClient:
-    """Sends module frames to the lattice. `sendModule` is the API."""
+    """Sends module frames to the multicast group. `sendModule` is the API."""
 
-    def __init__(self, server_sock: str | None = None):
-        # Resolve the socket path here: explicit arg > HINGE_SOCK env > default.
-        self.server_sock = server_sock or os.environ.get("HINGE_SOCK") or DEFAULT_SOCK
-        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    def __init__(self, group: str | None = None, port: int | None = None,
+                 iface: str | None = None):
+        # group/port/iface: explicit arg > HEXNET_MCAST_* env > default.
+        self.group = group or os.environ.get("HEXNET_MCAST_GROUP") or DEFAULT_GROUP
+        self.port = int(port or os.environ.get("HEXNET_MCAST_PORT") or DEFAULT_PORT)
+        iface = iface or os.environ.get("HEXNET_MCAST_IF") or DEFAULT_IFACE
+
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)   # stay local subnet
+        self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)  # local receivers get a copy
+        # Pin the send to `iface` (loopback keeps frames on the box).
+        self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(iface))
         self._warned = False
 
     def sendModule(self, location: str, frame: ModuleFrame) -> None:
         """Send one module's frame, addressed to `location` (e.g. "0-0")."""
         try:
-            self.sock.sendto(_pascal(location) + frame.serialize(), self.server_sock)
+            self.sock.sendto(_pascal(location) + frame.serialize(), (self.group, self.port))
             self._warned = False
         except OSError as e:
             if not self._warned:
                 self._warned = True
-                print(f"send failed (is serve.py running?): {e}")
+                print(f"send failed: {e}")
 
     # Pythonic alias.
     send_module = sendModule

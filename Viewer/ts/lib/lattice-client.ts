@@ -1,13 +1,16 @@
-// The client that sends module frames to the lattice (the LED hardware, emulated
-// by serve.py's UNIX socket). This is the transport only — callers own the render
-// logic and just hand it a location + ModuleFrame.
+// The client that sends module frames to the lattice (the LED hardware, and the
+// viewer via serve.py). Transport is UDP multicast — one send is delivered to
+// every local consumer that has joined the group (serve.py, other tools, real
+// hardware). Callers own the render logic and just hand it a location + frame.
 //
 // Each frame is one datagram:
 //   [1 byte: length of location][location ascii, e.g. "0-0"][ModuleFrame.serialize]
 
 import { ModuleFrame } from "./frame.ts";
 
-export const DEFAULT_SOCK = "/tmp/hinge-leds.sock";
+export const DEFAULT_GROUP = "239.69.69.69";   // administratively-scoped (RFC 2365)
+export const DEFAULT_PORT = 6969;
+export const DEFAULT_IFACE = "127.0.0.1";      // egress interface (loopback = stay local)
 
 // Length-prefixed ("pascal") string: [1 byte length][utf-8 bytes].
 function pascal(s: string): Uint8Array {
@@ -19,32 +22,46 @@ function pascal(s: string): Uint8Array {
 }
 
 export class LatticeClient {
-  private readonly serverSock: string;
+  private readonly group: string;
+  private readonly port: number;
   private readonly conn: Deno.DatagramConn;
+  private readonly ready: Promise<void>;
   private warned = false;
 
-  // Socket path: explicit arg > HINGE_SOCK env > default.
-  constructor(serverSock?: string) {
-    this.serverSock = serverSock ?? Deno.env.get("HINGE_SOCK") ?? DEFAULT_SOCK;
-    // No `path` => the datagram socket autobinds to an anonymous address (no
-    // socket file on disk). We only ever send from it, never receive. Deno's
-    // types insist on a path for unixpacket, but omitting it is valid at runtime.
-    // deno-lint-ignore no-explicit-any
-    this.conn = Deno.listenDatagram({ transport: "unixpacket" } as any);
+  // group/port/iface: explicit arg > HEXNET_MCAST_* env > default.
+  constructor(group?: string, port?: number, iface?: string) {
+    this.group = group ?? Deno.env.get("HEXNET_MCAST_GROUP") ?? DEFAULT_GROUP;
+    this.port = port ?? (Number(Deno.env.get("HEXNET_MCAST_PORT")) || DEFAULT_PORT);
+    const ifc = iface ?? Deno.env.get("HEXNET_MCAST_IF") ?? DEFAULT_IFACE;
+    const conn = Deno.listenDatagram({ transport: "udp", hostname: "0.0.0.0", port: 0 });
+    this.conn = conn;
+    const grp = this.group;
+    // Joining on `ifc` pins the send to that interface (loopback keeps it on the
+    // box; Deno has no direct IP_MULTICAST_IF setter). setLoopback keeps a copy
+    // for local receivers. sendModule awaits this before its first send.
+    this.ready = (async () => {
+      try {
+        const m = await conn.joinMulticastV4(grp, ifc);
+        m.setLoopback(true);
+      } catch (e) {
+        console.error(`multicast join failed (${grp} on ${ifc}): ${e}`);
+      }
+    })();
   }
 
   /** Send one module's frame, addressed to `location` (e.g. "0-0" = height-lateral). */
   async sendModule(location: string, frame: ModuleFrame): Promise<void> {
+    await this.ready;
     const loc = pascal(location);
     const payload = ModuleFrame.serialize(frame);
     const msg = new Uint8Array(loc.length + payload.length);
     msg.set(loc);
     msg.set(payload, loc.length);
     try {
-      await this.conn.send(msg, { path: this.serverSock, transport: "unixpacket" });
+      await this.conn.send(msg, { transport: "udp", hostname: this.group, port: this.port });
       this.warned = false;
     } catch (e) {
-      if (!this.warned) { this.warned = true; console.error(`send failed (is serve.py running?): ${e}`); }
+      if (!this.warned) { this.warned = true; console.error(`send failed: ${e}`); }
     }
   }
 

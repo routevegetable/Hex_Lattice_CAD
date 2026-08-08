@@ -14,7 +14,6 @@ export enum VertexClass {
     DEF = "DEF"
 }
 
-
 export class TileRef {
 
     constructor(
@@ -27,9 +26,28 @@ export class TileRef {
     static readonly UP = new TileRef(0, 1);
     static readonly DOWN = new TileRef(0, -1);
 
+    static readonly WIDTH = 1;
+    static readonly HEIGHT = 1.732;
+
+    static readonly RADIUS = 0.577;
+
+    /* Location of main hex center within a tile: */
+
+    static readonly ORIGIN_OFFSET_X = 0.5;
+    static readonly ORIGIN_OFFSET_Y = 2 * TileRef.RADIUS;
+
+
     static from(x: number, y: number) {
         return new TileRef(
             x,y
+        )
+    }
+
+    static from_physical(x: number, y: number) {
+
+        return TileRef.from(
+            Math.floor((x - TileRef.ORIGIN_OFFSET_X) / TileRef.WIDTH),
+            Math.floor((y - TileRef.ORIGIN_OFFSET_Y) / TileRef.HEIGHT)
         )
     }
 
@@ -80,8 +98,16 @@ export class TileRef {
             top: false
         }
     }
-}
 
+    physical(): [number, number] {
+        // Origin of a tile is at the main hex center point, which is at 0.5, 0.577
+        // Width of a tile is '1'
+        // Height of a tile is 1.732
+        return [this.x * TileRef.WIDTH + TileRef.ORIGIN_OFFSET_X,
+                this.y * TileRef.HEIGHT + TileRef.ORIGIN_OFFSET_Y]
+
+    }
+}
 export type VertexRef = {
     vertex_class: VertexClass
     tile: TileRef
@@ -144,7 +170,31 @@ export const VertexRef = {
             set.r
         ]).map(x => v.tile.offset(x)) as [EndRef, EndRef, EndRef];
     },
+
+    // Physical location
+    physical(v: VertexRef): [number, number] {
+
+        // Center of main hex
+        const center_pos = v.tile.physical();
+
+        // Offsets from center
+        const offs = TILE_VERTEX_OFFSETS[v.vertex_class];
+
+        return [
+            center_pos[0] + offs[0],
+            center_pos[1] + offs[1]
+        ]
+    }
 }
+
+const TILE_VERTEX_OFFSETS: { [key in VertexClass]: [number, number] } = {
+    [VertexClass.ABC]: [-TileRef.RADIUS, TileRef.RADIUS/2],
+    [VertexClass.ABF]: [0, TileRef.RADIUS],
+    [VertexClass.CDE]: [-TileRef.RADIUS, -TileRef.RADIUS/2],
+    [VertexClass.DEF]: [0, -TileRef.RADIUS]
+}
+
+
 
 type EdgeVertexPair = {
     top: VertexRef,
@@ -186,6 +236,12 @@ export const EdgeRef = {
             top: e.tile.offset(edge_vertexes.top),
             bottom: e.tile.offset(edge_vertexes.bottom)
         }
+    },
+    top_end(er: EdgeRef) {
+        return {...er, top: true}
+    },
+    bottom_end(er: EdgeRef) {
+        return {...er, top: false}
     }
 }
 
@@ -215,6 +271,17 @@ export const EndRef = {
         } else {
             return [cw[0], cw[1]];
         }
+    },
+
+    // Vector pointing from this end to the opposite
+    physical_to_next(er: EndRef): [number, number] {
+        const from = VertexRef.physical(this.vertex(er));
+        const to = VertexRef.physical(this.vertex(this.other(er)));
+
+        return [
+            to[0] - from[0],
+            to[1] - from[1]
+        ]
     }
 }
 
