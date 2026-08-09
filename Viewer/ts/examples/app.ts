@@ -307,9 +307,9 @@ export function render(msec: number) {
   })) {
     const ef = end_frame(end);
     for(let led of ef) {
-        led[0] = 0.3
-        led[1] = 0.3
-        led[2] = 0.3
+        led[0] = 0
+        led[1] = 1
+        led[2] = 1
       }
   }
   draw_strings(msec);

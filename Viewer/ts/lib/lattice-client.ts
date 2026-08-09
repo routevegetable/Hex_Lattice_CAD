@@ -6,11 +6,14 @@
 // Each frame is one datagram:
 //   [1 byte: length of location][location ascii, e.g. "0-0"][ModuleFrame.serialize]
 
-import { ModuleFrame } from "./frame.ts";
+import { ModuleFrame, type RGB } from "./frame.ts";
 
 export const DEFAULT_GROUP = "239.69.69.69";   // administratively-scoped (RFC 2365)
 export const DEFAULT_PORT = 6969;
 export const DEFAULT_IFACE = "127.0.0.1";      // egress interface (loopback = stay local)
+
+// RGB (0..1) -> byte, matching ModuleFrame.serialize.
+const byte = (c: number) => Math.max(0, Math.min(255, Math.round(c * 255)));
 
 // Length-prefixed ("pascal") string: [1 byte length][utf-8 bytes].
 function pascal(s: string): Uint8Array {
@@ -50,10 +53,33 @@ export class LatticeClient {
   }
 
   /** Send one module's frame, addressed by grid coords x (lateral) and y (height). */
-  async sendModule(x: number, y: number, frame: ModuleFrame): Promise<void> {
+  sendModule(x: number, y: number, frame: ModuleFrame): Promise<void> {
+    return this.sendPayload(x, y, ModuleFrame.serialize(frame));
+  }
+
+  /** Send raw channel data, bypassing ModuleFrame. `channels` is one array of RGB
+   *  pixels per channel (each RGB in 0..1); each channel is prefixed on the wire
+   *  with its pixel count, matching ModuleFrame.serialize's layout. */
+  sendChannels(x: number, y: number, channels: RGB[][]): Promise<void> {
+    let size = 0;
+    for (const ch of channels) size += 1 + ch.length * 3;   // count byte + 3 bytes/pixel
+    const payload = new Uint8Array(size);
+    let o = 0;
+    for (const ch of channels) {
+      payload[o++] = ch.length & 0xff;                      // pixel count
+      for (const px of ch) {
+        payload[o++] = byte(px[0]);
+        payload[o++] = byte(px[1]);
+        payload[o++] = byte(px[2]);
+      }
+    }
+    return this.sendPayload(x, y, payload);
+  }
+
+  // Prefix a payload with the pascal location and send it as one datagram.
+  private async sendPayload(x: number, y: number, payload: Uint8Array): Promise<void> {
     await this.ready;
     const loc = pascal(`${x}-${y}`);
-    const payload = ModuleFrame.serialize(frame);
     const msg = new Uint8Array(loc.length + payload.length);
     msg.set(loc);
     msg.set(payload, loc.length);

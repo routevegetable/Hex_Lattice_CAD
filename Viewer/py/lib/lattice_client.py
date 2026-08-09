@@ -43,16 +43,33 @@ class LatticeClient:
 
     def sendModule(self, x: int, y: int, frame: ModuleFrame) -> None:
         """Send one module's frame, addressed by grid coords x (lateral), y (height)."""
+        self._send_payload(x, y, frame.serialize())
+
+    def sendChannels(self, x: int, y: int, channels) -> None:
+        """Send raw channel data, bypassing ModuleFrame. `channels` is one list of
+        RGB pixels per channel (each RGB 0-255); each channel is prefixed with its
+        pixel count, matching ModuleFrame.serialize's layout."""
+        payload = bytearray()
+        for ch in channels:
+            payload.append(len(ch) & 0xFF)             # pixel count
+            for px in ch:
+                payload.append(max(0, min(255, int(px[0]))))
+                payload.append(max(0, min(255, int(px[1]))))
+                payload.append(max(0, min(255, int(px[2]))))
+        self._send_payload(x, y, bytes(payload))
+
+    def _send_payload(self, x: int, y: int, payload: bytes) -> None:
         try:
-            self.sock.sendto(_pascal(f"{x}-{y}") + frame.serialize(), (self.group, self.port))
+            self.sock.sendto(_pascal(f"{x}-{y}") + payload, (self.group, self.port))
             self._warned = False
         except OSError as e:
             if not self._warned:
                 self._warned = True
                 print(f"send failed: {e}")
 
-    # Pythonic alias.
+    # Pythonic aliases.
     send_module = sendModule
+    send_channels = sendChannels
 
     def close(self) -> None:
         self.sock.close()
