@@ -1,24 +1,23 @@
 #!/usr/bin/env python3
-"""Static server + LED-hardware emulator bridge for the Hinge Hexagon viewer.
+"""Static server + LED-frame bridge for the Hinge Hexagon viewer.
 
-Three things run together:
+Two things run together:
 
-  1. HTTP  — serves index.html and assets (as before).
-  2. UNIX socket (SOCK_DGRAM) — created and bound by this server. Another
-     process (e.g. app.ts under Deno) sendmsg()s one datagram per module:
+  1. HTTP + WebSocket (/ws) — serves index.html/assets and pushes LED frames to
+     every connected browser. The WebSocket is push-only: serve.py never reads
+     from it (no TCP ingress).
+  2. UDP multicast (the sole data ingress) — serve.py joins the group; any local
+     producer that sends one datagram per module is forwarded verbatim to every
+     browser, which routes it to that module (see frame.ts ModuleFrame).
 
-         [1 byte: length of location string][location ascii, e.g. "0-0"][payload]
-
-     where <payload> is the frame.ts ModuleFrame.serialize() bytes.
-  3. WebSocket (/ws) — each datagram received on the UNIX socket is forwarded
-     verbatim (location + payload) to every connected browser, which parses the
-     location and routes the payload to that module's buffer (see frame.ts
-     ModuleFrame.deserialize).
+     Datagram format:
+         [1 byte: length of location][location ascii, e.g. "0-0"][ModuleFrame.serialize]
 
 Usage:
-    python3 serve.py                     # http:8765, socket /tmp/hinge-leds.sock
-    python3 serve.py 9000                # custom port
-    python3 serve.py 9000 /tmp/x.sock    # custom port + socket path
+    python3 serve.py            # http:8765, multicast 239.69.69.69:6969
+    python3 serve.py 9000       # custom http port
+
+Env: HEXNET_MCAST_GROUP, HEXNET_MCAST_PORT override the multicast group/port.
 """
 import base64
 import hashlib
@@ -34,10 +33,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
-SOCK_PATH = sys.argv[2] if len(sys.argv) > 2 else "/tmp/hinge-leds.sock"
+
+# UDP multicast source (browsers can't join groups, so serve.py joins and bridges
+# to the viewer over WebSocket).
+MCAST_GROUP = os.environ.get("HEXNET_MCAST_GROUP", "239.69.69.69")
+MCAST_PORT = int(os.environ.get("HEXNET_MCAST_PORT", "6969"))
 
 _WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-_ws_clients = set()          # raw sockets of connected browsers
+_ws_clients = {}             # browser socket -> threading.Event (set when dropped)
 _ws_lock = threading.Lock()
 
 # Last lattice shape reported by the viewer's build() (see index.html/lite.html)
@@ -74,9 +77,11 @@ def _broadcast(msg: bytes) -> None:
             try:
                 c.sendall(frame)
             except OSError:
-                dead.append(c)
+                dead.append(c)          # send failure => client is gone
         for c in dead:
-            _ws_clients.discard(c)
+            ev = _ws_clients.pop(c, None)
+            if ev is not None:
+                ev.set()                # wake its parked handler thread
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -136,44 +141,51 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.connection.sendall(resp.encode())
         self.close_connection = True
         sock = self.connection
+        gone = threading.Event()
         with _ws_lock:
-            _ws_clients.add(sock)
-        # Hold the thread open until the browser disconnects. We only send
-        # (server->client), so incoming bytes are drained and ignored.
-        try:
-            while sock.recv(4096):
-                pass
-        except OSError:
-            pass
-        finally:
-            with _ws_lock:
-                _ws_clients.discard(sock)
+            _ws_clients[sock] = gone
+        # Push-only: we never recv() from the browser. Hold the connection open
+        # here until a broadcast send fails (see _broadcast), which sets `gone`.
+        gone.wait()
+        with _ws_lock:
+            _ws_clients.pop(sock, None)
 
 
-def _unix_listener():
+def _mcast_listener():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
-        os.unlink(SOCK_PATH)
-    except FileNotFoundError:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    except (AttributeError, OSError):
         pass
-    srv = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-    # Bigger receive buffer so bursts of per-module datagrams aren't dropped.
     try:
-        srv.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1 << 20)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1 << 20)
     except OSError:
         pass
-    srv.bind(SOCK_PATH)
-    print(f"LED socket (SOCK_DGRAM): {SOCK_PATH}")
+    sock.bind(("", MCAST_PORT))
+    # Join the group on both the loopback and the default interface, so it works
+    # whether the producer pins its send to lo0 or lets it egress the default NIC.
+    group = socket.inet_aton(MCAST_GROUP)
+    for iface in ("127.0.0.1", "0.0.0.0"):
+        try:
+            mreq = struct.pack("=4s4s", group, socket.inet_aton(iface))
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+        except OSError:
+            pass
+    print(f"multicast group: {MCAST_GROUP}:{MCAST_PORT}")
     while True:
         try:
-            data, _ = srv.recvfrom(1 << 16)
+            data, _ = sock.recvfrom(1 << 16)
         except OSError:
+            import traceback
+            traceback.print_exc()
             break
         if data:
             _broadcast(data)
 
 
 def main():
-    threading.Thread(target=_unix_listener, daemon=True).start()
+    threading.Thread(target=_mcast_listener, daemon=True).start()
 
     httpd = http.server.ThreadingHTTPServer(("", PORT), Handler)
     httpd.daemon_threads = True
@@ -189,11 +201,6 @@ def main():
         httpd.serve_forever()
     except KeyboardInterrupt:
         print("\nStopped.")
-    finally:
-        try:
-            os.unlink(SOCK_PATH)
-        except OSError:
-            pass
 
 
 if __name__ == "__main__":

@@ -6,10 +6,10 @@ from .frame import ModuleEdge, ModuleFrame, EdgeFrame, Ends, CHANNEL_EDGES
 from .graph import (
     EdgeClass, VertexClass, TileRef, VertexRef, EdgeRef, EndRef, HexGridCoord,
 )
-from .lattice_client import LatticeClient, DEFAULT_SOCK, DEFAULT_HTTP, fetch_lattice_shape
+from .lattice_client import LatticeClient, DEFAULT_GROUP, DEFAULT_PORT, DEFAULT_IFACE
 
 __all__ = [
     "ModuleEdge", "ModuleFrame", "EdgeFrame", "Ends", "CHANNEL_EDGES",
     "EdgeClass", "VertexClass", "TileRef", "VertexRef", "EdgeRef", "EndRef",
-    "HexGridCoord", "LatticeClient", "DEFAULT_SOCK", "DEFAULT_HTTP", "fetch_lattice_shape",
+    "HexGridCoord", "LatticeClient", "DEFAULT_GROUP", "DEFAULT_PORT", "DEFAULT_IFACE",
 ]

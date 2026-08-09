@@ -49,7 +49,7 @@ def main() -> None:
             for h in range(ROWS):
                 for l in range(PER_ROW):
                     paint(buffers[h][l], t, h, l)
-                    client.sendModule(f"{h}-{l}", buffers[h][l])
+                    client.sendModule(l, h, buffers[h][l])   # x=lateral, y=height
             time.sleep(1 / FPS)
     except KeyboardInterrupt:
         client.close()

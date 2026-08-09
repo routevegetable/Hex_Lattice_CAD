@@ -79,7 +79,7 @@
 
     <h2>Camera</h2>
     <label>Eye height (m) <input type="number" id="eye" value="1.727" step="0.01"></label>
-    <p class="hint">≈ 5 ft 8 in. <b>Arrow keys / WASD</b> to walk · <b>drag</b> to look around.</p>
+    <p class="hint">≈ 5 ft 8 in. <b>WASD</b> to move · <b>Arrow keys</b> or <b>drag</b> to look around.</p>
 
     <h2>Room</h2>
     <label>Transparent walls <input type="checkbox" id="wallsClear"></label>
@@ -172,9 +172,10 @@ const FILAMENT_HALF = 0.005;            // ±5 mm -> 10 mm square
 const FIL_OFFSETS = [ [+1,+1], [+1,-1], [-1,+1], [-1,-1] ];  // filament[0..3] corner
 const FIL_SEGMENTS = 10;                // tubular segments along the curved run
 const FIL_RADIAL = 5;                   // radial segments of each strand tube
-const FIL_RADIUS = 0.0015;              // 3 mm diameter
+const FIL_RADIUS = 0.002;               // 4 mm diameter
 const VPF = (FIL_SEGMENTS + 1) * (FIL_RADIAL + 1);          // vertices per filament tube
 const EMISSIVE_GAIN = 2.4;              // push colours past 1.0 so bloom lights them
+const ALPHA_GAIN = 6;                   // strand opacity vs brightness: unlit -> transparent
 // t (0..1 along the strand) for each vertex of a TubeGeometry, used to colour it.
 const VERT_T = (() => { const a = new Float32Array(VPF);
   for (let v = 0; v < VPF; v++) a[v] = Math.floor(v / (FIL_RADIAL + 1)) / FIL_SEGMENTS;
@@ -321,13 +322,13 @@ function buildFilaments(modules) {
       for (let f = 0; f < 4; f++) {
         const [oa, ob] = FIL_OFFSETS[f];
         const cu = [], cv = [];                      // smooth random wander (0 at both ends)
-        for (let k = 1; k <= 3; k++) { const amp = 0.0035 / k;
+        for (let k = 1; k <= 4; k++) { const amp = 0.006 / k;
           cu.push((Math.random()*2-1)*amp); cv.push((Math.random()*2-1)*amp); }
         for (let i = 0; i <= FIL_SEGMENTS; i++) {
           const t = i / FIL_SEGMENTS, out = pathPts[i];
           out.copy(tube.end0).lerp(tube.end1, t);
           let du = oa*FILAMENT_HALF, dv = ob*FILAMENT_HALF;
-          for (let k = 1; k <= 3; k++) { const s = Math.sin(k*Math.PI*t); du += cu[k-1]*s; dv += cv[k-1]*s; }
+          for (let k = 1; k <= 4; k++) { const s = Math.sin(k*Math.PI*t); du += cu[k-1]*s; dv += cv[k-1]*s; }
           out.addScaledVector(tube.u, du).addScaledVector(tube.v, dv).applyMatrix4(seg);
         }
         const curve = new THREE.CatmullRomCurve3(pathPts.map(p => p.clone()));
@@ -340,10 +341,12 @@ function buildFilaments(modules) {
   if (!geoms.length) return;
   const merged = mergeGeometries(geoms, false);
   geoms.forEach(g => g.dispose());
-  filColors = new Float32Array(merged.attributes.position.count * 3);
-  merged.setAttribute('color', new THREE.BufferAttribute(filColors, 3));
+  filColors = new Float32Array(merged.attributes.position.count * 4);   // RGBA
+  merged.setAttribute('color', new THREE.BufferAttribute(filColors, 4));
   filColorAttr = merged.getAttribute('color');
-  const mat = new THREE.MeshBasicMaterial({ vertexColors: true });
+  // Transparent so unlit strands (alpha -> 0) fade out instead of showing as
+  // solid dark tubes. depthWrite off keeps the glow blending clean.
+  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false });
   mat.toneMapped = false;                            // keep HDR colours for bloom
   const mesh = new THREE.Mesh(merged, mat);
   mesh.frustumCulled = false;
@@ -404,10 +407,14 @@ function updateFilaments() {
         const c1 = edge ? edge.ends.bottom[f] : BLACK;
         const vBase = fi * VPF;
         for (let vv = 0; vv < VPF; vv++) {
-          const tt = VERT_T[vv], j = (vBase + vv) * 3;
-          filColors[j]   = (c0[0] + (c1[0]-c0[0])*tt) * EMISSIVE_GAIN;
-          filColors[j+1] = (c0[1] + (c1[1]-c0[1])*tt) * EMISSIVE_GAIN;
-          filColors[j+2] = (c0[2] + (c1[2]-c0[2])*tt) * EMISSIVE_GAIN;
+          const tt = VERT_T[vv], j = (vBase + vv) * 4;
+          const r = c0[0] + (c1[0]-c0[0])*tt;          // base colour (0..1) at this vertex
+          const g = c0[1] + (c1[1]-c0[1])*tt;
+          const b = c0[2] + (c1[2]-c0[2])*tt;
+          filColors[j]   = r * EMISSIVE_GAIN;
+          filColors[j+1] = g * EMISSIVE_GAIN;
+          filColors[j+2] = b * EMISSIVE_GAIN;
+          filColors[j+3] = Math.min(1, Math.max(r, g, b) * ALPHA_GAIN);   // fade unlit strands
         }
       }
     }
@@ -567,7 +574,12 @@ function applyBoxProjection(material, center, size) {
 }
 
 // ---- Post-processing: bloom so the filaments read as light emitters ----
-const composer = new EffectComposer(renderer);
+// Anti-aliasing: render the composer through a multisampled (MSAA) target.
+// The renderer's own `antialias` only covers the default framebuffer, not the
+// composer's offscreen buffers, so edges alias without this. HalfFloatType keeps
+// the HDR headroom the bloom pass needs (matches EffectComposer's own default).
+const aaTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+const composer = new EffectComposer(renderer, aaTarget);
 composer.addPass(new RenderPass(scene, camera));
 // (resolution, strength, radius, threshold) — subtle glow only
 const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.28, 0.35, 0.85);
@@ -578,7 +590,9 @@ composer.addPass(new OutputPass());
 const walker = {
   yaw: Math.PI / 2, pitch: 0,          // face +Y into the room
   speed: 2.2,                          // m/s
-  move: { f: 0, s: 0 },
+  lookSpeed: 1.6,                      // rad/s (WASD look rate)
+  move: { f: 0, s: 0 },                // arrow keys: forward / strafe
+  look: { yaw: 0, pitch: 0 },          // WASD: look around, like mouse drag
   eye: 1.727,
   dragging: false, lx: 0, ly: 0,
 };
@@ -588,6 +602,9 @@ function walkerForward() {
                            Math.sin(walker.pitch));
 }
 function updateWalker(dt) {
+  walker.yaw   += walker.look.yaw   * walker.lookSpeed * dt;   // WASD look
+  walker.pitch += walker.look.pitch * walker.lookSpeed * dt;
+  walker.pitch = Math.max(-1.45, Math.min(1.45, walker.pitch));
   const fwdH = new THREE.Vector3(Math.cos(walker.yaw), Math.sin(walker.yaw), 0);
   const right = new THREE.Vector3(Math.sin(walker.yaw), -Math.cos(walker.yaw), 0);
   camera.position.addScaledVector(fwdH, walker.move.f * walker.speed * dt);
@@ -607,10 +624,15 @@ renderer.domElement.addEventListener('pointermove', e => {
   walker.pitch = Math.max(-1.45, Math.min(1.45, walker.pitch));
   walker.lx = e.clientX; walker.ly = e.clientY;
 });
-const KEYMAP = { ArrowUp:['f',1], ArrowDown:['f',-1], ArrowLeft:['s',-1], ArrowRight:['s',1],
-                 KeyW:['f',1], KeyS:['f',-1], KeyA:['s',-1], KeyD:['s',1] };
-addEventListener('keydown', e => { const m = KEYMAP[e.code]; if (m) { walker.move[m[0]] = m[1]; e.preventDefault(); } });
-addEventListener('keyup',   e => { const m = KEYMAP[e.code]; if (m && walker.move[m[0]] === m[1]) walker.move[m[0]] = 0; });
+// WASD move (forward/strafe); arrow keys look (yaw/pitch), matching mouse-drag signs.
+const KEYMAP = {
+  KeyW: ['move','f', 1], KeyS: ['move','f',-1],
+  KeyA: ['move','s',-1], KeyD: ['move','s', 1],
+  ArrowUp:   ['look','pitch', 1], ArrowDown: ['look','pitch',-1],
+  ArrowLeft: ['look','yaw',  1], ArrowRight:['look','yaw', -1],
+};
+addEventListener('keydown', e => { const m = KEYMAP[e.code]; if (m) { walker[m[0]][m[1]] = m[2]; e.preventDefault(); } });
+addEventListener('keyup',   e => { const m = KEYMAP[e.code]; if (m && walker[m[0]][m[1]] === m[2]) walker[m[0]][m[1]] = 0; });
 
 // ---- Placement math ----
 // Consecutive segments share a hinge pin: segment i's RIGHT pin coincides with
@@ -1048,16 +1070,16 @@ async function loadFrameLib() {
 }
 
 // Connect to serve.py's WebSocket bridge. Each binary message is one module frame:
-//   [1 byte: location length][location ascii "H-L"][payload = ModuleFrame.serialize]
+//   [1 byte: location length][location ascii "x-y"][payload = ModuleFrame.serialize]
 // Parse the location, then deserialize the payload into that module's buffer.
 const _td = new TextDecoder();
 function routeLedMessage(buf) {                       // buf: Uint8Array
   if (!ModuleFrameLib || buf.length < 1) return;
   const len = buf[0];
-  const loc = _td.decode(buf.subarray(1, 1 + len));   // "height-lateral", e.g. "0-0"
+  const loc = _td.decode(buf.subarray(1, 1 + len));   // "x-y" = lateral-height, e.g. "0-0"
   const dash = loc.indexOf('-');
-  const h = +loc.slice(0, dash), l = +loc.slice(dash + 1);
-  const mod = moduleGrid[h] && moduleGrid[h][l];      // the module's ModuleFrame buffer
+  const x = +loc.slice(0, dash), y = +loc.slice(dash + 1);   // x=lateral, y=height
+  const mod = moduleGrid[y] && moduleGrid[y][x];      // moduleGrid[height][lateral]
   if (!mod) return;                                    // frame for a module we don't have
   ModuleFrameLib.deserialize(buf.subarray(1 + len), mod);
 }

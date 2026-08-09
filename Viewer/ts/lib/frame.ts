@@ -80,9 +80,12 @@ export const ModuleFrame = {
             e.ends.top : e.ends.bottom;
     },
 
-    serialize_end_frame(e: EndFrame, arr: Uint8Array, offset: number): number {
+    // `flip` reverses the 4-LED order — the strip runs down one end and back up
+    // the other, so the latter end of each edge is wired in reverse.
+    serialize_end_frame(e: EndFrame, arr: Uint8Array, offset: number, flip: boolean): number {
         let o = offset;
-        for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+            const i = flip ? 3 - j : j;
             arr[o++] = byte(e[i][0]); // R
             arr[o++] = byte(e[i][1]); // G
             arr[o++] = byte(e[i][2]); // B
@@ -108,21 +111,23 @@ export const ModuleFrame = {
                 const edge_seq = edges[iEdge];
                 const edge = f[edge_seq.edge];
                 if (edge_seq.points_up) {
-                    o = ModuleFrame.serialize_end_frame(edge.ends.bottom, out, o);
-                    o = ModuleFrame.serialize_end_frame(edge.ends.top, out, o);
+                    o = ModuleFrame.serialize_end_frame(edge.ends.bottom, out, o, false);
+                    o = ModuleFrame.serialize_end_frame(edge.ends.top, out, o, true);
                 } else {
-                    o = ModuleFrame.serialize_end_frame(edge.ends.top, out, o);
-                    o = ModuleFrame.serialize_end_frame(edge.ends.bottom, out, o);
+                    o = ModuleFrame.serialize_end_frame(edge.ends.top, out, o, false);
+                    o = ModuleFrame.serialize_end_frame(edge.ends.bottom, out, o, true);
                 }
             }
         }
         return out;
     },
 
-    // Read 4 filament RGBs (bytes -> 0..1) into an end, in place.
-    deserialize_end_frame(e: EndFrame, arr: Uint8Array, offset: number): number {
+    // Read 4 filament RGBs (bytes -> 0..1) into an end, in place. `flip` reverses
+    // the LED order to match serialize_end_frame.
+    deserialize_end_frame(e: EndFrame, arr: Uint8Array, offset: number, flip: boolean): number {
         let o = offset;
-        for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+            const i = flip ? 3 - j : j;
             e[i][0] = arr[o++] / 255; // R
             e[i][1] = arr[o++] / 255; // G
             e[i][2] = arr[o++] / 255; // B
@@ -141,11 +146,11 @@ export const ModuleFrame = {
             for (const edge_seq of CHANNEL_EDGES[iChannel]) {
                 const edge = f[edge_seq.edge];
                 if (edge_seq.points_up) {
-                    o = ModuleFrame.deserialize_end_frame(edge.ends.bottom, arr, o);
-                    o = ModuleFrame.deserialize_end_frame(edge.ends.top, arr, o);
+                    o = ModuleFrame.deserialize_end_frame(edge.ends.bottom, arr, o, false);
+                    o = ModuleFrame.deserialize_end_frame(edge.ends.top, arr, o, true);
                 } else {
-                    o = ModuleFrame.deserialize_end_frame(edge.ends.top, arr, o);
-                    o = ModuleFrame.deserialize_end_frame(edge.ends.bottom, arr, o);
+                    o = ModuleFrame.deserialize_end_frame(edge.ends.top, arr, o, false);
+                    o = ModuleFrame.deserialize_end_frame(edge.ends.bottom, arr, o, true);
                 }
             }
         }
