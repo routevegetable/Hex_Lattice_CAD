@@ -23,6 +23,7 @@ Usage:
 import base64
 import hashlib
 import http.server
+import json
 import os
 import socket
 import struct
@@ -38,6 +39,12 @@ SOCK_PATH = sys.argv[2] if len(sys.argv) > 2 else "/tmp/hinge-leds.sock"
 _WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 _ws_clients = set()          # raw sockets of connected browsers
 _ws_lock = threading.Lock()
+
+# Last lattice shape reported by the viewer's build() (see index.html/lite.html)
+# — lets Python examples (py/examples/*.py) size themselves to whatever's
+# actually built in the browser instead of guessing fixed constants.
+_shape_lock = threading.Lock()
+_lattice_shape = {"levels": None, "perRow": None}
 
 
 def _ws_accept(key: str) -> str:
@@ -84,10 +91,39 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_GET(self):
-        if self.path.split("?")[0] == "/ws" and \
-                self.headers.get("Upgrade", "").lower() == "websocket":
+        path = self.path.split("?")[0]
+        if path == "/ws" and self.headers.get("Upgrade", "").lower() == "websocket":
             return self._serve_ws()
+        if path == "/lattice-shape":
+            return self._get_shape()
         super().do_GET()
+
+    def do_POST(self):
+        if self.path.split("?")[0] == "/lattice-shape":
+            return self._post_shape()
+        self.send_error(404)
+
+    def _get_shape(self):
+        with _shape_lock:
+            body = json.dumps(_lattice_shape).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _post_shape(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            data = json.loads(self.rfile.read(length) if length else b"{}")
+            levels, per_row = int(data["levels"]), int(data["perRow"])
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            return self.send_error(400)
+        with _shape_lock:
+            _lattice_shape["levels"] = levels
+            _lattice_shape["perRow"] = per_row
+        self.send_response(204)
+        self.end_headers()
 
     def _serve_ws(self):
         key = self.headers.get("Sec-WebSocket-Key", "")

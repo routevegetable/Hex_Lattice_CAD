@@ -5,8 +5,11 @@ Each frame is one datagram:
 
     [1 byte: length of location][location ascii, e.g. "0-0"][ModuleFrame.serialize]
 """
+import json
 import os
 import socket
+import urllib.error
+import urllib.request
 
 try:                                    # as a package (py.lib.lattice_client)
     from .frame import ModuleFrame
@@ -14,6 +17,25 @@ except ImportError:                     # as loose modules on sys.path
     from frame import ModuleFrame
 
 DEFAULT_SOCK = "/tmp/hinge-leds.sock"
+DEFAULT_HTTP = "http://localhost:8765"
+
+
+def fetch_lattice_shape(http_base: str | None = None, timeout: float = 1.0):
+    """GET serve.py's /lattice-shape - {"levels": N, "perRow": N} reported by
+    the viewer's own build() (see index.html/lite.html), or None if serve.py
+    isn't reachable or the viewer hasn't built anything yet (both fields null).
+    Lets an example size itself to whatever's actually on screen instead of a
+    guessed constant.
+    """
+    base = http_base or os.environ.get("HINGE_HTTP") or DEFAULT_HTTP
+    try:
+        with urllib.request.urlopen(f"{base}/lattice-shape", timeout=timeout) as resp:
+            shape = json.loads(resp.read())
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+    if shape.get("levels") is None or shape.get("perRow") is None:
+        return None
+    return shape
 
 
 def _pascal(s: str) -> bytes:

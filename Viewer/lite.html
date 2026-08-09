@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Hinge Hexagon — Lattice Viewer</title>
+<title>Hinge Hexagon — Lattice Viewer (Lite)</title>
 <style>
   :root { --bg:#1e2127; --panel:#282c34; --ink:#dce1e8; --accent:#61afef; --muted:#7f8798; }
   * { box-sizing: border-box; }
@@ -53,9 +53,9 @@
 <div id="app">
   <div id="view"><div id="status">Loading segment…</div></div>
   <div id="panel">
-    <h1>Hinge Hexagon Lattice</h1>
+    <h1>Hinge Hexagon Lattice <span style="color:var(--accent)">· Lite</span></h1>
     <p class="sub">Repeating segment · vertical hinges every 992.4&nbsp;mm · stacks every 1320&nbsp;mm</p>
-    <p class="hint">Slow on older hardware? <a href="lite.html" style="color:var(--accent)">Switch to lite viewer →</a></p>
+    <p class="hint">No shadows/bloom/reflections. <a href="index.html" style="color:var(--accent)">Switch to full viewer →</a></p>
 
     <h2>Lateral hinge angles (°)</h2>
     <textarea id="angles">20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20</textarea>
@@ -106,10 +106,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+// Lite build: no EffectComposer/bloom, no reflection-probe passes — cheaper to
+// load and run on old GPUs. See index.html for the full-fidelity version.
 
 // ---- Segment constants — see MEASUREMENTS.md ----
 // The hinge axis is DEFINED by the segment's hinge tube: the leftmost
@@ -170,8 +168,8 @@ const isHiddenEdge = (m, e) => TOP_TUBE_IDX >= 0 && moduleHidesF[m] && (e % 6) =
 let filColorAttr = null, filColors = null, moduleStates = [], moduleCount = 0;
 const FILAMENT_HALF = 0.005;            // ±5 mm -> 10 mm square
 const FIL_OFFSETS = [ [+1,+1], [+1,-1], [-1,+1], [-1,-1] ];  // filament[0..3] corner
-const FIL_SEGMENTS = 10;                // tubular segments along the curved run
-const FIL_RADIAL = 5;                   // radial segments of each strand tube
+const FIL_SEGMENTS = 4;                 // tubular segments along the curved run (lite: was 10)
+const FIL_RADIAL = 3;                   // radial segments of each strand tube (lite: was 5)
 const FIL_RADIUS = 0.0015;              // 3 mm diameter
 const VPF = (FIL_SEGMENTS + 1) * (FIL_RADIAL + 1);          // vertices per filament tube
 const EMISSIVE_GAIN = 2.4;              // push colours past 1.0 so bloom lights them
@@ -235,9 +233,14 @@ function prepFilaments(obj) {
   });
 
   // make the (grey) tube material translucent
+  // Lite build: heavier opacity than the full viewer (0.45 vs 0.2) — without
+  // bloom/reflection-probe lighting there to make a near-invisible shell read
+  // as glassy, 0.2 opacity just disappears under plain ambient light and takes
+  // most of the hexagon frame with it. This keeps the structure clearly
+  // visible while still letting lit filaments tint through.
   let tubeMat = null;
   for (const r of roots) r.traverse(o => { if (o.isMesh && !tubeMat) tubeMat = o.material; });
-  if (tubeMat) { tubeMat.transparent = true; tubeMat.opacity = 0.2; tubeMat.depthWrite = false; }
+  if (tubeMat) { tubeMat.transparent = true; tubeMat.opacity = 0.45; tubeMat.depthWrite = false; }
 
   // one tube frame per instance (keep its meshes alongside the frame)
   const tubes = [];
@@ -472,10 +475,10 @@ const statusEl = document.getElementById('status');
 const infoEl = document.getElementById('info');
 
 // ---- three.js scene ----
-const renderer = new THREE.WebGLRenderer({ antialias:true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// Lite build: no antialiasing, no shadow maps, capped pixel ratio — the biggest
+// single wins for old/integrated GPUs.
+const renderer = new THREE.WebGLRenderer({ antialias:false });
+renderer.setPixelRatio(1);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 viewEl.appendChild(renderer.domElement);
@@ -510,69 +513,12 @@ function applyAmbient() {
 const lattice = new THREE.Group();  scene.add(lattice);
 const axesGroup = new THREE.Group(); scene.add(axesGroup);
 const filamentGroup = new THREE.Group(); scene.add(filamentGroup);
-const cushionGroup = new THREE.Group(); scene.add(cushionGroup);
 const labelGroup = new THREE.Group(); scene.add(labelGroup);   // debug edge labels
 
-// Reflection probe: a cube camera at room centre renders the scene into an
-// environment map, so glossy surfaces (walls, cushions, lattice) reflect the
-// glowing filaments. Refreshed on a throttle to keep it cheap.
-const cubeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
-const cubeCam = new THREE.CubeCamera(0.1, 100, cubeRT);
-cubeCam.position.set(4.5, 2.1, 1.3);
-scene.add(cubeCam);
-scene.environment = cubeRT.texture;
-let envTick = 0;
-function updateEnvProbe() {
-  if ((envTick++ % 12) !== 0) return;     // refresh every 12th frame
-  cubeCam.update(renderer, scene);
-  cubeRT.texture.needsPMREMUpdate = true; // re-derive the PMREM from the new cube
-}
-
-// Box-project the cube reflection against the room AABB so reflections show
-// correct parallax as you walk around (instead of behaving like an infinite
-// skybox). Patches the standard-material env chunk; no-ops if the anchor
-// (three.js version) doesn't match, so it can't break rendering.
-function applyBoxProjection(material, center, size) {
-  const anchor = 'reflectVec = inverseTransformDirection( reflectVec, viewMatrix );';
-  const chunk = THREE.ShaderChunk.envmap_physical_pars_fragment;
-  if (!chunk.includes(anchor)) { console.warn('box-projection anchor not found'); return; }
-  const patchedChunk = chunk.replace(anchor, anchor + '\n\t\t\treflectVec = boxProject( reflectVec );');
-  material.onBeforeCompile = (shader) => {
-    shader.uniforms.envMapPosition = { value: center };
-    shader.uniforms.envMapSize = { value: size };
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vBoxWorldPos;')
-      .replace('#include <worldpos_vertex>',
-        '#include <worldpos_vertex>\n#ifdef USE_ENVMAP\n\tvBoxWorldPos = worldPosition.xyz;\n#endif');
-    const parallax = `
-      uniform vec3 envMapPosition;
-      uniform vec3 envMapSize;
-      varying vec3 vBoxWorldPos;
-      vec3 boxProject( vec3 dir ) {
-        vec3 nDir = normalize( dir );
-        vec3 rbmax = (  .5 * envMapSize + envMapPosition - vBoxWorldPos ) / nDir;
-        vec3 rbmin = ( -.5 * envMapSize + envMapPosition - vBoxWorldPos ) / nDir;
-        vec3 rb = vec3( nDir.x > 0. ? rbmax.x : rbmin.x,
-                        nDir.y > 0. ? rbmax.y : rbmin.y,
-                        nDir.z > 0. ? rbmax.z : rbmin.z );
-        float d = min( min( rb.x, rb.y ), rb.z );
-        return ( vBoxWorldPos + nDir * d ) - envMapPosition;
-      }`;
-    // patch the include DIRECTIVE (directives aren't expanded yet at this stage)
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\n' + parallax)
-      .replace('#include <envmap_physical_pars_fragment>', patchedChunk);
-  };
-  material.needsUpdate = true;
-}
-
-// ---- Post-processing: bloom so the filaments read as light emitters ----
-const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
-// (resolution, strength, radius, threshold) — subtle glow only
-const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.28, 0.35, 0.85);
-composer.addPass(bloom);
-composer.addPass(new OutputPass());
+// Lite build: no reflection probe (no cube-camera env map / box projection) and
+// no bloom post-processing pass — those are the expensive parts of the full
+// viewer (extra full-scene renders + shader passes every frame). Rendered
+// straight to the screen instead (see tick()).
 
 // ---- First-person walk controls: arrow keys move, mouse-drag looks ----
 const walker = {
@@ -686,13 +632,7 @@ async function loadRoom() {
     scene.add(room);
     room.updateMatrixWorld(true);
     roomBox = new THREE.Box3().setFromObject(room);
-    // Centre the reflection probe in the room and box-project the walls.
-    const center = roomBox.getCenter(new THREE.Vector3());
-    const size = roomBox.getSize(new THREE.Vector3());
-    cubeCam.position.copy(center);
-    applyBoxProjection(roomMat, center, size);
     applyWallTransparency();
-    buildCushions();
   } catch (e) { console.warn('room.gltf not loaded:', e); }
 }
 function applyWallTransparency() {
@@ -704,41 +644,7 @@ function applyWallTransparency() {
   roomMat.needsUpdate = true;
 }
 
-// Carpet the room floor with 3-inch blue/purple cushions.
-function buildCushions() {
-  cushionGroup.clear();
-  if (!roomBox) return;
-  const CH = 0.0762;                                // 3 inches high
-  const minX = roomBox.min.x, maxX = roomBox.max.x, minY = roomBox.min.y, maxY = roomBox.max.y;
-  const cw = 0.5;                                   // cushion footprint
-  const geo = new THREE.BoxGeometry(cw*0.96, cw*0.96, CH, 1, 1, 1);
-  const mat = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.0, vertexColors: false });
-  const cols = [];
-  const positions = [];
-  const c = new THREE.Color();
-  for (let x = minX + cw/2; x < maxX; x += cw)
-    for (let y = minY + cw/2; y < maxY; y += cw) {
-      const jx = (Math.random()-0.5)*0.12, jy = (Math.random()-0.5)*0.12;
-      const yaw = (Math.random()-0.5)*0.5;
-      const h = CH * (0.85 + Math.random()*0.3);
-      positions.push({ x: x+jx, y: y+jy, z: h/2, yaw, sz: h/CH });
-      c.setHSL(0.66 + Math.random()*0.13, 0.55 + Math.random()*0.25, 0.32 + Math.random()*0.14); // blue→purple
-      cols.push(c.clone());
-    }
-  const inst = new THREE.InstancedMesh(geo, mat, positions.length);
-  inst.castShadow = true; inst.receiveShadow = true;
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3();
-  for (let i = 0; i < positions.length; i++) {
-    const p = positions[i];
-    q.setFromAxisAngle(new THREE.Vector3(0,0,1), p.yaw);
-    s.set(1, 1, p.sz);
-    m4.compose(new THREE.Vector3(p.x, p.y, p.z), q, s);
-    inst.setMatrixAt(i, m4);
-    inst.setColorAt(i, cols[i]);
-  }
-  inst.instanceMatrix.needsUpdate = true;
-  cushionGroup.add(inst);
-}
+// Lite build: no floor cushions (dropped for load/perf — see index.html).
 
 // Debug overlay drawn in a segment's local frame:
 //   green sphere  = computed center (apex point, X±HALF_SPAN gives the pins)
@@ -972,8 +878,7 @@ for (const id of FIELDS) document.getElementById(id).addEventListener('change', 
 // ---- resize / render loop ----
 function resize() {
   const w = viewEl.clientWidth, h = viewEl.clientHeight;
-  renderer.setSize(w, h); composer.setSize(w, h);
-  bloom.setSize(w, h);
+  renderer.setSize(w, h);
   camera.aspect = w / h; camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
@@ -984,8 +889,7 @@ function tick() {
   const now = performance.now(), dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
   updateWalker(dt);
   updateFilaments();                           // paint filaments from the module buffers
-  updateEnvProbe();                            // refresh reflections (throttled)
-  composer.render();
+  renderer.render(scene, camera);
 }
 
 // ---- LED frame source (frame.ts + WebSocket bridge) ----
