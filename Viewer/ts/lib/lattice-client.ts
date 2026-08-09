@@ -49,10 +49,10 @@ export class LatticeClient {
     })();
   }
 
-  /** Send one module's frame, addressed to `location` (e.g. "0-0" = height-lateral). */
-  async sendModule(location: string, frame: ModuleFrame): Promise<void> {
+  /** Send one module's frame, addressed by grid coords x (lateral) and y (height). */
+  async sendModule(x: number, y: number, frame: ModuleFrame): Promise<void> {
     await this.ready;
-    const loc = pascal(location);
+    const loc = pascal(`${x}-${y}`);
     const payload = ModuleFrame.serialize(frame);
     const msg = new Uint8Array(loc.length + payload.length);
     msg.set(loc);

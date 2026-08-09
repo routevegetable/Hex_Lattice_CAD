@@ -100,8 +100,10 @@ class ModuleFrame:
         return e.ends.top if er.top else e.ends.bottom
 
     @staticmethod
-    def _ser_end(e: EndFrame, out: bytearray) -> None:
-        for px in e:
+    def _ser_end(e: EndFrame, out: bytearray, flip: bool) -> None:
+        # `flip` reverses the 4-LED order — the strip runs down one end and back
+        # up the other, so the latter end of each edge is wired in reverse.
+        for px in (reversed(e) if flip else e):
             out.append(_byte(px[0]))
             out.append(_byte(px[1]))
             out.append(_byte(px[2]))
@@ -114,16 +116,18 @@ class ModuleFrame:
             for edge, points_up in edges:
                 e = self[edge]
                 if points_up:
-                    ModuleFrame._ser_end(e.ends.bottom, out)
-                    ModuleFrame._ser_end(e.ends.top, out)
+                    ModuleFrame._ser_end(e.ends.bottom, out, False)
+                    ModuleFrame._ser_end(e.ends.top, out, True)
                 else:
-                    ModuleFrame._ser_end(e.ends.top, out)
-                    ModuleFrame._ser_end(e.ends.bottom, out)
+                    ModuleFrame._ser_end(e.ends.top, out, False)
+                    ModuleFrame._ser_end(e.ends.bottom, out, True)
         return bytes(out)
 
     @staticmethod
-    def _deser_end(e: EndFrame, data: bytes, o: int) -> int:
-        for i in range(4):
+    def _deser_end(e: EndFrame, data: bytes, o: int, flip: bool) -> int:
+        # `flip` reverses the LED order to match _ser_end.
+        for j in range(4):
+            i = 3 - j if flip else j
             e[i][0] = data[o] / 255
             e[i][1] = data[o + 1] / 255
             e[i][2] = data[o + 2] / 255
@@ -138,8 +142,8 @@ class ModuleFrame:
             for edge, points_up in CHANNEL_EDGES[ch]:
                 e = self[edge]
                 if points_up:
-                    o = ModuleFrame._deser_end(e.ends.bottom, data, o)
-                    o = ModuleFrame._deser_end(e.ends.top, data, o)
+                    o = ModuleFrame._deser_end(e.ends.bottom, data, o, False)
+                    o = ModuleFrame._deser_end(e.ends.top, data, o, True)
                 else:
-                    o = ModuleFrame._deser_end(e.ends.top, data, o)
-                    o = ModuleFrame._deser_end(e.ends.bottom, data, o)
+                    o = ModuleFrame._deser_end(e.ends.top, data, o, False)
+                    o = ModuleFrame._deser_end(e.ends.bottom, data, o, True)

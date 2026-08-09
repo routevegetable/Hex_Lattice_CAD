@@ -57,7 +57,7 @@ setInterval(async () => {
   for (let h = 0; h < ROWS; h++) {
     for (let l = 0; l < PER_ROW; l++) {
       paint(buffers[h][l], t, h, l);
-      sends.push(client.sendModule(`${h}-${l}`, buffers[h][l]));
+      sends.push(client.sendModule(l, h, buffers[h][l]));   // x=lateral, y=height
     }
   }
   await Promise.all(sends);

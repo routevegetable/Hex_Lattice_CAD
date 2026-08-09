@@ -41,10 +41,10 @@ class LatticeClient:
         self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(iface))
         self._warned = False
 
-    def sendModule(self, location: str, frame: ModuleFrame) -> None:
-        """Send one module's frame, addressed to `location` (e.g. "0-0")."""
+    def sendModule(self, x: int, y: int, frame: ModuleFrame) -> None:
+        """Send one module's frame, addressed by grid coords x (lateral), y (height)."""
         try:
-            self.sock.sendto(_pascal(location) + frame.serialize(), (self.group, self.port))
+            self.sock.sendto(_pascal(f"{x}-{y}") + frame.serialize(), (self.group, self.port))
             self._warned = False
         except OSError as e:
             if not self._warned:

@@ -400,7 +400,7 @@ setInterval(async () => {
   t += 1 / FPS;
   for (let h = 0; h < ROWS; h++) {
     for (let l = 0; l < PER_ROW; l++) {
-      await client.sendModule(`${h}-${l}`, buffers[h][l]);
+      await client.sendModule(l, h, buffers[h][l]);   // x=lateral, y=height
     }
   }
   busy = false

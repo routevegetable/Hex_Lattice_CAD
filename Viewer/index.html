@@ -1061,16 +1061,16 @@ async function loadFrameLib() {
 }
 
 // Connect to serve.py's WebSocket bridge. Each binary message is one module frame:
-//   [1 byte: location length][location ascii "H-L"][payload = ModuleFrame.serialize]
+//   [1 byte: location length][location ascii "x-y"][payload = ModuleFrame.serialize]
 // Parse the location, then deserialize the payload into that module's buffer.
 const _td = new TextDecoder();
 function routeLedMessage(buf) {                       // buf: Uint8Array
   if (!ModuleFrameLib || buf.length < 1) return;
   const len = buf[0];
-  const loc = _td.decode(buf.subarray(1, 1 + len));   // "height-lateral", e.g. "0-0"
+  const loc = _td.decode(buf.subarray(1, 1 + len));   // "x-y" = lateral-height, e.g. "0-0"
   const dash = loc.indexOf('-');
-  const h = +loc.slice(0, dash), l = +loc.slice(dash + 1);
-  const mod = moduleGrid[h] && moduleGrid[h][l];      // the module's ModuleFrame buffer
+  const x = +loc.slice(0, dash), y = +loc.slice(dash + 1);   // x=lateral, y=height
+  const mod = moduleGrid[y] && moduleGrid[y][x];      // moduleGrid[height][lateral]
   if (!mod) return;                                    // frame for a module we don't have
   ModuleFrameLib.deserialize(buf.subarray(1 + len), mod);
 }
