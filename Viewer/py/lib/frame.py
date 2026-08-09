@@ -75,6 +75,14 @@ def _byte(c: float) -> int:
     # Match JS Math.round (round half up) so bytes are identical across ports.
     return max(0, min(255, math.floor(c * 255 + 0.5)))
 
+PAIRS = [
+    [0, 5],
+    [1, 4],
+    [2, 7],
+    [3, 6]
+]
+
+_FLIP_ORDER = (1, 0, 3, 2)
 
 class ModuleFrame:
     """12 edges (A1..F2), each with a top and bottom end of 4 filament RGBs."""
@@ -101,9 +109,10 @@ class ModuleFrame:
 
     @staticmethod
     def _ser_end(e: EndFrame, out: bytearray, flip: bool) -> None:
-        # `flip` reverses the 4-LED order — the strip runs down one end and back
-        # up the other, so the latter end of each edge is wired in reverse.
-        for px in (reversed(e) if flip else e):
+        # `flip` swaps each adjacent pair (0<->1, 2<->3) — the strip runs down
+        # one end and back up the other, wiring the latter end in swapped pairs.
+        for j in range(4):
+            px = e[_FLIP_ORDER[j] if flip else j]
             out.append(_byte(px[0]))
             out.append(_byte(px[1]))
             out.append(_byte(px[2]))
@@ -125,9 +134,9 @@ class ModuleFrame:
 
     @staticmethod
     def _deser_end(e: EndFrame, data: bytes, o: int, flip: bool) -> int:
-        # `flip` reverses the LED order to match _ser_end.
+        # `flip` swaps each adjacent pair to match _ser_end.
         for j in range(4):
-            i = 3 - j if flip else j
+            i = _FLIP_ORDER[j] if flip else j
             e[i][0] = data[o] / 255
             e[i][1] = data[o + 1] / 255
             e[i][2] = data[o + 2] / 255

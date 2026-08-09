@@ -68,6 +68,10 @@ const EDGE_CLASS_TO_MODULE_EDGES: { [index in EdgeClass]: [ModuleEdge, ModuleEdg
 
 const byte = (c: number) => Math.max(0, Math.min(255, Math.round(c * 255)));
 
+// `flip` swaps each adjacent pair (0<->1, 2<->3) — the strip runs down one end
+// and back up the other, wiring the latter end in swapped pairs.
+const FLIP_ORDER = [1, 0, 3, 2] as const;
+
 export const ModuleFrame = {
 
     get_end_frame(f: ModuleFrame, er: EndRef): EndFrame {
@@ -80,12 +84,10 @@ export const ModuleFrame = {
             e.ends.top : e.ends.bottom;
     },
 
-    // `flip` reverses the 4-LED order — the strip runs down one end and back up
-    // the other, so the latter end of each edge is wired in reverse.
     serialize_end_frame(e: EndFrame, arr: Uint8Array, offset: number, flip: boolean): number {
         let o = offset;
         for (let j = 0; j < 4; j++) {
-            const i = flip ? 3 - j : j;
+            const i = flip ? FLIP_ORDER[j] : j;
             arr[o++] = byte(e[i][0]); // R
             arr[o++] = byte(e[i][1]); // G
             arr[o++] = byte(e[i][2]); // B
@@ -122,12 +124,12 @@ export const ModuleFrame = {
         return out;
     },
 
-    // Read 4 filament RGBs (bytes -> 0..1) into an end, in place. `flip` reverses
-    // the LED order to match serialize_end_frame.
+    // Read 4 filament RGBs (bytes -> 0..1) into an end, in place. `flip` swaps
+    // adjacent pairs to match serialize_end_frame.
     deserialize_end_frame(e: EndFrame, arr: Uint8Array, offset: number, flip: boolean): number {
         let o = offset;
         for (let j = 0; j < 4; j++) {
-            const i = flip ? 3 - j : j;
+            const i = flip ? FLIP_ORDER[j] : j;
             e[i][0] = arr[o++] / 255; // R
             e[i][1] = arr[o++] / 255; // G
             e[i][2] = arr[o++] / 255; // B
