@@ -89,6 +89,7 @@ class LatticeClient:
             if not self._warned:
                 self._warned = True
                 print(f"send failed: {e}")
+        
 
     # Pythonic aliases.
     send_module = sendModule

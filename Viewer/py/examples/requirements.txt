@@ -2,3 +2,7 @@
 # (socket, math, time, os, sys) — no third-party packages required.
 #
 # py.lib is imported from the repo root (see the sys.path line in wave.py).
+#
+# Exception: mic_reactive_bisexual.py's LiveMicLine (real mic input) needs:
+#   pip install sounddevice numpy
+# Optional — without them it falls back to FakeMicLine (synthetic input).

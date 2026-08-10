@@ -57,6 +57,40 @@ def paint(mf: ModuleFrame, t: float) -> None:
                 edge.ends.bottom[f][:] = [0.0, 0.0, 0.0]
 
 
+class Pixels:
+    """List-like wrapper around a channel-0 pixel buffer, with show() to push it."""
+
+    def __init__(self, client: LatticeClient, count: int, x: int = 0, y: int = 0):
+        self._client = client
+        self._x = x
+        self._y = y
+        self._data = [(0, 0, 0)] * count
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def __getitem__(self, i):
+        return self._data[i]
+
+    def __setitem__(self, i, value) -> None:
+        self._data[i] = list(value)
+
+    def show(self) -> None:
+        self._client.sendChannels(self._x, self._y, [self._data, [], [], []])
+
+
+
+# client = LatticeClient()
+# pixels = Pixels(client, 48)
+
+# pixels[0] = (255, 0, 255)
+# pixels.show()
+# while True:
+#     ...
+
+
+
+
 def main() -> None:
     client = LatticeClient()      # socket path from HINGE_SOCK / default
     mf = ModuleFrame.blank()
@@ -68,7 +102,14 @@ def main() -> None:
             paint(mf, t)
             for h in range(ROWS):
                 for l in range(PER_ROW):
-                    client.sendModule(f"{h}-{l}", mf)
+                    #client.sendModule(l, h, mf)
+
+                    client.sendChannels(0,0,[
+                        [(255,255,255)]*64,
+                        [],
+                        [],
+                        []
+                        ])
             time.sleep(1 / FPS)
     except KeyboardInterrupt:
         client.close()

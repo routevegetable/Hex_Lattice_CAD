@@ -286,7 +286,7 @@ def main() -> None:
 
             for key, mf in buffers.items():
                 h, l = key
-                client.sendModule(f"{h}-{l}", mf)
+                client.sendModule(l, h, mf)
 
             time.sleep(TICK)
     except KeyboardInterrupt:
