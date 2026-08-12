@@ -19,15 +19,35 @@ import { EdgeClass, TileRef, VertexClass, VertexRef } from "./../lib/graph.ts";
 import { ModuleFrame, EndFrame } from "../lib/frame.ts";
 import { EdgeRef, EndRef, HexGridCoord } from "../lib/graph.ts";
 import { LatticeClient } from "../lib/lattice-client.ts";
+import { MidiInterface } from "../lib/midi-clock.ts";
 
 const ROWS = 2;          // stacked rings
 const PER_ROW = 9;      // modules per ring
 const FPS = 30;
 
+// MIDI clock: read clock.beats / clock.bpm / clock.running in render() to sync
+// visuals to an external tempo. Env MIDI_PORT = substring of the port to open.
+const midi = new MidiInterface(Deno.env.get("MIDI_PORT") ?? undefined);
+
+
+
+
+const CC3 = midi.get_cc(3);
+
+/* At any time: */
+const a: number = CC3.get_value()
+
+midi.on_note((note, vel, on) => {
+
+  console.log(note, vel, on)
+  /* Do something */
+})
+
+
 let client = new LatticeClient();
 
 
-const stop = () => { client.close(); Deno.exit(0); };
+const stop = () => { midi.close(); client.close(); Deno.exit(0); };
 Deno.addSignalListener("SIGINT", stop);
 Deno.addSignalListener("SIGTERM", stop);
 
@@ -138,7 +158,7 @@ function *random_seq(origin: EndRef, s: number): Generator<EndRef, void, void> {
 }
 
 
-function burst(now: number, start: number, origin: EndRef) {
+function burst(now: number, start: number, origin: EndRef, len: number) {
 
   const l = Math.floor(hash(start + 2) * 2) == 0;
   let sat = sweep(now, start, 300, 0, 1, 0);
@@ -151,7 +171,7 @@ function burst(now: number, start: number, origin: EndRef) {
       const ef = end_frame(er)
 
       const end_start = start + count * 20;
-      const b = sweep(now, end_start, 300, 1, 0, 0);
+      const b = sweep(now, end_start, 100, 1, 0, 0);
 
       //console.log(b)
 
@@ -163,28 +183,39 @@ function burst(now: number, start: number, origin: EndRef) {
     } catch {
       break;
     }
-    if(count++ == 16) {
+    if(count++ == len) {
       break;
     }
   }
 }
 
 const MAX_BURSTS = 40;
-const bursts: number[] = []
+const bursts: [number, boolean][] = []
 let last_burst: number = 0;
+
+let now_time = 0;
+
+let bool = true;
+
+midi.on_beat(() => {
+  bool = !bool;
+  bursts.push([now_time, bool]);
+  if(bursts.length > MAX_BURSTS) {
+    bursts.shift()
+  }
+})
 
 
 
 const STRING_HUES = [
   0.547,
   0.967,
-  0.4,
-  0.6,
+  1
 ]
 
 const STRING_TIME = 9000;
 
-const STRING_COUNT = 6;
+const STRING_COUNT = 8;
 
 
 // 5 strings in flight at once
@@ -235,9 +266,6 @@ function rand_boundary_end(s: number): EndRef {
   }
 }
 
-
-let saw_jump = false;
-
 function draw_strings(now: number) {
 
   const string_start_interval = STRING_TIME / STRING_COUNT;
@@ -245,7 +273,7 @@ function draw_strings(now: number) {
 
   // Set up new strings
   for(let i = 0; i < STRING_COUNT; i++) {
-    const hue = STRING_HUES[i % 4]
+    const hue = STRING_HUES[i % 3]
     const start_time = periodic(now - i * string_start_interval, STRING_TIME) + i * string_start_interval;
     //console.log(start_time)
     const origin = rand_boundary_end(start_time + i);
@@ -264,17 +292,12 @@ function draw_strings(now: number) {
         break;
       }
 
-      // Why is end_start suddenly jumping behind now?
-      // I would expect end_start to start out as ahead of now
-      // It's suddenly jumping behind when the periodic switches.
-      // The periodic resets to now (1 * string_start_interval) after the previous one
-
       const b = sweep(now, end_start, 40, 0, 1, 0);
       const b2 = sweep(now, (end_start + STRING_TIME)-1000, 40, 1, 0, 1);
 
       const flash_period = periodic(now - i * string_start_interval, 2000) + i * string_start_interval;
-      const flash_env = Math.sin(sweep(now, flash_period + dt, 300, 0, 3.141, 3.141)) * 0.75;
-      if(i == 1 && count == 0) console.log(flash_env.toFixed(2))
+      const flash_env = Math.sin(sweep(now, flash_period + dt, 1000, 0, 3.141, 3.141)) * 0.75;
+      //if(i == 1 && count == 0) console.log(flash_env.toFixed(2))
       const hue_dev = sweep(now, end_start, STRING_TIME, hue-0.05, hue+0.05)
 
       //console.log(i, count, origin, er)
@@ -301,6 +324,8 @@ function draw_strings(now: number) {
 // reloads. Default: a per-edge hue with a wave travelling down each strand.
 export function render(msec: number) {
 
+  now_time = msec;
+
   for(let end of HexGridCoord.ends({
     x: 0,
     y: 0
@@ -308,27 +333,24 @@ export function render(msec: number) {
     const ef = end_frame(end);
     for(let led of ef) {
         led[0] = 0
-        led[1] = 1
-        led[2] = 1
+        led[1] = 0
+        led[2] = 0
       }
   }
-  draw_strings(msec);
-  
-  //return;
+
   const GAP = 30; // between bursts
 
-  const b = periodic(msec, GAP)
+/*   const b = periodic(msec, GAP)
   if(b > last_burst) {
     last_burst = b;
     bursts.push(last_burst);
     if(bursts.length > MAX_BURSTS) {
       bursts.shift()
     }
-  }
+  } */
 
-  for(let start_time of bursts) {
-    const x = Math.floor(hash(start_time) * 40)
-    const y = Math.floor(hash(start_time + 1) * 3)
+  for(let b of bursts) {
+    const [start_time, t] = b;
     const e = [
       EdgeClass.A,
       EdgeClass.B,
@@ -339,12 +361,30 @@ export function render(msec: number) {
     ][Math.floor(hash(start_time + 3) * 6)];
     const bottom = Math.floor(hash(start_time + 4) * 2) == 0;
 
-    const tile = new TileRef(x,y);
-    console.log(start_time)
 
-    burst(msec, start_time, bottom ? tile.bottom_end(e) : tile.top_end(e))
+    if(t) {
+      const x = 1 + Math.floor(hash(start_time) * 14)
+      const y = 1;//Math.floor(hash(start_time + 1) * 3)
+      const tile = new TileRef(x,y);
+      //console.log(msec, start_time)
+
+      const v = EndRef.vertex(tile.top_end(EdgeClass.F))
+      let off = 0;
+      for(let e of VertexRef.ends_cw(v)) {
+        burst(msec, start_time, e, 16)
+        off = off + 1;
+      }
+    } else {
+      const x = 1 + Math.floor(hash(start_time) * 14)
+      const y = 0;//Math.floor(hash(start_time + 1) * 3)
+      const tile = new TileRef(x,y);
+      burst(msec, start_time, tile.bottom_end(EdgeClass.F), 16)
+    }
   }
-  //return;
+
+  //draw_strings(msec);
+
+  return;
   const now = msec;
 
 for(let i = 0; i < 2; i++)

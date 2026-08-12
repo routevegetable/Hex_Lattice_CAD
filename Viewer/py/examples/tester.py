@@ -15,8 +15,10 @@ import os
 import sys
 import time
 
+from py.lib.graph import EdgeRef, EndRef, VertexClass, VertexRef
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-from py.lib import ModuleFrame, LatticeClient, EdgeClass, EdgeRef, TileRef   # noqa: E402
+from py.lib import ModuleFrame, LatticeClient, EdgeClass, TileRef   # noqa: E402
 
 ROWS = 2          # stacked rings to cover
 PER_ROW = 32      # modules per ring
@@ -38,10 +40,51 @@ def build_frame(edges, step: int) -> ModuleFrame:
     mf = ModuleFrame.blank()
     edge, _name = edges[step // FILAMENTS]
     f = step % FILAMENTS
-    top, bottom = EdgeRef.ends(edge)
+    top, bottom = edge.ends()
     mf.get_end_frame(top)[f][:] = WHITE
     mf.get_end_frame(bottom)[f][:] = PURPLE
     return mf
+
+
+
+
+
+
+
+
+
+
+
+
+
+tile = TileRef(0,0)
+
+
+
+
+
+v1: VertexRef = tile.vertex(VertexClass.DEF)
+
+ends = v1.ends_cw()
+
+top_of_f: EndRef = ends[0]
+
+
+bottom_of_f = top_of_f.other() # We're pointing up toward v1
+
+left_end, right_end = bottom_of_f.lr()
+
+left, right = right_end.lr()
+
+
+
+edge_below_v1 = EdgeRef(vertical_end.edge_class, vertical_end.tile)
+
+vertexes = edge_below_v1.vertex_pair()
+
+btm: VertexRef = vertexes.bottom
+
+assert btm.tile.y == -1
 
 
 def main() -> None:

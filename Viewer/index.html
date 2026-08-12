@@ -702,7 +702,7 @@ async function loadRoom() {
     const room = await loadGLTF('room.gltf');
     roomMat = new THREE.MeshStandardMaterial({
       color: 0xd8ccae, roughness: 0.15, metalness: 0.1,
-      envMapIntensity: 1.6, side: THREE.DoubleSide });
+      envMapIntensity: 0.8, side: THREE.DoubleSide });
     room.traverse(o => { if (o.isMesh) { o.material = roomMat; o.receiveShadow = true; o.castShadow = false; } });
     scene.add(room);
     room.updateMatrixWorld(true);
@@ -711,9 +711,9 @@ async function loadRoom() {
     const center = roomBox.getCenter(new THREE.Vector3());
     const size = roomBox.getSize(new THREE.Vector3());
     cubeCam.position.copy(center);
-    applyBoxProjection(roomMat, center, size);
+    //applyBoxProjection(roomMat, center, size);
     applyWallTransparency();
-    buildCushions();
+    //buildCushions();
   } catch (e) { console.warn('room.gltf not loaded:', e); }
 }
 function applyWallTransparency() {

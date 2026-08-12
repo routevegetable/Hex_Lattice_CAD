@@ -6,12 +6,14 @@ translated down to module edges.
 """
 from __future__ import annotations
 
+import math
+from collections.abc import Generator, Iterable
 from dataclasses import dataclass, replace
-from enum import Enum
+from enum import StrEnum
 from typing import ClassVar, Dict, Iterator, Tuple
 
 
-class EdgeClass(str, Enum):
+class EdgeClass(StrEnum):
     A = "A"
     B = "B"
     C = "C"
@@ -20,7 +22,7 @@ class EdgeClass(str, Enum):
     F = "F"
 
 
-class VertexClass(str, Enum):
+class VertexClass(StrEnum):
     ABF = "ABF"
     ABC = "ABC"
     CDE = "CDE"
@@ -39,9 +41,27 @@ class TileRef:
     UP: ClassVar["TileRef"]
     DOWN: ClassVar["TileRef"]
 
+    WIDTH: ClassVar[float] = 1.0
+    HEIGHT: ClassVar[float] = 1.732
+
+    RADIUS: ClassVar[float] = 0.577
+
+    # Location of the main hex center within a tile.
+    ORIGIN_OFFSET_X: ClassVar[float] = 0.5
+    ORIGIN_OFFSET_Y: ClassVar[float] = 2 * RADIUS
+
     @staticmethod
     def from_xy(x: int, y: int) -> "TileRef":
         return TileRef(x, y)
+
+    @staticmethod
+    def from_physical(x: float, y: float) -> "TileRef":
+        """Inverse of physical(). Note the box it floors into is measured from
+        the hex center, not the tile corner, so only exact centers round-trip."""
+        return TileRef.from_xy(
+            math.floor((x - TileRef.ORIGIN_OFFSET_X) / TileRef.WIDTH),
+            math.floor((y - TileRef.ORIGIN_OFFSET_Y) / TileRef.HEIGHT),
+        )
 
     def offset(self, a):
         """Translate any {tile: TileRef} ref by this tile's offset."""
@@ -65,6 +85,13 @@ class TileRef:
     def bottom_end(self, c: EdgeClass) -> "EndRef":
         return EndRef(c, self, False)
 
+    def physical(self) -> Tuple[float, float]:
+        """Physical position of this tile's main hex center."""
+        # A tile's origin is its main hex center, at (0.5, 0.577) within a tile
+        # that is 1 wide and 1.732 high.
+        return (self.x * TileRef.WIDTH + TileRef.ORIGIN_OFFSET_X,
+                self.y * TileRef.HEIGHT + TileRef.ORIGIN_OFFSET_Y)
+
 
 # dataclass turns the annotations above into fields; strip the constant markers
 # and attach the real singletons.
@@ -82,13 +109,18 @@ class VertexRef:
     vertex_class: VertexClass
     tile: TileRef
 
-    @staticmethod
-    def ends_cw(v: "VertexRef") -> Tuple["EndRef", "EndRef", "EndRef"]:
+    def ends_cw(self) -> Tuple["EndRef", "EndRef", "EndRef"]:
         """Clockwise ends around the vertex; index 0 is always the vertical."""
-        s = VERTEX_END_SETS[v.vertex_class]
+        s = VERTEX_END_SETS[self.vertex_class]
         points_up = not s.v.top
         order = (s.v, s.r, s.l) if points_up else (s.v, s.l, s.r)
-        return tuple(v.tile.offset(x) for x in order)  # type: ignore[return-value]
+        return tuple(self.tile.offset(x) for x in order)  # type: ignore[return-value]
+
+    def physical(self) -> Tuple[float, float]:
+        """Physical position of this vertex."""
+        cx, cy = self.tile.physical()          # center of the main hex
+        ox, oy = TILE_VERTEX_OFFSETS[self.vertex_class]   # offset from center
+        return (cx + ox, cy + oy)
 
 
 @dataclass(frozen=True)
@@ -96,40 +128,88 @@ class EdgeRef:
     edge_class: EdgeClass
     tile: TileRef
 
-    @staticmethod
-    def ends(e: "EdgeRef") -> Tuple["EndRef", "EndRef"]:
-        return (EndRef(e.edge_class, e.tile, True),
-                EndRef(e.edge_class, e.tile, False))
+    def ends(self) -> Tuple["EndRef", "EndRef"]:
+        return (EndRef(self.edge_class, self.tile, True),
+                EndRef(self.edge_class, self.tile, False))
 
-    @staticmethod
-    def vertex_pair(e: "EdgeRef") -> "EdgeVertexPair":
-        p = EDGE_VERTEX_PAIRS[e.edge_class]
-        return EdgeVertexPair(e.tile.offset(p.top), e.tile.offset(p.bottom))
+    def vertex_pair(self) -> "EdgeVertexPair":
+        p = EDGE_VERTEX_PAIRS[self.edge_class]
+        return EdgeVertexPair(self.tile.offset(p.top), self.tile.offset(p.bottom))
 
+@dataclass(frozen=True)
+class FilamentRef:
+    tile: TileRef
+    idx: int
+    first_end: EndRef
 
 @dataclass(frozen=True)
 class EndRef(EdgeRef):
     top: bool
 
-    @staticmethod
-    def other(er: "EndRef") -> "EndRef":
-        return replace(er, top=not er.top)
+    def other(self) -> "EndRef":
+        return replace(self, top=not self.top)
 
-    @staticmethod
-    def vertex(e: "EndRef") -> VertexRef:
-        vp = EdgeRef.vertex_pair(e)
-        return vp.top if e.top else vp.bottom
+    def vertex(self) -> VertexRef:
+        vp = self.vertex_pair()
+        return vp.top if self.top else vp.bottom
 
-    @staticmethod
-    def lr(er: "EndRef") -> Tuple["EndRef", "EndRef"]:
-        cw = VertexRef.ends_cw(EndRef.vertex(er))
-        if cw[0].edge_class == er.edge_class:
+    def lr(self) -> Tuple["EndRef", "EndRef"]:
+        cw = self.vertex().ends_cw()
+        if cw[0].edge_class == self.edge_class:
             return (cw[1], cw[2])
-        elif cw[1].edge_class == er.edge_class:
+        elif cw[1].edge_class == self.edge_class:
             return (cw[2], cw[0])
         else:
             return (cw[0], cw[1])
 
+    def physical_to_next(self) -> Tuple[float, float]:
+        """Vector pointing from this end to the opposite end of the edge."""
+        fx, fy = self.vertex().physical()
+        tx, ty = self.other().vertex().physical()
+        return (tx - fx, ty - fy)
+    
+    def path(self, seq: Iterable[str]) -> Generator[EndRef, None, None]:
+        # Starting at an end, navigate according to seq
+        # Yields the first end of each edge visited
+        # Empty 'seq' just gives a line
+        current = self
+        yield current
+        for c in seq:
+            current = current.other()
+            lr = current.lr()
+            match c:
+                case "L":
+                    current = lr[0]
+                case "R":
+                    current = lr[1]
+            
+            yield current
+
+
+    def hex_ends(self) -> list[EndRef]:
+        left = self.lr()[0]
+        return list(left.path("R" * 5))
+
+    def filament(self, idx: int) -> FilamentRef:
+        return FilamentRef(self.tile, idx, first_end=self)
+
+
+# An end is kind of also an 'edge with a direction'.
+
+class TileGrid:
+    def __getitem__(self, key: tuple[int, int]) -> TileRef:
+        return TileRef(key[0], key[1])
+TILE = TileGrid()
+
+class VertexGrid:
+    def __getitem__(self, key: tuple[int, int]) -> VertexRef:
+        x,y = key
+        if y % 2 == 0:
+            return TileRef(x, y // 2).vertex(VertexClass.DEF)
+        else:
+            return TileRef(x + 1, y // 2).vertex(VertexClass.ABC)
+            
+VERTEX = VertexGrid()
 
 @dataclass(frozen=True)
 class EndSet:
@@ -167,6 +247,15 @@ VERTEX_END_SETS: Dict[VertexClass, EndSet] = {
     ),
 }
 
+# Vertex offsets from the main hex center. On a pointy-top hex the horizontal
+# offset is RADIUS*sqrt(3)/2, which is half a tile width - not RADIUS itself.
+TILE_VERTEX_OFFSETS: Dict[VertexClass, Tuple[float, float]] = {
+    VertexClass.ABC: (-TileRef.WIDTH / 2, TileRef.RADIUS / 2),
+    VertexClass.ABF: (0.0, TileRef.RADIUS),
+    VertexClass.CDE: (-TileRef.WIDTH / 2, -TileRef.RADIUS / 2),
+    VertexClass.DEF: (0.0, -TileRef.RADIUS),
+}
+
 EDGE_VERTEX_PAIRS: Dict[EdgeClass, EdgeVertexPair] = {
     EdgeClass.A: EdgeVertexPair(VertexRef(VertexClass.ABF, TileRef.THIS),
                                 VertexRef(VertexClass.ABC, TileRef.THIS)),
@@ -182,25 +271,23 @@ EDGE_VERTEX_PAIRS: Dict[EdgeClass, EdgeVertexPair] = {
                                 VertexRef(VertexClass.ABF, TileRef.DOWN)),
 }
 
-
 @dataclass(frozen=True)
 class HexGridCoord:
     x: int
     y: int
 
-    @staticmethod
-    def ends(gc: "HexGridCoord") -> Iterator[EndRef]:
+    def ends(self) -> Iterator[EndRef]:
         """The 12 ends (top/bottom of each of 6 edges) around a hexagon."""
-        if gc.y % 2 == 0:
-            vertex = TileRef(gc.x, gc.y // 2).vertex(VertexClass.DEF)
+        if self.y % 2 == 0:
+            vertex = TileRef(self.x, self.y // 2).vertex(VertexClass.DEF)
         else:
-            vertex = TileRef(gc.x + 1, gc.y // 2).vertex(VertexClass.ABC)
+            vertex = TileRef(self.x + 1, self.y // 2).vertex(VertexClass.ABC)
 
-        below = VertexRef.ends_cw(vertex)[0]     # top of the vertical below the vertex
-        current = EndRef.lr(below)[1]
+        below = vertex.ends_cw()[0]     # top of the vertical below the vertex
+        current = below.lr()[1]
 
         for _ in range(6):
             yield current
-            current = EndRef.other(current)
+            current = current.other()
             yield current
-            current = EndRef.lr(current)[0]
+            current = current.lr()[0]
