@@ -6,23 +6,21 @@ purple at its bottommost end — so you can read off filament order and top/bott
 orientation directly from the structure.
 
     1. python3 serve.py
-    2. python3 py/examples/tester.py           # all edges, all modules
-       python3 py/examples/tester.py A1        # just edge A1, all modules
-       python3 py/examples/tester.py A1 0-5    # edge A1, module "0-5" (x-y = lateral-height)
-       python3 py/examples/tester.py 0-5       # all edges, module "0-5"
+    2. python3 -m pylattice.examples.tester           # all edges, all modules
+       python3 -m pylattice.examples.tester A1        # just edge A1, all modules
+       python3 -m pylattice.examples.tester A1 0-5    # edge A1, module "0-5" (x-y = lateral-height)
+       python3 -m pylattice.examples.tester 0-5       # all edges, module "0-5"
 """
-import os
 import sys
 import time
 
-from py.lib.graph import EdgeRef, EndRef, VertexClass, VertexRef
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-from py.lib import ModuleFrame, LatticeClient, EdgeClass, TileRef   # noqa: E402
+from pylattice.format import STANDARD_MODULE, WEIRD_TUBE
+from pylattice import ModuleFrame, LatticeClient, EdgeClass, TileRef
+from pylattice.lattice_writer import LatticeWriter
 
 ROWS = 2          # stacked rings to cover
 PER_ROW = 32      # modules per ring
-FPS = 30
+FPS = 50
 
 FILAMENTS = 4
 WHITE = [1.0, 1.0, 1.0]
@@ -34,6 +32,8 @@ PURPLE = [0.5, 0.0, 1.0]
 ALL_EDGES = [(TileRef(tx, 0).edge(ec), f"{ec.value}{tx + 1}")
              for tx in (0, 1) for ec in EdgeClass]
 
+
+lattice = LatticeWriter(PER_ROW, ROWS)
 
 def build_frame(edges, step: int) -> ModuleFrame:
     """Blank frame with one (edge, filament) lit: top white, bottom purple."""
@@ -48,43 +48,7 @@ def build_frame(edges, step: int) -> ModuleFrame:
 
 
 
-
-
-
-
-
-
-
-
-
 tile = TileRef(0,0)
-
-
-
-
-
-v1: VertexRef = tile.vertex(VertexClass.DEF)
-
-ends = v1.ends_cw()
-
-top_of_f: EndRef = ends[0]
-
-
-bottom_of_f = top_of_f.other() # We're pointing up toward v1
-
-left_end, right_end = bottom_of_f.lr()
-
-left, right = right_end.lr()
-
-
-
-edge_below_v1 = EdgeRef(vertical_end.edge_class, vertical_end.tile)
-
-vertexes = edge_below_v1.vertex_pair()
-
-btm: VertexRef = vertexes.bottom
-
-assert btm.tile.y == -1
 
 
 def main() -> None:
@@ -116,21 +80,22 @@ def main() -> None:
     client = LatticeClient()
     print(f"tester: {steps} steps ({len(edges)} edge(s) x 4 filaments), 1s each, {scope}")
 
-    start = time.monotonic()
-    last_step = -1
+
+    step = 0
     frame = build_frame(edges, 0)
     try:
         while True:
-            step = int(time.monotonic() - start) % steps
-            if step != last_step:
-                last_step = step
-                frame = build_frame(edges, step)
-                _edge, name = edges[step // FILAMENTS]
-                print(f"edge {name}  filament {step % FILAMENTS}  (top=white, bottom=purple)",
-                      flush=True)
+            print(step)
+            step = (step + 1) % (len(edges) * FILAMENTS)
+            frame = build_frame(edges, step)
+            _edge, name = edges[step // FILAMENTS]
+            print(f"edge {name}  filament {step % FILAMENTS}  (top=white, bottom=purple)",
+                    flush=True)
             for x, y in targets:
-                client.sendModule(x, y, frame)
-            time.sleep(1 / FPS)
+                data = WEIRD_TUBE.serialize(frame)
+                client.send(x,y, data)
+
+            time.sleep(1/FPS)
     except KeyboardInterrupt:
         client.close()
 

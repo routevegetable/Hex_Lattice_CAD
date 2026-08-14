@@ -161,6 +161,13 @@ class EndRef(EdgeRef):
             return (cw[2], cw[0])
         else:
             return (cw[0], cw[1])
+    
+    def rotate(self, steps: int) -> EndRef:
+        steps = steps % 3
+        if steps == 0:
+            return self
+        else:
+            return self.lr()[steps-1]
 
     def physical_to_next(self) -> Tuple[float, float]:
         """Vector pointing from this end to the opposite end of the edge."""
@@ -204,10 +211,16 @@ TILE = TileGrid()
 class VertexGrid:
     def __getitem__(self, key: tuple[int, int]) -> VertexRef:
         x,y = key
-        if y % 2 == 0:
-            return TileRef(x, y // 2).vertex(VertexClass.DEF)
-        else:
-            return TileRef(x + 1, y // 2).vertex(VertexClass.ABC)
+        # 4 rows per tile
+        match (y % 4):
+            case 0:
+                return TileRef(x, y // 4).vertex(VertexClass.DEF)
+            case 1:
+                return TileRef(x, y // 4).vertex(VertexClass.CDE)
+            case 2:
+                return TileRef(x, y // 4).vertex(VertexClass.ABC)
+            case _:
+                return TileRef(x, y // 4).vertex(VertexClass.ABF)
             
 VERTEX = VertexGrid()
 
@@ -270,6 +283,36 @@ EDGE_VERTEX_PAIRS: Dict[EdgeClass, EdgeVertexPair] = {
     EdgeClass.F: EdgeVertexPair(VertexRef(VertexClass.DEF, TileRef.THIS),
                                 VertexRef(VertexClass.ABF, TileRef.DOWN)),
 }
+
+
+# Working with the hex grid:
+
+@dataclass(frozen=True)
+class HexRef:
+    # A precise hexagon is defined by a base vertex and an orientation - aka an end:
+    base: EndRef        
+
+    def ends(self) -> Iterable[EndRef]:
+        return self.base.path("R" * 5)
+
+    def rotate(self, steps: int) -> HexRef:
+        # Rotate the hexagon clockwise some number of steps
+        steps = steps % 6
+        *_, last = self.base.path("R" * steps)
+        return HexRef(base=last)
+    
+class HexGrid:
+    def __getitem__(self, key: tuple[int, int]) -> HexRef:
+        x,y = key
+        if y % 2 == 0:
+            vertex = TileRef(x, y // 2).vertex(VertexClass.DEF)
+        else:
+            vertex = TileRef(x + 1, y // 2).vertex(VertexClass.ABC)
+
+        below = vertex.ends_cw()[0]     # top of the vertical below the vertex
+        return HexRef(base=below.lr()[0])
+HEX = HexGrid()
+        
 
 @dataclass(frozen=True)
 class HexGridCoord:

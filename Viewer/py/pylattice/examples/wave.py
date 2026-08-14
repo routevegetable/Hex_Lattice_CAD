@@ -1,18 +1,15 @@
 """Example: drive the lattice with a travelling hue wave (Python).
 
     1. python3 serve.py                 # creates the socket + serves the viewer
-    2. python3 py/examples/wave.py
+    2. python3 -m pylattice.examples.wave
 
 Env: HINGE_SOCK overrides the socket path (LatticeClient resolves it).
 """
 import math
-import os
-import sys
 import time
 
-# Make the repo root importable so `py.lib` resolves.
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-from py.lib import ModuleFrame, LatticeClient, ModuleEdge   # noqa: E402
+from pylattice.format import STANDARD_MODULE
+from pylattice import ModuleFrame, LatticeClient
 
 ROWS = 2          # stacked rings
 PER_ROW = 32      # modules per ring
@@ -49,7 +46,8 @@ def main() -> None:
             for h in range(ROWS):
                 for l in range(PER_ROW):
                     paint(buffers[h][l], t, h, l)
-                    client.sendModule(l, h, buffers[h][l])   # x=lateral, y=height
+                    data = STANDARD_MODULE.serialize(buffers[h][l])
+                    client.send(l, h, data)
             time.sleep(1 / FPS)
     except KeyboardInterrupt:
         client.close()

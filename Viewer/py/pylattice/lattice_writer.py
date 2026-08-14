@@ -1,15 +1,18 @@
 
 
-from py.lib.frame import EndFrame, ModuleFrame
-from py.lib.graph import EndRef
-from py.lib.lattice_client import LatticeClient
+import math
+from . import format
+from .frame import EdgeFrame, EndFrame, Ends, ModuleFrame
+from .graph import EndRef
+from .lattice_client import LatticeClient
 
 
 class LatticeWriter:
 
-    def __init__(self, cols: int, rows: int):
+    def __init__(self, cols: int, rows: int, fmt=format.STANDARD_MODULE):
         self._cols = cols
         self._rows = rows
+        self._fmt = fmt
         self._client = LatticeClient()
 
         # Instantiate a matrix of module frames
@@ -30,4 +33,10 @@ class LatticeWriter:
     def show(self):
         for x in range(0, self._cols):
             for y in range(0, self._rows):
-                self._client.send_module(x,y, self._module_frames[x][y])
+                channel_data = self._fmt.serialize(self._module_frames[x][y])
+                self._client.send(x, y, channel_data)
+                
+    def clear(self):
+        self._module_frames = [
+            [ModuleFrame.blank() for _ in range(0,self._rows)] for _ in range(0,self._cols)
+        ]

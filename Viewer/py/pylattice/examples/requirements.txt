@@ -1,4 +1,6 @@
 # The Hinge lattice Python examples use only the standard library
 # (socket, math, time, os, sys) — no third-party packages required.
 #
-# py.lib is imported from the repo root (see the sys.path line in wave.py).
+# They import `pylattice`, which lives one directory up. Install it first:
+#
+#     pip install -e ../..
