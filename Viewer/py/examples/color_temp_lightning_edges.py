@@ -319,10 +319,13 @@ def fast_lightning(
         lo, hi = strike_brightness_range
         return lo + (hi - lo) * (random.random() ** strike_brightness_skew)
 
+
     cluster_scale = (
         1.0 if cluster_duration is None else cluster_duration / _FAST_LIGHTNING_DURATION
     )
     scaled_duration = _FAST_LIGHTNING_DURATION * cluster_scale
+    # I think this could just be
+    # scaled_duration = cluster_duration if cluster_duration else _FAST_LIGHTNING_DURATION
 
     edge_state = {}
     for edge in edges:
@@ -389,6 +392,7 @@ def fast_lightning(
                             for c in _jitter_color(gradient(fraction), jitter)
                         )
                     cols.append(col)
+                print(i, cols, edge)
                 pixel_pairs.set(i, cols[0], cols[1], edge=edge)
 
     return frame
@@ -460,24 +464,30 @@ def color_temp_lightning_edges(
     )
 
 
+
 def main() -> None:
     client = LatticeClient()      # socket path from HINGE_SOCK / default
     pixels = Pixels(client, NUM_EDGES * PIXELS_PER_EDGE)
     pixel_pairs = PixelPairs(pixels)
 
-    frame = color_temp_lightning_edges(pixel_pairs, red_edge=RED_EDGE, epsilon=.30, speed=.5)
+    frame = color_temp_lightning_edges(pixel_pairs, red_edge=RED_EDGE, epsilon=.1, speed=.5, cluster_duration=.5)
+    for t in range(100):
+        print(t)
+    # while True:
+        frame()
+        time.sleep(1/FPS)
 
-    print(
-        f"color_temp_lightning_edges: broadcasting  "
-        f"@ {FPS}fps, red_edge={RED_EDGE} (see module docstring for translation concerns)"
-    )
-    try:
-        while True:
-            frame()
-            client.sendChannels(0, 0, [pixels._data, [], [], []])
-            time.sleep(1 / FPS)
-    except KeyboardInterrupt:
-        client.close()
+    # print(
+    #     f"color_temp_lightning_edges: broadcasting  "
+    #     f"@ {FPS}fps, red_edge={RED_EDGE} (see module docstring for translation concerns)"
+    # )
+    # try:
+    #     while True:
+    #         frame()
+    #         # client.sendChannels(0, 0, [pixels._data, [], [], []])
+    #         time.sleep(1 / FPS)
+    # except KeyboardInterrupt:
+    #     client.close()
 
 
 if __name__ == "__main__":
