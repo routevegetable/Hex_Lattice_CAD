@@ -50,11 +50,9 @@ def periodic(now: Event[Any], period: int, offset: int = 0) -> Event[int]:
     return Event(when = period_num * period + offset, data=period_num)
 
 
-TData2 = TypeVar("TData2", bound=numbers.Number)
-def sweep(now: Event[Any], trigger: Event[Any] | None, period: int, start: TData2, end: TData2, wait: TData2 | None = None) -> TData2:
+def sweep(now: Event[Any], trigger: Event[Any] | None, period: int, start: float, end: float, wait: float | None = None) -> float:
     if wait is None:
         wait = start
-
     
     if trigger is None or not now.after(trigger):
         return start
@@ -108,7 +106,7 @@ def seq_interp(now: Event[Any], trigger: Event[Any] | None, period: int, arr: li
 
 
 
-def psweep(now: Event[Any], period: int, start: TData2, end: TData2, offset: int = 0) -> TData2:
+def psweep(now: Event[Any], period: int, start: float, end: float, offset: int = 0) -> float:
     trigger = periodic(now, period, offset)
 
     e = sweep(now, trigger, period, start, end)

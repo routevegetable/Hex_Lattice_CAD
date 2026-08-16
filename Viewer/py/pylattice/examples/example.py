@@ -39,19 +39,19 @@ ZERO = Event.for_now()
 
 
 
-def make_filament_fn(end: EndRef, idx: int) -> Callable[[Event[Any]],None]:
+def make_filament_fn(end: EndRef, idx: int, offset: int) -> Callable[[Event[Any]],None]:
     latch: EventLatch[Any] = EventLatch()
 
     def filament_fn(now: Event[Any]):
 
-        gate_prob = psweep(now, 6000, 0, 0.7)
+        gate_prob = psweep(now, 800, 0.7, 0.0)
         gate_prob = gate_prob * gate_prob
 
         # Random trigger
-        trg = latch.maybe(now, idx + end.__hash__(), 100, gate_prob)
+        trg = latch.maybe(now, idx + end.__hash__(), 80, gate_prob)
 
         # Saturation envelope
-        s = sweep(now, trg, 100, 0.7, 1)
+        s = sweep(now, trg, 150, 0.6, 1)
 
         # Value envelope
         v = sweep(now, trg, 200, 1, 0, 0)
@@ -70,10 +70,10 @@ def make_filament_fn(end: EndRef, idx: int) -> Callable[[Event[Any]],None]:
 filament_fns: list[Callable[[Event[Any]], None]] = []
 
 # For each end, make a filament render function
-for x in range(0, 10):
+for x in range(0, 8):
     for end in HEX[x,1].ends():
         for i in range(0,4):
-            filament_fns.append(make_filament_fn(end, i))
+            filament_fns.append(make_filament_fn(end, i, offset=1000 if (x%2) == 0 else 0))
     
 
 while True:
