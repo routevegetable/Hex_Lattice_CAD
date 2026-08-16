@@ -1,0 +1,27 @@
+{
+  "version": "5",
+  "specifiers": {
+    "npm:@julusian/midi@*": "3.8.0"
+  },
+  "npm": {
+    "@julusian/midi@3.8.0": {
+      "integrity": "sha512-zlOEsgDry/Wj1df1U6SfR2Z2RDHAZjXl9vFdV84DaaxmkA/7p6l1qX6yvCRAhKl9EnIpiAy+MrNrisKv+0N8Vw==",
+      "dependencies": [
+        "node-addon-api",
+        "pkg-prebuilds",
+        "tslib"
+      ],
+      "scripts": true
+    },
+    "node-addon-api@6.1.0": {
+      "integrity": "sha512-+eawOlIgy680F0kBzPUNFhMZGtJ1YmqM6l4+Crf4IkImjYrO/mqPwRMh352g23uIaQKFItcQ64I7KMaJxHgAVA=="
+    },
+    "pkg-prebuilds@1.1.0": {
+      "integrity": "sha512-jyai+KTQ2OwbN6iRYw88XbYOMgtpoSYJpjYebx7d9ihqz3txNi3ucsBt3va0iVWe6svSlaqpijMHFF/eJCMZzg==",
+      "bin": true
+    },
+    "tslib@2.8.1": {
+      "integrity": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="
+    }
+  }
+}

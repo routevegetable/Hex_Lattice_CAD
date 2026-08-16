@@ -8,4 +8,6 @@
 # (Start serve.py separately — it creates the socket + serves the viewer.)
 set -euo pipefail
 cd "$(dirname "$0")/ts/examples"
-exec deno run --watch --allow-net --allow-write --allow-env app.ts "$@"
+# -A: app.ts uses npm:@julusian/midi (native addon for MIDI clock) which needs
+# broad permissions.
+exec deno run --watch -A app.ts "$@"

@@ -187,10 +187,12 @@ export const VertexRef = {
     }
 }
 
+// Vertex offsets from the main hex center. On a pointy-top hex the horizontal
+// offset is RADIUS*sqrt(3)/2, which is half a tile width - not RADIUS itself.
 const TILE_VERTEX_OFFSETS: { [key in VertexClass]: [number, number] } = {
-    [VertexClass.ABC]: [-TileRef.RADIUS, TileRef.RADIUS/2],
+    [VertexClass.ABC]: [-TileRef.WIDTH/2, TileRef.RADIUS/2],
     [VertexClass.ABF]: [0, TileRef.RADIUS],
-    [VertexClass.CDE]: [-TileRef.RADIUS, -TileRef.RADIUS/2],
+    [VertexClass.CDE]: [-TileRef.WIDTH/2, -TileRef.RADIUS/2],
     [VertexClass.DEF]: [0, -TileRef.RADIUS]
 }
 

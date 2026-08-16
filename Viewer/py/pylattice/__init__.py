@@ -1,15 +1,15 @@
 """Python port of the Hinge Lattice module libraries (see ts/lib).
 
-    from py.lib import ModuleFrame, ModuleEdge, LatticeClient
+    from pylattice import ModuleFrame, ModuleEdge, LatticeClient
 """
-from .frame import ModuleEdge, ModuleFrame, EdgeFrame, Ends, CHANNEL_EDGES
+from .frame import ModuleEdge, ModuleFrame, EdgeFrame, Ends
 from .graph import (
     EdgeClass, VertexClass, TileRef, VertexRef, EdgeRef, EndRef, HexGridCoord,
 )
 from .lattice_client import LatticeClient, DEFAULT_GROUP, DEFAULT_PORT, DEFAULT_IFACE
 
 __all__ = [
-    "ModuleEdge", "ModuleFrame", "EdgeFrame", "Ends", "CHANNEL_EDGES",
+    "ModuleEdge", "ModuleFrame", "EdgeFrame", "Ends",
     "EdgeClass", "VertexClass", "TileRef", "VertexRef", "EdgeRef", "EndRef",
     "HexGridCoord", "LatticeClient", "DEFAULT_GROUP", "DEFAULT_PORT", "DEFAULT_IFACE",
 ]

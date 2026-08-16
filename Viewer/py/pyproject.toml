@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pylattice"
+version = "0.1.0"
+description = "Hex lattice module frames, connectivity graph and UDP multicast client"
+readme = "README.md"
+requires-python = ">=3.11"          # StrEnum
+license = "MIT"
+authors = [{ name = "Lee Marshall", email = "lee@wanker.biz" }]
+dependencies = []                   # stdlib only
+
+[tool.setuptools]
+packages = ["pylattice", "pylattice.examples"]
+
+[tool.setuptools.package-data]
+pylattice = ["py.typed"]            # PEP 561: let consumers' type checkers use our annotations
