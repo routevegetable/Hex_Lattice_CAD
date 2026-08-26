@@ -1,3 +1,4 @@
+from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass
 import math
@@ -6,6 +7,7 @@ import time
 from typing import Any, Generic, TypeVar
 
 TData = TypeVar("TData")
+UData = TypeVar("UData")
 
 @dataclass
 class Event(Generic[TData]):
@@ -18,7 +20,7 @@ class Event(Generic[TData]):
 
     def rand(self, salt: int = 0):
         """Deterministic 32-bit integer mixing function."""
-        x = self.when * 65536 + salt
+        x = int(self.when * 65536 + salt)
         x = ((x >> 16) ^ x) * 0x45d9f3b
         x = ((x >> 16) ^ x) * 0x45d9f3b
         x = (x >> 16) ^ x
@@ -28,6 +30,9 @@ class Event(Generic[TData]):
         if self.when is None or ev.when is None:
             return None
         return self.when - ev.when
+
+    def with_data(self, data: UData) -> Event[UData]:
+        return Event(self.when, data)
 
     def after(self, ev: Event[Any] | None) -> bool:
         # We happened
@@ -55,7 +60,7 @@ def sweep(now: Event[Any], trigger: Event[Any] | None, period: int, start: float
         wait = start
     
     if trigger is None or not now.after(trigger):
-        return start
+        return wait
     
     offset = now.when - trigger.when
     
@@ -152,6 +157,28 @@ class EventLatch(Generic[TData]):
     def read(self) -> Event[TData] | None:
         return self.ev
 
+class History(Generic[TData]):
+    """
+    Circular buffer of same-typed event latches
+    """
+    def __init__(self, len: int = 20):
+        self._d = deque[EventLatch[TData]]()
+        for _ in range(len):
+            self._d.append(EventLatch())
+
+    def events(self) -> Iterable[Event[TData]]:
+        for el in self._d:
+            yield el.read()
+    
+    def update(self) -> EventLatch[TData]:
+        self._d.rotate()
+        return self._d[0]
+    
+    def maybe_update(self, now: Event[Any], salt: int, period: int, likelihood: float, offset: int = 0):
+        """
+        TBD
+        """
+        ...
 
 
 # t = 0
