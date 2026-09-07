@@ -118,9 +118,26 @@ def psweep(now: Event[Any], period: int, start: float, end: float, offset: int =
     return e
 
 
+class LFO:
+    def __init__(self):
+        self.sync = Event(0)
+
+    def get(self, now: Event, period: int, start: float, end: float) -> float:
+        """
+        Returns a sawtooth 0-1 that can change frequency easily
+        """
+        if now.after(self.sync.delay(period)):
+            self.sync.when = now.when
+    
+        return sweep(now, self.sync, period, start, end)
+
 class EventLatch(Generic[TData]):
     def __init__(self):
         self.ev: Event[TData] | None = None
+
+    def periodic(self, now: Event, period: int) -> Event:
+        if now.after(self.ev.delay(period)):
+            self.ev.when = now.when
 
     def latch(self, ev: Event[TData], latch: bool = True) -> Event[TData] | None:
         """
@@ -182,12 +199,15 @@ class History(Generic[TData]):
 
 
 # t = 0
-ZERO = Event.for_now()
+ZERO = Event(when=0, data=None)
 
 A_SEC = ZERO.delay(1000)
 
 el: EventLatch[None] = EventLatch()
 
+
+now = ZERO.delay(75)
+print(psweep(now, 100, 0, 1, 25))
 
 while True:
     break

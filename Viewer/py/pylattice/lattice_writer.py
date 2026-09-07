@@ -10,14 +10,14 @@ from .lattice_client import LatticeClient
 class LatticeWriter:
 
     def __init__(self, cols: int, rows: int, fmt=format.STANDARD_MODULE):
-        self._cols = cols
-        self._rows = rows
+        self._cols = int(cols)
+        self._rows = int(rows)
         self._fmt = fmt
         self._client = LatticeClient()
 
         # Instantiate a matrix of module frames
         self._module_frames: list[list[ModuleFrame]] = [
-            [ModuleFrame.blank() for _ in range(0,rows)] for _ in range(0,cols)
+            [ModuleFrame.blank() for _ in range(0,self._rows)] for _ in range(0,self._cols)
         ]
     
     def __getitem__(self, end: EndRef) -> EndFrame:
