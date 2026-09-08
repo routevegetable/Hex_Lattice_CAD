@@ -1,3 +1,4 @@
+from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass
 import math
@@ -6,6 +7,7 @@ import time
 from typing import Any, Generic, TypeVar
 
 TData = TypeVar("TData")
+UData = TypeVar("UData")
 
 @dataclass
 class Event(Generic[TData]):
@@ -18,7 +20,7 @@ class Event(Generic[TData]):
 
     def rand(self, salt: int = 0):
         """Deterministic 32-bit integer mixing function."""
-        x = self.when * 65536 + salt
+        x = int(self.when * 65536 + salt)
         x = ((x >> 16) ^ x) * 0x45d9f3b
         x = ((x >> 16) ^ x) * 0x45d9f3b
         x = (x >> 16) ^ x
@@ -28,6 +30,9 @@ class Event(Generic[TData]):
         if self.when is None or ev.when is None:
             return None
         return self.when - ev.when
+
+    def with_data(self, data: UData) -> Event[UData]:
+        return Event(self.when, data)
 
     def after(self, ev: Event[Any] | None) -> bool:
         # We happened
@@ -50,14 +55,12 @@ def periodic(now: Event[Any], period: int, offset: int = 0) -> Event[int]:
     return Event(when = period_num * period + offset, data=period_num)
 
 
-TData2 = TypeVar("TData2", bound=numbers.Number)
-def sweep(now: Event[Any], trigger: Event[Any] | None, period: int, start: TData2, end: TData2, wait: TData2 | None = None) -> TData2:
+def sweep(now: Event[Any], trigger: Event[Any] | None, period: int, start: float, end: float, wait: float | None = None) -> float:
     if wait is None:
         wait = start
-
     
     if trigger is None or not now.after(trigger):
-        return start
+        return wait
     
     offset = now.when - trigger.when
     
@@ -108,16 +111,33 @@ def seq_interp(now: Event[Any], trigger: Event[Any] | None, period: int, arr: li
 
 
 
-def psweep(now: Event[Any], period: int, start: TData2, end: TData2, offset: int = 0) -> TData2:
+def psweep(now: Event[Any], period: int, start: float, end: float, offset: int = 0) -> float:
     trigger = periodic(now, period, offset)
 
     e = sweep(now, trigger, period, start, end)
     return e
 
 
+class LFO:
+    def __init__(self):
+        self.sync = Event(0)
+
+    def get(self, now: Event, period: int, start: float, end: float) -> float:
+        """
+        Returns a sawtooth 0-1 that can change frequency easily
+        """
+        if now.after(self.sync.delay(period)):
+            self.sync.when = now.when
+    
+        return sweep(now, self.sync, period, start, end)
+
 class EventLatch(Generic[TData]):
     def __init__(self):
         self.ev: Event[TData] | None = None
+
+    def periodic(self, now: Event, period: int) -> Event:
+        if now.after(self.ev.delay(period)):
+            self.ev.when = now.when
 
     def latch(self, ev: Event[TData], latch: bool = True) -> Event[TData] | None:
         """
@@ -154,15 +174,40 @@ class EventLatch(Generic[TData]):
     def read(self) -> Event[TData] | None:
         return self.ev
 
+class History(Generic[TData]):
+    """
+    Circular buffer of same-typed event latches
+    """
+    def __init__(self, len: int = 20):
+        self._d = deque[EventLatch[TData]]()
+        for _ in range(len):
+            self._d.append(EventLatch())
+
+    def events(self) -> Iterable[Event[TData]]:
+        for el in self._d:
+            yield el.read()
+    
+    def update(self) -> EventLatch[TData]:
+        self._d.rotate()
+        return self._d[0]
+    
+    def maybe_update(self, now: Event[Any], salt: int, period: int, likelihood: float, offset: int = 0):
+        """
+        TBD
+        """
+        ...
 
 
 # t = 0
-ZERO = Event.for_now()
+ZERO = Event(when=0, data=None)
 
 A_SEC = ZERO.delay(1000)
 
 el: EventLatch[None] = EventLatch()
 
+
+now = ZERO.delay(75)
+print(psweep(now, 100, 0, 1, 25))
 
 while True:
     break

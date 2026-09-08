@@ -14,31 +14,45 @@ orientation directly from the structure.
 import sys
 import time
 
+from py.pylattice.graph import Graph
 from pylattice.format import STANDARD_MODULE, WEIRD_TUBE
 from pylattice import ModuleFrame, LatticeClient, EdgeClass, TileRef
 from pylattice.lattice_writer import LatticeWriter
 
 ROWS = 2          # stacked rings to cover
 PER_ROW = 32      # modules per ring
-FPS = 30
+FPS =10
 
 FILAMENTS = 4
-WHITE = [1.0, 1.0, 1.0]
-PURPLE = [0.5, 0.0, 1.0]
+WHITE = [0, 1, 0]
+PURPLE = [0, 0.0, 1]
+
+graph = Graph(PER_ROW / 2, ROWS)
 
 # A module's 12 edges, addressed via the graph: two tiles (x even/odd) x 6 edge
 # classes. TileRef(x, 0).edge(class) is the EdgeRef; get_end_frame resolves it to
 # the right ModuleEdge (…1 for tile 0, …2 for tile 1).
-ALL_EDGES = [(TileRef(tx, 0).edge(ec), f"{ec.value}{tx + 1}")
+ALL_EDGES = [(TileRef(graph, tx, 0).edge(ec), f"{ec.value}{tx + 1}")
              for tx in (0, 1) for ec in EdgeClass]
 
+"""
+How do I rotate an end about a vertex.
+
+If the end is defined as a path from that vertex, easy.
+
+How about rotating about a hexagon.
+
+
+Can I convert coordinates to paths.
+LR is like going in one direction
+"""
 
 lattice = LatticeWriter(PER_ROW, ROWS)
 
 def build_frame(edges, step: int) -> ModuleFrame:
     """Blank frame with one (edge, filament) lit: top white, bottom purple."""
     mf = ModuleFrame.blank()
-    edge, _name = edges[step // FILAMENTS]
+    edge, _name = edges[step // (FILAMENTS*2)]
     f = step % FILAMENTS
     top, bottom = edge.ends()
     mf.get_end_frame(top)[f][:] = WHITE
@@ -48,7 +62,7 @@ def build_frame(edges, step: int) -> ModuleFrame:
 
 
 
-tile = TileRef(0,0)
+tile = TileRef(graph, 0,0)
 
 
 def main() -> None:
@@ -85,14 +99,13 @@ def main() -> None:
     frame = build_frame(edges, 0)
     try:
         while True:
-            print(step)
-            step = (step + 1) % (len(edges) * FILAMENTS)
+            step = (step + 1) % (len(edges) * FILAMENTS * 2)
             frame = build_frame(edges, step)
-            _edge, name = edges[step // FILAMENTS]
+            _edge, name = edges[step // (FILAMENTS * 2)]
             print(f"edge {name}  filament {step % FILAMENTS}  (top=white, bottom=purple)",
                     flush=True)
             for x, y in targets:
-                data = WEIRD_TUBE.serialize(frame)
+                data = STANDARD_MODULE.serialize(frame)
                 client.send(x,y, data)
 
             time.sleep(1/FPS)
