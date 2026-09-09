@@ -7,14 +7,15 @@ class MIDI:
     def __init__(self, port: str = 'IAC Driver Bus 1'):
         self._m = mido.open_input(port)
         self._note_map: dict[int, Callable[[int, bool]]] = {}
-        self._clock_fns: list[Callable] = []
-        self._start_fns: list[Callable] = []
+        self._clock_fns: list[any] = []
+        self._start_fns: list[any] = []
         self._cc_map: dict[int, int] = {}
 
     def tick(self):
         msg: mido.Message
         # Consume any pending MIDI messages
         while msg := self._m.poll():
+            print(msg)
             match msg.type:
                 case "start":
                     print("Start")
@@ -22,10 +23,10 @@ class MIDI:
                     [cf() for cf in self._clock_fns]
                 case "note_on":
                     if msg.note in self._note_map:
-                        self._note_map(msg.note, msg.velocity != 0)
+                        self._note_map[msg.note](msg.note, msg.velocity != 0)
                 case "note_off":
                     if msg.note in self._note_map:
-                        self._note_map(msg.note, False)
+                        self._note_map[msg.note](msg.note, False)
                 case "control_change":
                     self._cc_map[msg.control] = msg.value
 
@@ -37,9 +38,10 @@ class MIDI:
         Could return an event.
         Called on push and release
         """
+        self._note_map[id] = fn
         ...
 
-    def on_clock(self, fn: Callable[[]]):
+    def on_clock(self, fn: Callable[[], None]):
         """
         fn called on 1/24th clock pulse
         """
