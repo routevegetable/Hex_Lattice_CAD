@@ -10,11 +10,8 @@ Frames stay on this machine by default (multicast TTL 0). To reach real hardware
 on the LAN, raise it — `LatticeClient(ttl=1)` or HEXNET_MCAST_TTL=1 — and point
 HEXNET_MCAST_IF at the real interface rather than loopback.
 """
-<<<<<<< HEAD:Viewer/py/lib/lattice_client.py
 import json
-=======
 import math
->>>>>>> origin:Viewer/py/pylattice/lattice_client.py
 import os
 import socket
 import urllib.error

@@ -10,17 +10,14 @@ does the same thing — one ModuleFrame computed per tick, sent unchanged to
 every module's every edge (A1..F2).
 
     1. python3 serve.py                 # creates the socket + serves the viewer
-    2. python3 py/examples/four_colors.py
+    2. python3 -m pylattice.examples.four_colors
 
 Env: HINGE_SOCK overrides the socket path (LatticeClient resolves it).
 """
-import os
-import sys
 import time
 
-# Make the repo root importable so `py.lib` resolves.
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-from py.lib import ModuleFrame, LatticeClient   # noqa: E402
+from pylattice.format import STANDARD_MODULE
+from pylattice import ModuleFrame, LatticeClient
 
 ROWS = 2          # stacked rings
 PER_ROW = 32      # modules per ring
@@ -100,16 +97,10 @@ def main() -> None:
         while True:
             t += 1 / FPS
             paint(mf, t)
+            data = STANDARD_MODULE.serialize(mf)
             for h in range(ROWS):
                 for l in range(PER_ROW):
-                    #client.sendModule(l, h, mf)
-
-                    client.sendChannels(0,0,[
-                        [(255,255,255)]*64,
-                        [],
-                        [],
-                        []
-                        ])
+                    client.send(l, h, data)
             time.sleep(1 / FPS)
     except KeyboardInterrupt:
         client.close()
