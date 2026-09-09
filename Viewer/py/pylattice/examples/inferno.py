@@ -163,11 +163,15 @@ KNOBS = [
     midi.cc(74)
 ]
 
-def squeeze_hue(value, min_hue, max_hue):
-    hue_range = max_hue - min_hue
+def squeeze_hue(value, start_hue, end_hue):
+    # if we want to go eg from purple (eg .8) to orange (eg .05) via red, 
+    # we can add 1 to the end_hue and hsv with treat it with a %1 
+    if end_hue < start_hue:
+        end_hue += 1
+    hue_range = end_hue - start_hue
     step = hue_range / 127
     dist = step * value
-    return min_hue + dist
+    return start_hue + dist
 
 
 
