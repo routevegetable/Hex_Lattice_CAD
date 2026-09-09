@@ -162,6 +162,16 @@ KNOBS = [
     midi.cc(10),
     midi.cc(74)
 ]
+
+def squeeze_hue(value, min_hue, max_hue):
+    hue_range = max_hue - min_hue
+    step = hue_range / 127
+    dist = step * value
+    return min_hue + dist
+
+
+
+
 while True:
     
     midi.tick()
@@ -171,6 +181,7 @@ while True:
     beat_env = sweep(now, beat_event.read(), 350, 0.5, 0.01, 0.01)
     
     brightness = min(KNOBS[0](), 20) / 20
+    hue = squeeze_hue(KNOBS[1]())
 
     for end in graph.ends():
         #break
@@ -180,8 +191,8 @@ while True:
         PERIOD = 100 + (end.__hash__() % 100)
         for i in range(4):
             
-           hb = (beat_event.read().rand(end.__hash__()) % 10) / 10
-           hue = vary(now, hb, hb+0.01, PERIOD, i/4)
+        #    hb = (beat_event.read().rand(end.__hash__()) % 10) / 10
+        #    hue = vary(now, hb, hb+0.01, PERIOD, i/4)
            value = vary(now, 0.1, 0.3, PERIOD*7.1, i/4)
            saturation = vary(now, .955, 1, PERIOD*3, i/4)
         
