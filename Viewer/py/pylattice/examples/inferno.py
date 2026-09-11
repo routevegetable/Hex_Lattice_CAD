@@ -3,6 +3,7 @@ import abc
 import asyncio
 from collections import deque
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 import math
 import random
 import time
@@ -16,7 +17,7 @@ from pylattice.lattice_writer import LatticeWriter
 from pylattice.examples.tempo import Event, EventLatch, History, periodic, psweep, sweep
 from pylattice.examples.colors import hsv, vary, YELLOW_ROSE
 
-from stupidArtnet import StupidArtnetServer
+from pylattice.examples import artnet
 
 ROWS = 2
 COLS = 8
@@ -30,79 +31,10 @@ graph = Graph(COLS*2, ROWS)
 midi = MIDI()
 
 
-# Art-Net channel map.
-#
-# Universe == fiber index: universe 0 drives filament 0 of every end, universe 1
-# filament 1, and so on. Inside a universe the tiles follow graph.tiles() order,
-# 36 channels each: edge classes A..F, and for each edge the top end's RGB then
-# the bottom end's RGB.
-#
-#   tile block: [A top RGB][A bottom RGB][B top RGB]...[F bottom RGB]
-#
-# 36 channels per tile means only the first 14 tiles fit in a 512-channel
-# universe; tiles past that are not addressable over Art-Net.
-ARTNET_EDGE_ORDER = tuple(EdgeClass)
-FIBERS = 4
-CHANNELS_PER_EDGE = 6                                            # top RGB + bottom RGB
-CHANNELS_PER_TILE = len(ARTNET_EDGE_ORDER) * CHANNELS_PER_EDGE   # 36
-UNIVERSE_SIZE = 512
-TILES_PER_UNIVERSE = UNIVERSE_SIZE // CHANNELS_PER_TILE          # 14
-
-
-def _artnet_rgb(data, o: int) -> RGB:
-    return [data[o] / 255, data[o + 1] / 255, data[o + 2] / 255]
-
-
-def _paint_universe(tiles: list[TileRef], fiber: int, data) -> None:
-    """Paint one universe's DMX frame onto `fiber` of every addressable end."""
-    for t, tile in enumerate(tiles):
-        base = t * CHANNELS_PER_TILE
-        for e, edge_class in enumerate(ARTNET_EDGE_ORDER):
-            o = base + e * CHANNELS_PER_EDGE
-            if o + CHANNELS_PER_EDGE > len(data):
-                return              # short frame: nothing left to read
-            lattice[tile.top_end(edge_class)][fiber] = _artnet_rgb(data, o)
-            lattice[tile.bottom_end(edge_class)][fiber] = _artnet_rgb(data, o + 3)
-
-
 def run_artnet(fps: float = 60.0):
-    """Receive Art-Net and paint it straight onto the lattice.
+    """Drive the lattice from incoming Art-Net - see pylattice.examples.artnet."""
+    artnet.run(lattice, graph, fps)
 
-    Listens on one universe per fiber (see the channel map above) and redraws at
-    `fps`. Blocks until interrupted.
-    """
-    tiles = list(graph.tiles())[:TILES_PER_UNIVERSE]
-
-    # The server receives on its own thread and keeps the last frame per
-    # listener; we sample whatever is in each buffer when we come to draw
-    # rather than redrawing from a callback.
-    server = StupidArtnetServer()
-    listeners = [server.register_listener(fiber) for fiber in range(FIBERS)]
-
-    try:
-        while True:
-            lattice.clear()
-            for fiber, listener in enumerate(listeners):
-                _paint_universe(tiles, fiber, server.get_buffer(listener))
-            lattice.show()
-            time.sleep(1 / fps)
-    finally:
-        server.delete_all_listener()
-        server.close()
-
-
-class Field(Protocol):
-    """
-    Something that has a value for each vertex.
-    Rotating.
-    Wiping.
-    Particle distance.
-    """
-    def get(v: VertexRef) -> float: ...
-
-
-class ColorMap(Protocol):
-    def get(v: float) -> RGB: ...
 
 def blend_max(end: EndRef, idx: int, n: list[float]):
     o_r,o_g,o_b = lattice[end][idx]

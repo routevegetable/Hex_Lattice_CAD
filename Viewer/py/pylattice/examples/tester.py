@@ -21,7 +21,7 @@ from pylattice.lattice_writer import LatticeWriter
 
 ROWS = 2          # stacked rings to cover
 PER_ROW = 32      # modules per ring
-FPS =10
+FPS =40
 
 FILAMENTS = 4
 WHITE = [0, 1, 0]

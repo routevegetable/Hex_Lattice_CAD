@@ -1,14 +1,16 @@
 # The Hinge lattice Python examples use only the standard library
 # (socket, math, time, os, sys) — no third-party packages required.
 #
-<<<<<<< HEAD:Viewer/py/examples/requirements.txt
 # py.lib is imported from the repo root (see the sys.path line in wave.py).
 #
 # Exception: mic_reactive_bisexual.py's LiveMicLine (real mic input) needs:
 #   pip install sounddevice numpy
 # Optional — without them it falls back to FakeMicLine (synthetic input).
-=======
 # They import `pylattice`, which lives one directory up. Install it first:
 #
 #     pip install -e ../..
->>>>>>> origin:Viewer/py/pylattice/examples/requirements.txt
+
+# Except where noted:
+#   inferno.py  — mido (MIDI input)
+#   artnet.py   — stupidartnet (Art-Net receive)
+stupidartnet>=1.6.0

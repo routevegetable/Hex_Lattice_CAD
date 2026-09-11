@@ -83,7 +83,7 @@ for x in range(0, 8):
             filament_fns.append(make_filament_fn(end, i, offset=1000 if (x%2) == 0 else 0))
 
 
-PETAL_PATH = "LRRRLRRLRRRLRR"
+PETAL_PATH = "LRRRR"
 
 def draw_path(base: EndRef, path: str, idx: int, c: RGB):
     for end in base.path(path):
@@ -322,7 +322,7 @@ def get_edge_zap_level(a: RGB, b: RGB) -> float:
 
     
 
-SPREAD_CYCLE_LEN = 800
+SPREAD_CYCLE_LEN = 50
 
 def spread_it(now: Event):
     global current_vertex_colors
@@ -334,7 +334,7 @@ def spread_it(now: Event):
     # Calculate new vertex colors by blending neighbors
     new_vertex_colors = {v: get_new_vertex_color(v) for v in current_vertex_colors}
 
-    LOCK_THRESHOLD = 0.4
+    LOCK_THRESHOLD = 0.2
     # Sweep vertex edges from old to new colors
     temp_colors: VertexColorMap = {}
     for v in current_vertex_colors:
@@ -350,9 +350,9 @@ def spread_it(now: Event):
 
 
         #print(old, new)
-        r = sweep(now, current_cycle, SPREAD_CYCLE_LEN, old[0], new[0])
-        g = sweep(now, current_cycle, SPREAD_CYCLE_LEN, old[1], new[1])
-        b = sweep(now, current_cycle, SPREAD_CYCLE_LEN, old[2], new[2])
+        r = sweep(now, current_cycle, SPREAD_CYCLE_LEN, old[0], new[0]) * 0.4
+        g = sweep(now, current_cycle, SPREAD_CYCLE_LEN, old[1], new[1]) * 0.4
+        b = sweep(now, current_cycle, SPREAD_CYCLE_LEN, old[2], new[2]) * 0.4
         temp_colors[v] = [r,g,b]
 
     for v in temp_colors:
@@ -454,11 +454,12 @@ while True:
 
 
     for end in graph.ends():
-        PERIOD = 200 + (end.__hash__() % 200)
+        PERIOD = 200 + (end.__hash__() % 400)
         for i in range(4):
            hue = vary(now, .67, .7, PERIOD, i/4)
-           value = vary(now, 0, .1, PERIOD*7.1, i/4)
+           value = vary(now, 0, .3, PERIOD*7.1, i/4)
            saturation = vary(now, .7, 1, PERIOD*3, i/4)
+           #saturation = 0.7
 
            lattice[end][i] = hsv(hue, saturation, value)
 
@@ -641,7 +642,7 @@ while True:
         [1, 1, 1]
     ]
 
-    CYCLE_LEN = 1000
+    CYCLE_LEN = 100
     cycle = periodic(now, CYCLE_LEN)
 
 
@@ -709,14 +710,14 @@ while True:
     #for fn in filament_fns:s
     #    fn(Event.for_now())
 
-    steps = math.floor(psweep(Event.for_now(), 700, 0, 6))
+    steps = math.floor(psweep(Event.for_now(), 1000, 0, 6))
     ypos = 1 # math.floor(psweep(Event.for_now(), 6000, 1, 30))
     pos = 0# + ypos // 2 # math.floor(psweep(Event.for_now(), 4000, 1, 14))
 
     petal_bases = enumerate(graph.HEX[pos,ypos].rotate(steps).ends())
 
     # Draw petals
-    if True:
+    if False:
         for ib, base in petal_bases:
             if ib % 2 == 0:
                 continue
@@ -729,9 +730,9 @@ while True:
 
             filament = ib % 4
 
-            #draw_path(base, PETAL_PATH, filament, color)
-            draw_path(base, "RLRRRRLRR", filament, color)
-            break
+            draw_path(base, PETAL_PATH, filament, color)
+            #draw_path(base, "RLRRRRLRR", filament, color)
+            #break
         
         for f in range(4):
             break
