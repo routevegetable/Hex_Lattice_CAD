@@ -4,3 +4,8 @@
 # They import `pylattice`, which lives one directory up. Install it first:
 #
 #     pip install -e ../..
+
+# Except where noted:
+#   inferno.py  — mido (MIDI input)
+#   artnet.py   — stupidartnet (Art-Net receive)
+stupidartnet>=1.6.0

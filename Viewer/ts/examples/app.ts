@@ -170,8 +170,8 @@ function burst(now: number, start: number, origin: EndRef, len: number) {
     try {
       const ef = end_frame(er)
 
-      const end_start = start + count * 20;
-      const b = sweep(now, end_start, 100, 1, 0, 0);
+      const end_start = start + count * 30;
+      const b = sweep(now, end_start, 200, 1, 0, 0);
 
       //console.log(b)
 
@@ -213,7 +213,7 @@ const STRING_HUES = [
   1
 ]
 
-const STRING_TIME = 9000;
+const STRING_TIME = 4000;
 
 const STRING_COUNT = 8;
 
@@ -246,7 +246,7 @@ function rand_end(s: number): EndRef {
 }
 
 function rand_boundary_end(s: number): EndRef {
-  const x = Math.floor(hash(s * 10) * PER_ROW * 2)
+  const x = Math.floor(hash(s * 10) * PER_ROW*2)
   const y = Math.floor(hash(s * 10 + 1) * 2)
 
   const e = [
@@ -295,8 +295,8 @@ function draw_strings(now: number) {
       const b = sweep(now, end_start, 40, 0, 1, 0);
       const b2 = sweep(now, (end_start + STRING_TIME)-1000, 40, 1, 0, 1);
 
-      const flash_period = periodic(now - i * string_start_interval, 2000) + i * string_start_interval;
-      const flash_env = Math.sin(sweep(now, flash_period + dt, 1000, 0, 3.141, 3.141)) * 0.75;
+      const flash_period = periodic(now - i * string_start_interval, 800) + i * string_start_interval;
+      const flash_env = Math.sin(sweep(now, flash_period + dt, 200, 0, 3.141, 3.141)) * 0.75;
       //if(i == 1 && count == 0) console.log(flash_env.toFixed(2))
       const hue_dev = sweep(now, end_start, STRING_TIME, hue-0.05, hue+0.05)
 
@@ -338,16 +338,19 @@ export function render(msec: number) {
       }
   }
 
-  const GAP = 30; // between bursts
-
-/*   const b = periodic(msec, GAP)
-  if(b > last_burst) {
-    last_burst = b;
-    bursts.push(last_burst);
-    if(bursts.length > MAX_BURSTS) {
-      bursts.shift()
+  const GAP = 50; // between bursts
+  
+  if(true) {
+    const b = periodic(msec, GAP)
+    if(b > last_burst) {
+      last_burst = b;
+      bursts.push([last_burst, true]);
+      if(bursts.length > MAX_BURSTS) {
+        bursts.shift()
+      }
     }
-  } */
+  }
+    
 
   for(let b of bursts) {
     const [start_time, t] = b;
@@ -363,8 +366,8 @@ export function render(msec: number) {
 
 
     if(t) {
-      const x = 1 + Math.floor(hash(start_time) * 14)
-      const y = 1;//Math.floor(hash(start_time + 1) * 3)
+      const x = Math.floor(hash(start_time) * 14)
+      const y = Math.floor(hash(start_time + 1) * 5)
       const tile = new TileRef(x,y);
       //console.log(msec, start_time)
 
@@ -375,19 +378,19 @@ export function render(msec: number) {
         off = off + 1;
       }
     } else {
-      const x = 1 + Math.floor(hash(start_time) * 14)
+      const x = 0 + Math.floor(hash(start_time) * 5)
       const y = 0;//Math.floor(hash(start_time + 1) * 3)
       const tile = new TileRef(x,y);
       burst(msec, start_time, tile.bottom_end(EdgeClass.F), 16)
     }
   }
 
-  //draw_strings(msec);
+  draw_strings(msec);
 
   return;
   const now = msec;
 
-for(let i = 0; i < 2; i++)
+for(let i = 0; i < 3; i++)
     for(let end of HexGridCoord.ends({
                     x: Math.floor(rand_period(now+i*100, i, 200) * 20),
                     y: Math.floor(rand_period(now+i*100, i*10+2, 200) * 3)

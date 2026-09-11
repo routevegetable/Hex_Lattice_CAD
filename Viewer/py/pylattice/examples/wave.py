@@ -28,7 +28,7 @@ def paint(mf: ModuleFrame, t: float, h: int, l: int) -> None:
     for e in range(12):
         edge = mf[e]
         hue = (e / 12 + l * 0.03 + h * 0.12 + t * 0.1) % 1
-        for f in range(4):
+        for f in range(1):
             top = hsv(hue, 1, 0.5 + 0.5 * math.sin(t * 2 - e * 0.4 - f * 0.25 + l * 0.5))
             btm = hsv(hue, 1, 0.5 + 0.5 * math.sin(t * 2 - e * 0.4 - f * 0.25 + l * 0.5 - 0.9))
             edge.ends.top[f][:] = list(top)
