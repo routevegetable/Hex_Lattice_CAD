@@ -10,7 +10,12 @@ readme = "README.md"
 requires-python = ">=3.11"          # StrEnum
 license = "MIT"
 authors = [{ name = "Lee Marshall", email = "lee@wanker.biz" }]
-dependencies = []                   # stdlib only
+dependencies = [
+    "stupidartnet>=1.6.0",
+    "uvicorn",
+    "mido",
+    "python-rtmidi"
+]                   # stdlib only
 
 [tool.setuptools]
 packages = ["pylattice", "pylattice.examples"]

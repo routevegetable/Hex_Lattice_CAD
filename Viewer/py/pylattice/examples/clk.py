@@ -1,5 +1,5 @@
 import time
-from py.pylattice.examples.tempo import Event, EventLatch
+from pylattice.examples.tempo import Event, EventLatch
 
 
 import mido

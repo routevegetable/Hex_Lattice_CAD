@@ -2,11 +2,11 @@
 from collections.abc import Iterable
 import math
 from typing import Callable
-from py.pylattice.examples.colors import hsv
-from py.pylattice.examples.instrument import ScalarField
-from py.pylattice.examples.tempo import Event, EventLatch, History, periodic, sweep
-from py.pylattice.graph import EndRef, Graph
-from py.pylattice.lattice_writer import LatticeWriter
+from pylattice.examples.colors import hsv
+from pylattice.examples.instrument import ScalarField
+from pylattice.examples.tempo import Event, EventLatch, History, periodic, sweep
+from pylattice.graph import EndRef, Graph
+from pylattice.lattice_writer import LatticeWriter
 
 
 
@@ -34,21 +34,23 @@ def make_zap_edge(end: EndRef, lattice: LatticeWriter):
         for idx in range(4):
 
             # Random trigger
-            trg = latches[idx].maybe(now, idx + end.__hash__(), 50+idx, level)
+            trg = latches[idx].maybe(now, idx, 30, level)
 
             # Saturation envelope
-            # s = sweep(now, trg, 100, 0.6, 1)
-            s = sweep(now, trg, 50, 0, 1)
+            s = sweep(now, trg, 60, 0.2, 1)
+            #s = sweep(now, trg, 30, 0.4, 1, 0.4)
 
             # Value envelope
-            v = sweep(now, trg, 70, 1, 0, 0)
+            v = sweep(now, trg, 100, 0.4, 0, 0)
+            if trg:
+                hue = trg.rand(idx + end.__hash__()) % 4 / 4
 
-            if v > 0.1:
+            if v > 0.01:
                 # This end
-                lattice[end][idx] = [*hsv(hues[0], 0, v)]
+                lattice[end][idx] = [*hsv(hue, s, v)]
 
                 # Other end
-                lattice[end.other()][idx] = [*hsv(hues[-1], 0, v)]
+                lattice[end.other()][idx] = [*hsv(hue, s, v)]
 
     return zap_fn
 
@@ -61,21 +63,27 @@ def init_boom_zaps(graph_: Graph, lattice_: LatticeWriter):
     graph = graph_
     lattice = lattice_
     for end in graph.ends():
-        zaps[end] = make_zap_edge(end, lattice)
+        if end.top:
+            e = make_zap_edge(end, lattice)
+            zaps[end] = e
+            zaps[end.other()] = e
 
 booms = History(30)
 new_boom = EventLatch()
 
 def prob_zaps(now: Event, prob_field: ScalarField):
     
-    for edge in graph.edges():
-        end = edge.ends()[0]
-        v = end.vertex()
-        prob = prob_field.get(now, v)
-        if prob < 0.9:
-            prob = 0
-        prob = prob / 6
-        zaps[end](now, prob, (0.8, 0.6))
+    for end in graph.ends():
+        if end.top:
+            v = end.vertex()
+            prob = prob_field.get(now, v)
+            #if prob < 0.2:
+            #    prob = 0
+                
+            prob = min(prob, 1)
+            prob = prob/2
+            #prob = math.pow(prob, 20)
+            zaps[end](now, prob, (0.8, 0.6))
 
 def run_boom_zaps(now: Event):
 

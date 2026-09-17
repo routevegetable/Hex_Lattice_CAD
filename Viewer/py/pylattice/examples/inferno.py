@@ -8,7 +8,7 @@ import math
 import random
 import time
 from typing import Any, Coroutine, Generator, Optional, Protocol
-from py.pylattice.examples.midi import MIDI
+from pylattice.examples.midi import MIDI
 from pylattice.frame import RGB, EndFrame, ModuleFrame
 from pylattice.graph import EdgeClass, EdgeRef, Graph, TileRef, VertexClass, EndRef, VertexRef
 from pylattice.lattice_client import LatticeClient
@@ -28,7 +28,7 @@ graph = Graph(COLS*2, ROWS)
 
 
 
-midi = MIDI()
+midi = MIDI('Arturia BeatStep Pro Arturia BeatStepPro')
 
 
 def run_artnet(fps: float = 60.0):
@@ -75,8 +75,8 @@ beat_event = EventLatch()
 
 C1 = 36
 C4 = 72
-midi.on_note(C1, lambda n, on: beat_event.put())
-midi.on_note(C4, lambda n, on: beat_event.put())
+c1_poly = midi.on_note(C1, lambda n, on: beat_event.put())
+c4_poly = midi.on_note(C4, lambda n, on: beat_event.put())
 
 
 def trace(now: Event, trigger: Event, base: EndRef, path: str, period: int, rate: float) -> Generator[tuple[float, EndRef]]:
@@ -105,9 +105,9 @@ def squeeze_hue(value, min_hue, max_hue):
 
 
 
-run_artnet()
-while True:
-    time.sleep(1)
+#run_artnet()
+#while True:
+#    time.sleep(1)
 while True:
     
     midi.tick()
@@ -116,19 +116,19 @@ while True:
 
     beat_env = sweep(now, beat_event.read(), 350, 0.5, 0.01, 0.01)
     
-    brightness = min(KNOBS[0](), 20) / 20
-    hue = squeeze_hue(KNOBS[1]())
+    brightness = 1 # min(KNOBS[0](), 20) / 20
+    hue = 0.8 # squeeze_hue(KNOBS[1](), 0, 1)
 
     for end in graph.ends():
         #break
-        many_tubes = 2
+        many_tubes = 3
         do_zap = beat_event.read().rand(end.__hash__()) % many_tubes == 0
         
         PERIOD = 100 + (end.__hash__() % 100)
         for i in range(4):
             
-        #    hb = (beat_event.read().rand(end.__hash__()) % 10) / 10
-        #    hue = vary(now, hb, hb+0.01, PERIOD, i/4)
+           hb = (beat_event.read().rand(end.__hash__()) % 10) / 10
+           hue = vary(now, hb, hb+0.01, PERIOD, i/4)
            value = vary(now, 0.1, 0.3, PERIOD*7.1, i/4)
            saturation = vary(now, .955, 1, PERIOD*3, i/4)
         

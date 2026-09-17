@@ -2,11 +2,11 @@
 
 # Paint waves over the whole lattice
 # Scalar field selects the hue
-from py.pylattice.examples.colors import hsv, vary
-from py.pylattice.examples.instrument import ScalarField
-from py.pylattice.examples.tempo import Event
-from py.pylattice.graph import Graph
-from py.pylattice.lattice_writer import LatticeWriter
+from pylattice.examples.colors import hsv, vary
+from pylattice.examples.instrument import ScalarField
+from pylattice.examples.tempo import Event
+from pylattice.graph import Graph
+from pylattice.lattice_writer import LatticeWriter
 
 
 def bg_waves(graph: Graph, lattice: LatticeWriter, now: Event, bg_hue: ScalarField, bg_value: ScalarField):
