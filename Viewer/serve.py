@@ -14,11 +14,15 @@ Two things run together:
          [1 byte: length of location][location ascii, e.g. "0-0"][ModuleFrame.serialize]
 
 Usage:
-    python3 serve.py            # http:8765, multicast 239.69.69.69:6969
-    python3 serve.py 9000       # custom http port
+    python3 serve.py                    # http:8765, multicast 239.69.69.69:6969
+    python3 serve.py 9000                # custom http port
+    python3 serve.py --page lite2d.html  # open lite2d.html instead of index.html
+    python3 serve.py --no-open           # don't auto-open a browser tab at all
 
 Env: HEXNET_MCAST_GROUP, HEXNET_MCAST_PORT override the multicast group/port.
 """
+
+import argparse
 import base64
 import hashlib
 import http.server
@@ -26,13 +30,32 @@ import json
 import os
 import socket
 import struct
-import sys
 import threading
 import webbrowser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
+
+
+def _parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("port", nargs="?", type=int, default=8765)
+    parser.add_argument(
+        "--page",
+        "-p",
+        default="index.html",
+        help="page to auto-open in the browser (default: index.html)",
+    )
+    parser.add_argument(
+        "--no-open",
+        action="store_true",
+        help="don't auto-open a browser tab",
+    )
+    return parser.parse_args()
+
+
+_args = _parse_args()
+PORT = _args.port
 
 # UDP multicast source (browsers can't join groups, so serve.py joins and bridges
 # to the viewer over WebSocket).
@@ -40,7 +63,7 @@ MCAST_GROUP = os.environ.get("HEXNET_MCAST_GROUP", "239.69.69.69")
 MCAST_PORT = int(os.environ.get("HEXNET_MCAST_PORT", "6969"))
 
 _WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-_ws_clients = {}             # browser socket -> threading.Event (set when dropped)
+_ws_clients = {}  # browser socket -> threading.Event (set when dropped)
 _ws_lock = threading.Lock()
 
 # Last lattice shape reported by the viewer's build() (see index.html/lite.html)
@@ -57,7 +80,7 @@ def _ws_accept(key: str) -> str:
 def _ws_frame(payload: bytes) -> bytes:
     """Wrap bytes in a server->client binary WebSocket frame (opcode 0x2, unmasked)."""
     n = len(payload)
-    head = bytearray([0x82])          # FIN + binary
+    head = bytearray([0x82])  # FIN + binary
     if n < 126:
         head.append(n)
     elif n < 65536:
@@ -77,11 +100,11 @@ def _broadcast(msg: bytes) -> None:
             try:
                 c.sendall(frame)
             except OSError:
-                dead.append(c)          # send failure => client is gone
+                dead.append(c)  # send failure => client is gone
         for c in dead:
             ev = _ws_clients.pop(c, None)
             if ev is not None:
-                ev.set()                # wake its parked handler thread
+                ev.set()  # wake its parked handler thread
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -178,6 +201,7 @@ def _mcast_listener():
             data, _ = sock.recvfrom(1 << 16)
         except OSError:
             import traceback
+
             traceback.print_exc()
             break
         if data:
@@ -190,13 +214,14 @@ def main():
     httpd = http.server.ThreadingHTTPServer(("", PORT), Handler)
     httpd.daemon_threads = True
     httpd.allow_reuse_address = True
-    url = f"http://localhost:{PORT}/index.html"
+    url = f"http://localhost:{PORT}/{_args.page}"
     print(f"Hinge Hexagon viewer serving at {url}")
     print("Press Ctrl+C to stop.")
-    try:
-        webbrowser.open(url)
-    except Exception:
-        pass
+    if not _args.no_open:
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
