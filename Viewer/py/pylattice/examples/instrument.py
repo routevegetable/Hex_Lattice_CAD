@@ -1,43 +1,14 @@
-import math
+"""Colour maps and envelopes - the non-field half of the instrument.
+
+The fields themselves live in pylattice.fields.
+"""
 from typing import Protocol
-from pylattice.examples.colors import hsv, vary
+
+from pylattice.examples.colors import hsv
 from pylattice.examples.midi import MIDI
-from pylattice.examples.tempo import ZERO, Event, EventLatch, psweep, sweep
+from pylattice.examples.tempo import Event
 from pylattice.frame import RGB
-from pylattice.graph import Graph, TileRef, VertexRef
 
-class ScalarField(Protocol):
-    """
-    Something that has a value for each vertex.
-    Rotating.
-    Wiping.
-    Particle distance.
-    """
-
-    def get(self, now: Event, v: VertexRef) -> float: ...
-
-    def __add__(self, other: "ScalarField") -> "ScalarField":
-        orig = self
-
-        class Sum(ScalarField):
-            def get(self, now: Event, v: VertexRef) -> float:
-                return orig.get(now, v) + other.get(now, v)
-
-        return Sum()
-    
-    def __mul__(self, other: ScalarField) -> ScalarField:
-        orig = self
-        class Mul(ScalarField):
-            def get(self, now: Event, v: VertexRef) -> float:
-                return orig.get(now, v) * other.get(now, v)
-        return Mul()
-    
-class ColorField(Protocol):
-    """
-    Something that has a color for each vertex.
-    """
-
-    def get(self, now: Event, v: VertexRef) -> RGB: ...
 
 
 class ColorMap(Protocol):
@@ -54,61 +25,6 @@ class Envelope(Protocol):
     """
 
     def get(self, now: Event, trigger: Event) -> float: ...
-
-class CCField(ScalarField):
-    """
-    A CC as a field
-    """
-
-    def __init__(self, midi: MIDI, *, value_cc: int):
-        self._cc = midi.cc(value_cc)
-
-    def get(self, now: Event, v: VertexRef) -> float:
-        return self._cc() / 127
-    
-class PolyTouchField(ScalarField):
-    """
-    A polytouch as a field
-    """
-    def __init__(self, midi: MIDI, *, note: int):
-        self._poly = midi.polytouch(note)
-        
-    def get(self, now: Event, v: VertexRef) -> float:
-        return self._poly() / 127
-    
-
-
-class RotaryField(ScalarField):
-
-    def __init__(
-        self, graph: Graph, midi: MIDI, *, period_cc: int, parts_cc: int, shape_cc: int
-    ):
-        self._width = graph.width
-        self._height = graph.height
-        self._period = midi.cc(
-            period_cc
-        )  # How long to do one rotation (0 is 0.5 sec, 1 is 1sec, 2 is 2sec)
-        self._parts = midi.cc(parts_cc)  # How many parts
-        self._shape = midi.cc(shape_cc)  # What wave shape
-
-    def get(self, now: Event, v: VertexRef) -> float:
-        offset = v.physical()[0] / (
-            TileRef.WIDTH * self._width
-        )  # we are here between 0 -> 1
-        # print(v.physical(), offset)
-        period = math.pow(2, self._period()) * 500
-        return vary(now, 0, 1, period, offset)
-
-
-class WipeField(ScalarField):
-    def __init__(self, graph: Graph, midi: MIDI, *, period_cc: int):
-        self._width = graph.width
-        self._height = graph.height
-        self._period = midi.cc(period_cc)  # How long to do one wipe
-
-    def get(self, now: Event, v: VertexRef) -> float:
-        return 0
-
 
 class CCEnvelope(Envelope):
     def __init__(self, midi: MIDI, *, period_cc: int, up: bool):
@@ -130,7 +46,7 @@ class CCHueMap(ColorMap):
         self._hue = midi.cc(hue_cc)  # Hue control
 
     def get(self, v: float, y: float) -> RGB:
-        h = self._hue() / 127
+        h = self._hue().data / 127
         return list(hsv(h, 1, v))
 
 
@@ -145,8 +61,8 @@ class CCHueSatMap(ColorMap):
         self._value = midi.cc(value_cc)  # Value control
 
     def get(self, s: float, y: float) -> RGB:
-        h = self._hue() / 127
-        v = self._value() / 127
+        h = self._hue().data / 127
+        v = self._value().data / 127
         return list(hsv(h, s, v))
 
 
@@ -162,80 +78,8 @@ class CCRgbMap(ColorMap):
         self._b = midi.cc(b_cc)  # Blue component
 
     def get(self, v: float, y: float) -> RGB:
-        return [self._r() * v / 127, self._g() * v / 127, self._b() * v / 127]
-
-
-class WipeField(ScalarField):
-    def __init__(self, graph: Graph, midi: MIDI, *, period_cc: int):
-        self._width = graph.width
-        self._height = graph.height
-        self._period = midi.cc(period_cc)  # How long to do one wipe
-
-    def get(self, now: Event, v: VertexRef) -> float:
-        return 0
-
-
-class NoteWipeField(ScalarField):
-    """
-    A note that makes a wipe field
-
-    CC:
-        * 0-63 means down, 64-127 is up
-        * diff from center is velocity. 63 is 0.1 sec. 0 is 1 sec
-
-    """
-
-    def __init__(self, midi: MIDI, *, note: int, speed_cc: int):
-        self._poly = midi.on_note(note, self.on_note)
-        self._speed_cc = midi.cc(speed_cc)
-        self._latches = [EventLatch() for _ in range(4)]
-        self._last_latch = 0
-
-    def on_note(self, vel: int, on: bool):
-        self._latches[self._last_latch].put()
-        self._last_latch = (self._last_latch + 1) % 4
-
-    def get(self, now: Event, v: VertexRef) -> float:
-
-        output = 0
-        for latch in self._latches:
-            ev = latch.read()
-            if ev is None:
-                return 0
-
-            ccv = self._speed_cc() / 64 - 1  # CCV goes from -1 to 1
-
-            period = ccv
-            if period < 0:
-                period = -period
-
-            period = period * 5  # period goes from 0 to 5
-
-            period = 2000 / (
-                period + 1
-            )  # middle CC (0 ccv here) means 2000 ms, max CC is 400ms
-
-            y = v.physical()[1]  # My y position
-
-            total_height = TileRef.HEIGHT * v.tile.graph.height
-
-            dy = y / total_height
-            if ccv < 0:
-                dy = 1 - dy
-            #dy = dy - 1
-            #print(dy)
-            
-            output = max(output, min(1, math.sin(sweep(now, ev.delay(dy * period), period, 0, math.pi, 0))))
-        
-        #print(self._poly())
-        return output
-
-        # if ccv > 0:
-        #    # Up
-        #    return sweep(now, ev, period, 0, v.tile.graph.height, 0)
-        # else:
-        #    # Down
-        #    return sweep(now, ev, period, v.tile.graph.height, 0, v.tile.graph.height)
-
-    #
-    # return
+        return [
+            self._r().data * v / 127,
+            self._g().data * v / 127,
+            self._b().data * v / 127
+        ]

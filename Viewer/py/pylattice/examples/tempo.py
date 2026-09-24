@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -192,6 +191,10 @@ class EventLatch(Generic[TData]):
         rfloat = (trigger.rand(salt) % 100) / 100
 
         return self.latch(Event(trigger.when, None), rfloat < likelihood)
+
+    def clear(self):
+        """Forget the latched event."""
+        self.ev = None
 
     def put(self, data: TData | None = None) -> Event[TData]:
         """

@@ -10,7 +10,12 @@ pylattice/py.typed
 pylattice.egg-info/PKG-INFO
 pylattice.egg-info/SOURCES.txt
 pylattice.egg-info/dependency_links.txt
+pylattice.egg-info/requires.txt
 pylattice.egg-info/top_level.txt
+pylattice/effects/boom_zaps.py
+pylattice/effects/pluck.py
+pylattice/effects/types.py
+pylattice/effects/waves.py
 pylattice/examples/__init__.py
 pylattice/examples/artnet.py
 pylattice/examples/bisexual.py
@@ -33,3 +38,6 @@ pylattice/examples/vec.py
 pylattice/examples/watch.py
 pylattice/examples/wave.py
 pylattice/examples/waves.py
+pylattice/fields/scalar.py
+pylattice/fields/types.py
+pylattice/runner/types.py

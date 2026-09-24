@@ -1,8 +1,10 @@
 from collections.abc import Iterable
 import math
 from typing import Callable
+from pylattice.fields.types import Slot
+from pylattice.runner.types import Effect
 from pylattice.examples.colors import hsv
-from pylattice.examples.instrument import ScalarField
+from pylattice.fields.types import ScalarField
 from pylattice.examples.tempo import Event, EventLatch, History, periodic, sweep
 from pylattice.graph import EndRef, Graph
 from pylattice.lattice_writer import LatticeWriter
@@ -35,23 +37,26 @@ def make_zap_edge(end: EndRef, lattice: LatticeWriter):
         for idx in range(4):
 
             # Random trigger
-            trg = latches[idx].maybe(now, idx, 30, level)
+            trg = latches[idx].maybe(now, idx, 10 + end.__hash__() % 30, level)
 
             # Saturation envelope
-            s = sweep(now, trg, 60, 0.2, 1)
+            s = sweep(now, trg, 60, 0.2, 0.5)
             #s = sweep(now, trg, 30, 0.4, 1, 0.4)
 
             # Value envelope
-            v = sweep(now, trg, 100, 0.4, 0, 0)
+            v = sweep(now, trg, 60, 1, 0, 0)
             if trg:
                 hue = trg.rand(idx + end.__hash__()) % 4 / 4
+                hue = 0.8
+                
+            
 
             if v > 0.01:
                 # This end
                 lattice[end][idx] = [*hsv(hue, s, v)]
 
                 # Other end
-                lattice[end.other()][idx] = [*hsv(hue, s, v)]
+                #lattice[end.other()][idx] = [*hsv(hue, s, v)]
 
     return zap_fn
 
@@ -69,27 +74,36 @@ def init_boom_zaps(graph_: Graph, lattice_: LatticeWriter):
         if end.top:
             e = make_zap_edge(end, lattice)
             zaps[end] = e
-            zaps[end.other()] = e
+            #zaps[end.other()] = e
 
 
 booms = History(30)
 new_boom = EventLatch()
 
-
-def prob_zaps(now: Event, prob_field: ScalarField):
+def prob_zaps(now: Event, lattice: LatticeWriter, graph: Graph, prob_field: ScalarField):
     
     for end in graph.ends():
         if end.top:
-            v = end.vertex()
-            prob = prob_field.get(now, v)
+            prob = prob_field.get(now, end)
             #if prob < 0.2:
             #    prob = 0
                 
             prob = min(prob, 1)
-            prob = prob/2
+            prob = prob/3
             #prob = math.pow(prob, 20)
             zaps[end](now, prob, (0.8, 0.6))
 
+
+
+class ProbZaps(Effect):
+    """Random zaps along every edge, at a field-driven likelihood."""
+
+    prob: Slot
+
+    def render(self, now: Event, lattice_: LatticeWriter, graph_: Graph):
+        if not graph:
+            init_boom_zaps(graph_, lattice_)
+        prob_zaps(now, lattice, graph, self.prob)
 
 def run_boom_zaps(now: Event):
 

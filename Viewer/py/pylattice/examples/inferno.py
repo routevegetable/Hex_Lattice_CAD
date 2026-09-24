@@ -92,8 +92,8 @@ beat_event = EventLatch()
 
 C1 = 36
 C4 = 72
-c1_poly = midi.on_note(C1, lambda n, on: beat_event.put())
-c4_poly = midi.on_note(C4, lambda n, on: beat_event.put())
+c1_note = midi.note(C1)
+c4_note = midi.note(C4)
 
 
 def trace(
@@ -129,11 +129,17 @@ while True:
     midi.tick()
     lattice.clear()
     now = Event.for_now()
+    
+    # Either note beats. latch() ignores an event it already holds, so this is
+    # safe to run every frame.
+    for pressed in (c1_note(), c4_note()):
+        if pressed is not None:
+            beat_event.latch(pressed[0])
 
     beat_env = sweep(now, beat_event.read(), 350, 0.5, 0.01, 0.01)
     
-    brightness = 1 # min(KNOBS[0](), 20) / 20
-    hue = 0.8 # squeeze_hue(KNOBS[1](), 0, 1)
+    brightness = 1 # min(KNOBS[0]().data, 20) / 20
+    hue = 0.8 # squeeze_hue(KNOBS[1]().data, 0, 1)
 
     for end in graph.ends():
         #break

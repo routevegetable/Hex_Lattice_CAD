@@ -14,11 +14,14 @@ dependencies = [
     "stupidartnet>=1.6.0",
     "uvicorn",
     "mido",
-    "python-rtmidi"
-]                   # stdlib only
+    # mido's default backend, but it cannot build on PyPy - there the ctypes
+    # portmidi backend is used instead (brew install portmidi).
+    "python-rtmidi; platform_python_implementation == 'CPython'",
+]
 
-[tool.setuptools]
-packages = ["pylattice", "pylattice.examples"]
+# Every pylattice subpackage - examples, effects, runner, fields - not a hand-kept list.
+[tool.setuptools.packages.find]
+include = ["pylattice*"]
 
 [tool.setuptools.package-data]
 pylattice = ["py.typed"]            # PEP 561: let consumers' type checkers use our annotations

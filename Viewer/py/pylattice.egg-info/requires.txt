@@ -1,0 +1,6 @@
+stupidartnet>=1.6.0
+uvicorn
+mido
+
+[:platform_python_implementation == "CPython"]
+python-rtmidi
