@@ -1,5 +1,3 @@
-
-
 import math
 from . import format
 from .frame import EdgeFrame, EndFrame, Ends, ModuleFrame
@@ -17,9 +15,10 @@ class LatticeWriter:
 
         # Instantiate a matrix of module frames
         self._module_frames: list[list[ModuleFrame]] = [
-            [ModuleFrame.blank() for _ in range(0,self._rows)] for _ in range(0,self._cols)
+            [ModuleFrame.blank() for _ in range(0, self._rows)]
+            for _ in range(0, self._cols)
         ]
-    
+
     def __getitem__(self, end: EndRef) -> EndFrame:
         return self.get_end_frame(end)
 
@@ -35,8 +34,9 @@ class LatticeWriter:
             for y in range(0, self._rows):
                 channel_data = self._fmt.serialize(self._module_frames[x][y])
                 self._client.send(x, y, channel_data)
-                
+
     def clear(self):
         self._module_frames = [
-            [ModuleFrame.blank() for _ in range(0,self._rows)] for _ in range(0,self._cols)
+            [ModuleFrame.blank() for _ in range(0, self._rows)]
+            for _ in range(0, self._cols)
         ]

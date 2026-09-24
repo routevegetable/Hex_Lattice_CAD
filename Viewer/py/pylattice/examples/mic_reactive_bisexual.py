@@ -73,6 +73,7 @@ TRANSLATING TO THIS MODULE'S API - CONCERNS
 
 Env: HINGE_SOCK overrides the socket path (LatticeClient resolves it).
 """
+
 import math
 import os
 import random
@@ -82,23 +83,24 @@ import time
 
 # Make the repo root importable so `py.lib` resolves.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-from py.lib import LatticeClient   # noqa: E402
+from py.lib import LatticeClient  # noqa: E402
 
 try:
     import numpy as np
     import sounddevice as sd
+
     _HAS_AUDIO = True
 except ImportError:
     _HAS_AUDIO = False
 
-MODULE_X = 0      # target module location (lateral)
-MODULE_Y = 0      # target module location (height)
-FPS = 120         # fast refresh - see concern #5 in the module docstring
+MODULE_X = 0  # target module location (lateral)
+MODULE_Y = 0  # target module location (height)
+FPS = 120  # fast refresh - see concern #5 in the module docstring
 
 # ---- ported from the rig's config.py ---------------------------------------
 PAIRS = [[0, 5], [1, 4], [2, 7], [3, 6]]
 NUM_EDGES = 6
-PIXELS_PER_EDGE = len(PAIRS) * 2   # 8
+PIXELS_PER_EDGE = len(PAIRS) * 2  # 8
 
 
 # ---- same Pixels/PixelPairs wrappers as color_temp_lightning_edges.py: a
@@ -169,7 +171,11 @@ def interp_points(pts, v):
         pvl, pcl = pv, pc
     rl, gl, bl = pcl
     r, g, b = pc
-    return (_interp(pvl, pv, rl, r, v), _interp(pvl, pv, gl, g, v), _interp(pvl, pv, bl, b, v))
+    return (
+        _interp(pvl, pv, rl, r, v),
+        _interp(pvl, pv, gl, g, v),
+        _interp(pvl, pv, bl, b, v),
+    )
 
 
 # straight blue -> purple -> pink, monotonic - built for a fixed positional mapping
@@ -185,11 +191,11 @@ def interp_points(pts, v):
 # that inconsistency forward. Green held at 0 across every stop, same reasoning as the
 # original: even a little of it flattened purple into a duller mauve instead of a vivid violet.
 BISEXUAL_EDGES_SEQ = [
-    (0.0, (10, 0, 255)),     # strong blue
-    (0.25, (95, 0, 210)),    # blue-purple blend
-    (0.5, (180, 0, 180)),    # purple - the halfway blend
-    (0.75, (230, 0, 165)),   # purple-pink blend
-    (1.0, (255, 0, 150)),    # strong pink
+    (0.0, (10, 0, 255)),  # strong blue
+    (0.25, (95, 0, 210)),  # blue-purple blend
+    (0.5, (180, 0, 180)),  # purple - the halfway blend
+    (0.75, (230, 0, 165)),  # purple-pink blend
+    (1.0, (255, 0, 150)),  # strong pink
 ]
 
 
@@ -254,11 +260,21 @@ class FakeMicLine:
         volume = max(0.0, min(1.0, self.level + self.hit + random.uniform(-0.02, 0.02)))
         bass = max(
             0.0,
-            min(1.0, self.level * 0.9 + self.hit * random.uniform(0.7, 1.1) + random.uniform(-0.03, 0.03)),
+            min(
+                1.0,
+                self.level * 0.9
+                + self.hit * random.uniform(0.7, 1.1)
+                + random.uniform(-0.03, 0.03),
+            ),
         )
         treble = max(
             0.0,
-            min(1.0, self.level * 0.6 + self.hit * random.uniform(0.1, 0.6) + random.uniform(-0.03, 0.03)),
+            min(
+                1.0,
+                self.level * 0.6
+                + self.hit * random.uniform(0.1, 0.6)
+                + random.uniform(-0.03, 0.03),
+            ),
         )
 
         pitch = []
@@ -266,10 +282,20 @@ class FakeMicLine:
             dist = abs(i - self.dominant)
             weight = math.exp(-dist * dist / 2.0)
             pitch.append(
-                max(0.0, min(1.0, self.level * 0.3 * weight + self.hit * weight + random.uniform(0, 0.02)))
+                max(
+                    0.0,
+                    min(
+                        1.0,
+                        self.level * 0.3 * weight
+                        + self.hit * weight
+                        + random.uniform(0, 0.02),
+                    ),
+                )
             )
 
-        parts = [f"{volume:.3f}", f"{bass:.3f}", f"{treble:.3f}"] + [f"{p:.3f}" for p in pitch]
+        parts = [f"{volume:.3f}", f"{bass:.3f}", f"{treble:.3f}"] + [
+            f"{p:.3f}" for p in pitch
+        ]
         return ",".join(parts).encode()
 
 
@@ -324,9 +350,15 @@ class LiveMicLine:
             )
         self._window = np.hanning(self.BLOCK_SIZE)
         freqs = np.fft.rfftfreq(self.BLOCK_SIZE, 1 / self.SAMPLE_RATE)
-        self._bass_bins = (freqs >= self.BASS_RANGE_HZ[0]) & (freqs <= self.BASS_RANGE_HZ[1])
-        self._treble_bins = (freqs >= self.TREBLE_RANGE_HZ[0]) & (freqs <= self.TREBLE_RANGE_HZ[1])
-        edges_hz = np.geomspace(self.PITCH_RANGE_HZ[0], self.PITCH_RANGE_HZ[1], NUM_EDGES + 1)
+        self._bass_bins = (freqs >= self.BASS_RANGE_HZ[0]) & (
+            freqs <= self.BASS_RANGE_HZ[1]
+        )
+        self._treble_bins = (freqs >= self.TREBLE_RANGE_HZ[0]) & (
+            freqs <= self.TREBLE_RANGE_HZ[1]
+        )
+        edges_hz = np.geomspace(
+            self.PITCH_RANGE_HZ[0], self.PITCH_RANGE_HZ[1], NUM_EDGES + 1
+        )
         self._pitch_bins = [
             (freqs >= edges_hz[i]) & (freqs < edges_hz[i + 1]) for i in range(NUM_EDGES)
         ]
@@ -338,10 +370,19 @@ class LiveMicLine:
         )
         src_centers = np.log(np.sqrt(src_edges[:-1] * src_edges[1:]))
         dst_centers = np.log(np.sqrt(edges_hz[:-1] * edges_hz[1:]))
-        self._pitch_floors = np.interp(dst_centers, src_centers, self._MIC_BRIDGE_PITCH_FLOORS)
-        self._pitch_scales = np.interp(dst_centers, src_centers, self._MIC_BRIDGE_PITCH_SCALES)
+        self._pitch_floors = np.interp(
+            dst_centers, src_centers, self._MIC_BRIDGE_PITCH_FLOORS
+        )
+        self._pitch_scales = np.interp(
+            dst_centers, src_centers, self._MIC_BRIDGE_PITCH_SCALES
+        )
 
-        self._state = {"volume": 0.0, "bass": 0.0, "treble": 0.0, "pitch": [0.0] * NUM_EDGES}
+        self._state = {
+            "volume": 0.0,
+            "bass": 0.0,
+            "treble": 0.0,
+            "pitch": [0.0] * NUM_EDGES,
+        }
         self._lock = threading.Lock()
         self._latest = None
 
@@ -362,15 +403,22 @@ class LiveMicLine:
     def _callback(self, indata, frames, time_info, status):
         samples = indata[:, 0].astype(np.float64)
         rms = float(np.sqrt(np.mean(samples**2)))
-        level = max(0.0, min(1.0, (rms - self.NOISE_FLOOR) / (self.FULL_SCALE - self.NOISE_FLOOR)))
+        level = max(
+            0.0,
+            min(1.0, (rms - self.NOISE_FLOOR) / (self.FULL_SCALE - self.NOISE_FLOOR)),
+        )
 
         spectrum = np.abs(np.fft.rfft(samples * self._window))
-        bass_level = self._band_level(spectrum, self._bass_bins, self.BASS_FLOOR, self.BASS_SCALE)
+        bass_level = self._band_level(
+            spectrum, self._bass_bins, self.BASS_FLOOR, self.BASS_SCALE
+        )
         treble_level = self._band_level(
             spectrum, self._treble_bins, self.TREBLE_FLOOR, self.TREBLE_SCALE
         )
         pitch_levels = [
-            self._band_level(spectrum, bins, self._pitch_floors[i], self._pitch_scales[i])
+            self._band_level(
+                spectrum, bins, self._pitch_floors[i], self._pitch_scales[i]
+            )
             for i, bins in enumerate(self._pitch_bins)
         ]
 
@@ -511,7 +559,8 @@ def mic_reactive_bisexual(
             for i in range(len(PAIRS)):
                 if i in lit:
                     col = tuple(
-                        int(c * brightness) for c in _jitter_color(base_col, color_jitter)
+                        int(c * brightness)
+                        for c in _jitter_color(base_col, color_jitter)
                     )
                 else:
                     col = (0, 0, 0)
@@ -523,7 +572,7 @@ def mic_reactive_bisexual(
 
 
 def main() -> None:
-    client = LatticeClient()      # socket path from HINGE_SOCK / default
+    client = LatticeClient()  # socket path from HINGE_SOCK / default
     pixels = Pixels(client, NUM_EDGES * PIXELS_PER_EDGE)
     pixel_pairs = PixelPairs(pixels)
 
@@ -532,11 +581,15 @@ def main() -> None:
         try:
             mic_line = LiveMicLine()
             print("mic_reactive_bisexual: using LiveMicLine (real mic input)")
-        except Exception as exc:   # e.g. no input device available
-            print(f"mic_reactive_bisexual: LiveMicLine unavailable ({exc}), falling back to FakeMicLine")
+        except Exception as exc:  # e.g. no input device available
+            print(
+                f"mic_reactive_bisexual: LiveMicLine unavailable ({exc}), falling back to FakeMicLine"
+            )
     else:
-        print("mic_reactive_bisexual: sounddevice/numpy not installed, using FakeMicLine "
-              "(pip install sounddevice numpy for real mic input)")
+        print(
+            "mic_reactive_bisexual: sounddevice/numpy not installed, using FakeMicLine "
+            "(pip install sounddevice numpy for real mic input)"
+        )
 
     frame = mic_reactive_bisexual(pixel_pairs, mic_line=mic_line)
 

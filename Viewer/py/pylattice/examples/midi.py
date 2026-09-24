@@ -1,10 +1,9 @@
-
 from typing import Callable
 import mido
 
 
 class MIDI:
-    def __init__(self, port: str = 'IAC Driver Bus 1'):
+    def __init__(self, port: str = "IAC Driver Bus 1"):
         self._m = mido.open_input(port)
         self._note_map: dict[int, Callable[[int, bool]]] = {}
         self._clock_fns: list[any] = []
@@ -33,7 +32,7 @@ class MIDI:
                 case "polytouch":
                     self._polytouch_map[msg.note] = msg.value
 
-    def cc(self, id: int) -> Callable[[],int]:
+    def cc(self, id: int) -> Callable[[], int]:
         return lambda: self._cc_map.get(id, 0)
     
     def polytouch(self, id: int) -> Callable[[], int]:

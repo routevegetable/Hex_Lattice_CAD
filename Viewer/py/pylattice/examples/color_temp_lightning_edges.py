@@ -60,6 +60,7 @@ TRANSLATING TO THIS MODULE'S API - CONCERNS
 
 Env: HINGE_SOCK overrides the socket path (LatticeClient resolves it).
 """
+
 import os
 import random
 import sys
@@ -67,17 +68,17 @@ import time
 
 # Make the repo root importable so `py.lib` resolves.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-from py.lib import LatticeClient   # noqa: E402
+from py.lib import LatticeClient  # noqa: E402
 
-MODULE_X = 0      # target module location (lateral)
-MODULE_Y = 0      # target module location (height)
-FPS = 60          # see concern #3 above - the rig's own tick was 100/sec
-RED_EDGE = 0      # which of the 6 edges (0-5) is "pure red"
+MODULE_X = 0  # target module location (lateral)
+MODULE_Y = 0  # target module location (height)
+FPS = 60  # see concern #3 above - the rig's own tick was 100/sec
+RED_EDGE = 0  # which of the 6 edges (0-5) is "pure red"
 
 # ---- ported from the rig's config.py ---------------------------------------
 PAIRS = [[0, 5], [1, 4], [2, 7], [3, 6]]
 NUM_EDGES = 6
-PIXELS_PER_EDGE = len(PAIRS) * 2   # 8
+PIXELS_PER_EDGE = len(PAIRS) * 2  # 8
 
 
 # ---- same Pixels wrapper as four_colors.py: a channel-0 pixel buffer with
@@ -148,7 +149,11 @@ def interp_points(pts, v):
         pvl, pcl = pv, pc
     rl, gl, bl = pcl
     r, g, b = pc
-    return (_interp(pvl, pv, rl, r, v), _interp(pvl, pv, gl, g, v), _interp(pvl, pv, bl, b, v))
+    return (
+        _interp(pvl, pv, rl, r, v),
+        _interp(pvl, pv, gl, g, v),
+        _interp(pvl, pv, bl, b, v),
+    )
 
 
 COLOR_TEMP_BRIGHT_SEQ = [
@@ -208,28 +213,62 @@ _FAST_LIGHTNING_BURSTS = [
     (
         0.268,
         [
-            (0.000, 0.00), (0.033, 0.25), (0.067, 0.56), (0.100, 0.79),
-            (0.135, 0.93), (0.200, 0.95), (0.400, 0.94), (0.600, 0.87),
-            (0.635, 0.73), (0.669, 0.51), (0.702, 0.57), (0.736, 0.38),
-            (0.769, 0.33), (0.803, 0.34), (0.836, 0.35), (0.869, 0.45),
-            (0.903, 0.42), (0.935, 0.51), (0.969, 0.51), (1.002, 0.49),
-            (1.035, 0.40), (1.069, 0.47), (1.102, 0.24), (1.135, 0.00),
+            (0.000, 0.00),
+            (0.033, 0.25),
+            (0.067, 0.56),
+            (0.100, 0.79),
+            (0.135, 0.93),
+            (0.200, 0.95),
+            (0.400, 0.94),
+            (0.600, 0.87),
+            (0.635, 0.73),
+            (0.669, 0.51),
+            (0.702, 0.57),
+            (0.736, 0.38),
+            (0.769, 0.33),
+            (0.803, 0.34),
+            (0.836, 0.35),
+            (0.869, 0.45),
+            (0.903, 0.42),
+            (0.935, 0.51),
+            (0.969, 0.51),
+            (1.002, 0.49),
+            (1.035, 0.40),
+            (1.069, 0.47),
+            (1.102, 0.24),
+            (1.135, 0.00),
         ],
     ),
     (
         1.537,
         [
-            (0.000, 0.00), (0.033, 0.33), (0.067, 0.35), (0.100, 0.37),
-            (0.133, 0.51), (0.167, 0.42), (0.201, 0.34), (0.234, 0.47),
-            (0.268, 0.51), (0.301, 0.27), (0.334, 0.00),
+            (0.000, 0.00),
+            (0.033, 0.33),
+            (0.067, 0.35),
+            (0.100, 0.37),
+            (0.133, 0.51),
+            (0.167, 0.42),
+            (0.201, 0.34),
+            (0.234, 0.47),
+            (0.268, 0.51),
+            (0.301, 0.27),
+            (0.334, 0.00),
         ],
     ),
     (
         1.905,
         [
-            (0.000, 0.00), (0.033, 0.14), (0.067, 0.32), (0.100, 0.31),
-            (0.134, 0.49), (0.167, 0.45), (0.201, 0.37), (0.234, 0.40),
-            (0.268, 0.43), (0.301, 0.19), (0.334, 0.00),
+            (0.000, 0.00),
+            (0.033, 0.14),
+            (0.067, 0.32),
+            (0.100, 0.31),
+            (0.134, 0.49),
+            (0.167, 0.45),
+            (0.201, 0.37),
+            (0.234, 0.40),
+            (0.268, 0.43),
+            (0.301, 0.19),
+            (0.334, 0.00),
         ],
     ),
 ]
@@ -318,7 +357,6 @@ def fast_lightning(
     def _roll_strike_brightness():
         lo, hi = strike_brightness_range
         return lo + (hi - lo) * (random.random() ** strike_brightness_skew)
-
 
     cluster_scale = (
         1.0 if cluster_duration is None else cluster_duration / _FAST_LIGHTNING_DURATION
@@ -464,18 +502,19 @@ def color_temp_lightning_edges(
     )
 
 
-
 def main() -> None:
-    client = LatticeClient()      # socket path from HINGE_SOCK / default
+    client = LatticeClient()  # socket path from HINGE_SOCK / default
     pixels = Pixels(client, NUM_EDGES * PIXELS_PER_EDGE)
     pixel_pairs = PixelPairs(pixels)
 
-    frame = color_temp_lightning_edges(pixel_pairs, red_edge=RED_EDGE, epsilon=.1, speed=.5, cluster_duration=.5)
+    frame = color_temp_lightning_edges(
+        pixel_pairs, red_edge=RED_EDGE, epsilon=0.1, speed=0.5, cluster_duration=0.5
+    )
     for t in range(100):
         print(t)
-    # while True:
+        # while True:
         frame()
-        time.sleep(1/FPS)
+        time.sleep(1 / FPS)
 
     # print(
     #     f"color_temp_lightning_edges: broadcasting  "

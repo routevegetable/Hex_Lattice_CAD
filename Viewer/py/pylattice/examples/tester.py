@@ -11,6 +11,7 @@ orientation directly from the structure.
        python3 -m pylattice.examples.tester A1 0-5    # edge A1, module "0-5" (x-y = lateral-height)
        python3 -m pylattice.examples.tester 0-5       # all edges, module "0-5"
 """
+
 import sys
 import time
 
@@ -32,8 +33,11 @@ graph = Graph(PER_ROW / 2, ROWS)
 # A module's 12 edges, addressed via the graph: two tiles (x even/odd) x 6 edge
 # classes. TileRef(x, 0).edge(class) is the EdgeRef; get_end_frame resolves it to
 # the right ModuleEdge (…1 for tile 0, …2 for tile 1).
-ALL_EDGES = [(TileRef(graph, tx, 0).edge(ec), f"{ec.value}{tx + 1}")
-             for tx in (0, 1) for ec in EdgeClass]
+ALL_EDGES = [
+    (TileRef(graph, tx, 0).edge(ec), f"{ec.value}{tx + 1}")
+    for tx in (0, 1)
+    for ec in EdgeClass
+]
 
 """
 How do I rotate an end about a vertex.
@@ -49,10 +53,11 @@ LR is like going in one direction
 
 lattice = LatticeWriter(PER_ROW, ROWS)
 
+
 def build_frame(edges, step: int) -> ModuleFrame:
     """Blank frame with one (edge, filament) lit: top white, bottom purple."""
     mf = ModuleFrame.blank()
-    edge, _name = edges[step // (FILAMENTS*2)]
+    edge, _name = edges[step // (FILAMENTS * 2)]
     f = step % FILAMENTS
     top, bottom = edge.ends()
     mf.get_end_frame(top)[f][:] = WHITE
@@ -60,9 +65,7 @@ def build_frame(edges, step: int) -> ModuleFrame:
     return mf
 
 
-
-
-tile = TileRef(graph, 0,0)
+tile = TileRef(graph, 0, 0)
 
 
 def main() -> None:
@@ -83,17 +86,20 @@ def main() -> None:
         edges = ALL_EDGES
 
     if module:
-        x, y = (int(v) for v in module.split("-"))       # "x-y" = lateral-height
+        x, y = (int(v) for v in module.split("-"))  # "x-y" = lateral-height
         targets = [(x, y)]
         scope = f"module {module}"
     else:
-        targets = [(l, h) for h in range(ROWS) for l in range(PER_ROW)]   # x=lateral, y=height
+        targets = [
+            (l, h) for h in range(ROWS) for l in range(PER_ROW)
+        ]  # x=lateral, y=height
         scope = f"{ROWS}x{PER_ROW} modules"
 
     steps = len(edges) * FILAMENTS
     client = LatticeClient()
-    print(f"tester: {steps} steps ({len(edges)} edge(s) x 4 filaments), 1s each, {scope}")
-
+    print(
+        f"tester: {steps} steps ({len(edges)} edge(s) x 4 filaments), 1s each, {scope}"
+    )
 
     step = 0
     frame = build_frame(edges, 0)
@@ -102,13 +108,15 @@ def main() -> None:
             step = (step + 1) % (len(edges) * FILAMENTS * 2)
             frame = build_frame(edges, step)
             _edge, name = edges[step // (FILAMENTS * 2)]
-            print(f"edge {name}  filament {step % FILAMENTS}  (top=white, bottom=purple)",
-                    flush=True)
+            print(
+                f"edge {name}  filament {step % FILAMENTS}  (top=white, bottom=purple)",
+                flush=True,
+            )
             for x, y in targets:
                 data = STANDARD_MODULE.serialize(frame)
-                client.send(x,y, data)
+                client.send(x, y, data)
 
-            time.sleep(1/FPS)
+            time.sleep(1 / FPS)
     except KeyboardInterrupt:
         client.close()
 

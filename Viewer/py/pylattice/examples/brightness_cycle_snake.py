@@ -36,6 +36,7 @@ serve.py hasn't heard from the viewer yet.
 Env: HINGE_SOCK overrides the socket path, HINGE_HTTP the shape-fetch base
 URL (both resolved by py.lib).
 """
+
 import os
 import random
 import sys
@@ -43,8 +44,15 @@ import time
 
 # Make the repo root importable so `py.lib` resolves.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-from py.lib import ModuleFrame, LatticeClient, EdgeRef, EdgeClass, TileRef, fetch_lattice_shape   # noqa: E402
-from py.lib.frame import EDGE_CLASS_TO_MODULE_EDGES   # noqa: E402
+from py.lib import (
+    ModuleFrame,
+    LatticeClient,
+    EdgeRef,
+    EdgeClass,
+    TileRef,
+    fetch_lattice_shape,
+)  # noqa: E402
+from py.lib.frame import EDGE_CLASS_TO_MODULE_EDGES  # noqa: E402
 
 FPS = 30
 TICK = 1 / FPS
@@ -56,7 +64,11 @@ VERY_GREEN = ((80, 80), (240, 255), (40, 40))
 
 # ---- ported from the rig's helper.py ---------------------------------------
 def rand_col(red_range, green_range, blue_range):
-    return (random.randint(*red_range), random.randint(*green_range), random.randint(*blue_range))
+    return (
+        random.randint(*red_range),
+        random.randint(*green_range),
+        random.randint(*blue_range),
+    )
 
 
 def lerp_color(start, end, fraction):
@@ -111,7 +123,9 @@ class ColorFader:
 
         if not self.a_done:
             self.a_progress = min(200, self.a_progress + rate)
-            self.a_level = self.a_progress if self.a_progress <= 100 else 200 - self.a_progress
+            self.a_level = (
+                self.a_progress if self.a_progress <= 100 else 200 - self.a_progress
+            )
             if self.a_progress >= 200:
                 self.a_done = True
 
@@ -148,14 +162,14 @@ PAUSE_TICKS = pause_ticks(PAUSE_LENGTH, TICK)
 
 # ---- the snake --------------------------------------------------------------
 SNAKE_LEN = 3
-TAIL_BRIGHTNESS = [1.0, 0.5, 0.22]      # head -> tail, geometric-ish falloff
-STEP_SECS = 0.25                        # how often the head moves to the next edge
+TAIL_BRIGHTNESS = [1.0, 0.5, 0.22]  # head -> tail, geometric-ish falloff
+STEP_SECS = 0.25  # how often the head moves to the next edge
 
 # Fallback shape if serve.py has never heard from the viewer (e.g. it hasn't
 # been opened yet this run) - matches index.html/lite.html's own defaults.
 DEFAULT_LEVELS = 4
 DEFAULT_PER_ROW = 9
-SHAPE_POLL_SECS = 5     # how often to re-check for a rebuild in the browser
+SHAPE_POLL_SECS = 5  # how often to re-check for a rebuild in the browser
 
 # ModuleEdge (0..11) -> (EdgeClass, tile.x parity) - the exact inverse of
 # ModuleFrame.get_end_frame's (edge_class, parity) -> ModuleEdge mapping.
@@ -210,8 +224,10 @@ def connected_walk(edges):
             remaining.discard(cur)
             order.append(cur)
             v1, v2 = edge_vertices[cur]
-            neighbors = [e for e in vertex_edges[v1] + vertex_edges[v2] if e in remaining]
-            stack.extend(reversed(neighbors))            # DFS: explore nearest neighbors first
+            neighbors = [
+                e for e in vertex_edges[v1] + vertex_edges[v2] if e in remaining
+            ]
+            stack.extend(reversed(neighbors))  # DFS: explore nearest neighbors first
     return order
 
 
@@ -230,16 +246,18 @@ def resolve_shape():
 
 
 def main() -> None:
-    client = LatticeClient()      # socket path from HINGE_SOCK / default
+    client = LatticeClient()  # socket path from HINGE_SOCK / default
 
     levels, per_row, live = resolve_shape()
     path, touched = build_path(levels, per_row)
     source = "viewer" if live else "default (viewer not reachable yet)"
-    print(f"brightness_cycle snake: {levels}x{per_row} modules ({source}), "
-          f"{len(path)}-edge path across {len(touched)} modules, {SNAKE_LEN} edges long @ {FPS}fps")
+    print(
+        f"brightness_cycle snake: {levels}x{per_row} modules ({source}), "
+        f"{len(path)}-edge path across {len(touched)} modules, {SNAKE_LEN} edges long @ {FPS}fps"
+    )
 
     fader = ColorFader(VERY_BLUE, VERY_GREEN, FADE_FROM)
-    snake = []          # [(edge_ref, col_a, col_b), ...] newest first, len <= SNAKE_LEN
+    snake = []  # [(edge_ref, col_a, col_b), ...] newest first, len <= SNAKE_LEN
     path_i = 0
     next_step = time.monotonic()
     next_shape_check = time.monotonic() + SHAPE_POLL_SECS
@@ -251,15 +269,20 @@ def main() -> None:
             if now >= next_shape_check:
                 next_shape_check = now + SHAPE_POLL_SECS
                 new_shape = fetch_lattice_shape()
-                if new_shape and (new_shape["levels"], new_shape["perRow"]) != (levels, per_row):
+                if new_shape and (new_shape["levels"], new_shape["perRow"]) != (
+                    levels,
+                    per_row,
+                ):
                     levels, per_row = new_shape["levels"], new_shape["perRow"]
                     new_path, new_touched = build_path(levels, per_row)
-                    for key in touched - new_touched:               # clear anything left behind
+                    for key in touched - new_touched:  # clear anything left behind
                         client.sendModule(f"{key[0]}-{key[1]}", ModuleFrame.blank())
                     path, touched = new_path, new_touched
                     snake, path_i = [], 0
-                    print(f"brightness_cycle snake: rebuilt for {levels}x{per_row} modules, "
-                          f"{len(path)}-edge path across {len(touched)} modules")
+                    print(
+                        f"brightness_cycle snake: rebuilt for {levels}x{per_row} modules, "
+                        f"{len(path)}-edge path across {len(touched)} modules"
+                    )
 
             fader.advance(RATE, HANDOFF_LEVEL, PAUSE_TICKS)
             col_a, col_b = fader.current_colors()

@@ -5,14 +5,15 @@
 
 Env: HINGE_SOCK overrides the socket path (LatticeClient resolves it).
 """
+
 import math
 import time
 
 from pylattice.format import STANDARD_MODULE
 from pylattice import ModuleFrame, LatticeClient
 
-ROWS = 2          # stacked rings
-PER_ROW = 32      # modules per ring
+ROWS = 2  # stacked rings
+PER_ROW = 32  # modules per ring
 FPS = 30
 
 
@@ -29,14 +30,18 @@ def paint(mf: ModuleFrame, t: float, h: int, l: int) -> None:
         edge = mf[e]
         hue = (e / 12 + l * 0.03 + h * 0.12 + t * 0.1) % 1
         for f in range(1):
-            top = hsv(hue, 1, 0.5 + 0.5 * math.sin(t * 2 - e * 0.4 - f * 0.25 + l * 0.5))
-            btm = hsv(hue, 1, 0.5 + 0.5 * math.sin(t * 2 - e * 0.4 - f * 0.25 + l * 0.5 - 0.9))
+            top = hsv(
+                hue, 1, 0.5 + 0.5 * math.sin(t * 2 - e * 0.4 - f * 0.25 + l * 0.5)
+            )
+            btm = hsv(
+                hue, 1, 0.5 + 0.5 * math.sin(t * 2 - e * 0.4 - f * 0.25 + l * 0.5 - 0.9)
+            )
             edge.ends.top[f][:] = list(top)
             edge.ends.bottom[f][:] = list(btm)
 
 
 def main() -> None:
-    client = LatticeClient()      # socket path from HINGE_SOCK / default
+    client = LatticeClient()  # socket path from HINGE_SOCK / default
     buffers = [[ModuleFrame.blank() for _ in range(PER_ROW)] for _ in range(ROWS)]
     print(f"wave: {ROWS}x{PER_ROW} modules @ {FPS}fps")
     t = 0.0

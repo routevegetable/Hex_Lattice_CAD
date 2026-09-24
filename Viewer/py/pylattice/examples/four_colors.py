@@ -14,13 +14,14 @@ every module's every edge (A1..F2).
 
 Env: HINGE_SOCK overrides the socket path (LatticeClient resolves it).
 """
+
 import time
 
 from pylattice.format import STANDARD_MODULE
 from pylattice import ModuleFrame, LatticeClient
 
-ROWS = 2          # stacked rings
-PER_ROW = 32      # modules per ring
+ROWS = 2  # stacked rings
+PER_ROW = 32  # modules per ring
 FPS = 30
 
 # same colors as colors.py on the rig
@@ -31,7 +32,7 @@ WHITE = (80, 80, 80)
 PURPLE = (128, 0, 128)
 
 COLORS = [RED, GREEN, BLUE, PURPLE]
-PERIOD = 2.0                      # 1s lit + 1s dark per color
+PERIOD = 2.0  # 1s lit + 1s dark per color
 TOTAL = PERIOD * len(COLORS)
 
 
@@ -76,7 +77,6 @@ class Pixels:
         self._client.sendChannels(self._x, self._y, [self._data, [], [], []])
 
 
-
 # client = LatticeClient()
 # pixels = Pixels(client, 48)
 
@@ -86,10 +86,8 @@ class Pixels:
 #     ...
 
 
-
-
 def main() -> None:
-    client = LatticeClient()      # socket path from HINGE_SOCK / default
+    client = LatticeClient()  # socket path from HINGE_SOCK / default
     mf = ModuleFrame.blank()
     print(f"four_colors: broadcasting to {ROWS}x{PER_ROW} modules @ {FPS}fps")
     t = 0.0

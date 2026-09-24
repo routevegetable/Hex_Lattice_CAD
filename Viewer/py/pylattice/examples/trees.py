@@ -109,7 +109,7 @@ def trees():
                 )
         data_1_0 = STANDARD_MODULE.serialize(mf_1_0)
         data_0_0 = STANDARD_MODULE.serialize(mf_0_0)
-        client.send(1, 0, data_1_0)
+        client.send(0, 1, data_1_0)
         client.send(0, 0, data_0_0)
         time.sleep(1 / FPS)
 

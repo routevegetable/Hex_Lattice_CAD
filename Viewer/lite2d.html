@@ -91,7 +91,12 @@ const ROW_H = HEX_SIDE * 2 + ROW_GAP;
 // Lateral side -> [fromVertexIdx, toVertexIdx] into the 6-vertex hexagon
 // below (F excluded — see note above). Vertices, in order: 0 TopPoint,
 // 1 UpperRight, 2 LowerRight, 3 BottomPoint, 4 LowerLeft, 5 UpperLeft.
-const HEX_SIDES = { A: [5, 0], B: [0, 1], E: [2, 3], D: [3, 4], C: [4, 5] };
+// fromVertexIdx is always the physically-higher endpoint (matching the
+// filament's "top" end drawn at pa below) — on the hexagon's left half
+// (A, C, D) that's the opposite of walking clockwise, unlike the right
+// half (B, E), so those three are reversed relative to their clockwise
+// vertex order.
+const HEX_SIDES = { A: [0, 5], B: [0, 1], E: [2, 3], D: [4, 3], C: [5, 4] };
 
 function hexVertices(cx, cy) {
   const s = HEX_SIDE, w = s * Math.sqrt(3) / 2;
@@ -427,9 +432,9 @@ const STALE_MS = 3000;
 function routeLedMessage(buf) {                 // buf: Uint8Array
   if (buf.length < 1 || !grid) return;
   const len = buf[0];
-  const loc = _td.decode(buf.subarray(1, 1 + len));   // "h-l"
+  const loc = _td.decode(buf.subarray(1, 1 + len));   // "x-y" (col-row, per lattice_client.py)
   const dash = loc.indexOf('-');
-  const h = +loc.slice(0, dash), l = +loc.slice(dash + 1);
+  const l = +loc.slice(0, dash), h = +loc.slice(dash + 1);
   const mod = grid.moduleGrid[h] && grid.moduleGrid[h][l];
   if (!mod) return;                              // frame for a module we don't have built
   mod._lastFrameAt = performance.now();

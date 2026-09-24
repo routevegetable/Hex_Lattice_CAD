@@ -11,6 +11,7 @@ an OS file-watch API/library, so it needs nothing beyond the stdlib.
 
 Ctrl+C stops the watcher and whatever command is currently running.
 """
+
 import os
 import signal
 import subprocess
@@ -102,7 +103,9 @@ def main():
             elif proc is not None and proc.poll() is not None:
                 # Command exited on its own (crash or normal exit) - report it,
                 # keep watching, and only restart once a file actually changes.
-                print(f"[watch] command exited ({proc.returncode}), waiting for a change")
+                print(
+                    f"[watch] command exited ({proc.returncode}), waiting for a change"
+                )
                 proc = None
     finally:
         print("\n[watch] stopping")
