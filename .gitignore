@@ -1,0 +1,6 @@
+*.pyc
+__pycache__/
+Viewer/py/pylattice/examples/tinkering.py
+.claude/settings.local.json
+.DS_Store
+Viewer/.claude/LITE2D_PLAN.md

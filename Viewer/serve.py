@@ -14,24 +14,48 @@ Two things run together:
          [1 byte: length of location][location ascii, e.g. "0-0"][ModuleFrame.serialize]
 
 Usage:
-    python3 serve.py            # http:8765, multicast 239.69.69.69:6969
-    python3 serve.py 9000       # custom http port
+    python3 serve.py                    # http:8765, multicast 239.69.69.69:6969
+    python3 serve.py 9000                # custom http port
+    python3 serve.py --page lite2d.html  # open lite2d.html instead of index.html
+    python3 serve.py --no-open           # don't auto-open a browser tab at all
 
 Env: HEXNET_MCAST_GROUP, HEXNET_MCAST_PORT override the multicast group/port.
 """
+
+import argparse
 import base64
 import hashlib
 import http.server
+import json
 import os
 import socket
 import struct
-import sys
 import threading
 import webbrowser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
+
+
+def _parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("port", nargs="?", type=int, default=8765)
+    parser.add_argument(
+        "--page",
+        "-p",
+        default="index.html",
+        help="page to auto-open in the browser (default: index.html)",
+    )
+    parser.add_argument(
+        "--no-open",
+        action="store_true",
+        help="don't auto-open a browser tab",
+    )
+    return parser.parse_args()
+
+
+_args = _parse_args()
+PORT = _args.port
 
 # UDP multicast source (browsers can't join groups, so serve.py joins and bridges
 # to the viewer over WebSocket).
@@ -39,8 +63,14 @@ MCAST_GROUP = os.environ.get("HEXNET_MCAST_GROUP", "239.69.69.69")
 MCAST_PORT = int(os.environ.get("HEXNET_MCAST_PORT", "6969"))
 
 _WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-_ws_clients = {}             # browser socket -> threading.Event (set when dropped)
+_ws_clients = {}  # browser socket -> threading.Event (set when dropped)
 _ws_lock = threading.Lock()
+
+# Last lattice shape reported by the viewer's build() (see index.html/lite.html)
+# — lets Python examples (py/examples/*.py) size themselves to whatever's
+# actually built in the browser instead of guessing fixed constants.
+_shape_lock = threading.Lock()
+_lattice_shape = {"levels": None, "perRow": None}
 
 
 def _ws_accept(key: str) -> str:
@@ -50,7 +80,7 @@ def _ws_accept(key: str) -> str:
 def _ws_frame(payload: bytes) -> bytes:
     """Wrap bytes in a server->client binary WebSocket frame (opcode 0x2, unmasked)."""
     n = len(payload)
-    head = bytearray([0x82])          # FIN + binary
+    head = bytearray([0x82])  # FIN + binary
     if n < 126:
         head.append(n)
     elif n < 65536:
@@ -70,11 +100,11 @@ def _broadcast(msg: bytes) -> None:
             try:
                 c.sendall(frame)
             except OSError:
-                dead.append(c)          # send failure => client is gone
+                dead.append(c)  # send failure => client is gone
         for c in dead:
             ev = _ws_clients.pop(c, None)
             if ev is not None:
-                ev.set()                # wake its parked handler thread
+                ev.set()  # wake its parked handler thread
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -89,10 +119,39 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_GET(self):
-        if self.path.split("?")[0] == "/ws" and \
-                self.headers.get("Upgrade", "").lower() == "websocket":
+        path = self.path.split("?")[0]
+        if path == "/ws" and self.headers.get("Upgrade", "").lower() == "websocket":
             return self._serve_ws()
+        if path == "/lattice-shape":
+            return self._get_shape()
         super().do_GET()
+
+    def do_POST(self):
+        if self.path.split("?")[0] == "/lattice-shape":
+            return self._post_shape()
+        self.send_error(404)
+
+    def _get_shape(self):
+        with _shape_lock:
+            body = json.dumps(_lattice_shape).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _post_shape(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            data = json.loads(self.rfile.read(length) if length else b"{}")
+            levels, per_row = int(data["levels"]), int(data["perRow"])
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            return self.send_error(400)
+        with _shape_lock:
+            _lattice_shape["levels"] = levels
+            _lattice_shape["perRow"] = per_row
+        self.send_response(204)
+        self.end_headers()
 
     def _serve_ws(self):
         key = self.headers.get("Sec-WebSocket-Key", "")
@@ -142,6 +201,7 @@ def _mcast_listener():
             data, _ = sock.recvfrom(1 << 16)
         except OSError:
             import traceback
+
             traceback.print_exc()
             break
         if data:
@@ -154,13 +214,14 @@ def main():
     httpd = http.server.ThreadingHTTPServer(("", PORT), Handler)
     httpd.daemon_threads = True
     httpd.allow_reuse_address = True
-    url = f"http://localhost:{PORT}/index.html"
+    url = f"http://localhost:{PORT}/{_args.page}"
     print(f"Hinge Hexagon viewer serving at {url}")
     print("Press Ctrl+C to stop.")
-    try:
-        webbrowser.open(url)
-    except Exception:
-        pass
+    if not _args.no_open:
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

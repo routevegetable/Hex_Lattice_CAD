@@ -10,7 +10,6 @@ class ChannelData:
     data: list[RGB]
 
 
-
 @dataclass
 class FrameFormat:
     channel_edges: dict[int, list[tuple[ModuleEdge, bool]]]
@@ -80,27 +79,43 @@ class FrameFormat:
 
 
 STANDARD_MODULE = FrameFormat(
-    channel_edges = {
-        0: [(ModuleEdge.D1, True), (ModuleEdge.C1, True), (ModuleEdge.A1, True),
-            (ModuleEdge.B1, False), (ModuleEdge.E2, True)],
-        1: [(ModuleEdge.E1, True), (ModuleEdge.C2, True), (ModuleEdge.A2, True),
-            (ModuleEdge.B2, False)],
+    channel_edges={
+        0: [
+            (ModuleEdge.D1, True),
+            (ModuleEdge.C1, True),
+            (ModuleEdge.A1, True),
+            (ModuleEdge.B1, False),
+            (ModuleEdge.E2, True),
+        ],
+        1: [
+            (ModuleEdge.E1, True),
+            (ModuleEdge.C2, True),
+            (ModuleEdge.A2, True),
+            (ModuleEdge.B2, False),
+        ],
         2: [(ModuleEdge.D2, False), (ModuleEdge.F2, False)],
         3: [(ModuleEdge.F1, False)],
     },
-
-    flip_order = (1, 0, 3, 2)
+    flip_order=(1, 0, 3, 2),
 )
 
 WEIRD_TUBE = FrameFormat(
-    channel_edges = {
-        0: [(ModuleEdge.D1, True), (ModuleEdge.C1, True), (ModuleEdge.A1, True),
-            (ModuleEdge.B1, False), (ModuleEdge.E2, True)],
-        1: [(ModuleEdge.E1, True), (ModuleEdge.C2, True), (ModuleEdge.A2, True),
-            (ModuleEdge.B2, False)],
+    channel_edges={
+        0: [
+            (ModuleEdge.D1, True),
+            (ModuleEdge.C1, True),
+            (ModuleEdge.A1, True),
+            (ModuleEdge.B1, False),
+            (ModuleEdge.E2, True),
+        ],
+        1: [
+            (ModuleEdge.E1, True),
+            (ModuleEdge.C2, True),
+            (ModuleEdge.A2, True),
+            (ModuleEdge.B2, False),
+        ],
         2: [(ModuleEdge.D2, False), (ModuleEdge.F2, False)],
         3: [(ModuleEdge.F1, False)],
     },
-
-    flip_order = (3,1, 2,0)
+    flip_order=(3, 1, 2, 0),
 )

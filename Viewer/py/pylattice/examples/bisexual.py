@@ -8,7 +8,15 @@ import random
 import time
 from typing import Any, Coroutine, Generator, Optional
 from pylattice.frame import RGB, EndFrame, ModuleFrame
-from pylattice.graph import EdgeClass, EdgeRef, Graph, TileRef, VertexClass, EndRef, VertexRef
+from pylattice.graph import (
+    EdgeClass,
+    EdgeRef,
+    Graph,
+    TileRef,
+    VertexClass,
+    EndRef,
+    VertexRef,
+)
 from pylattice.lattice_client import LatticeClient
 from pylattice.lattice_writer import LatticeWriter
 
@@ -20,19 +28,23 @@ COLS = 8
 
 lattice = LatticeWriter(COLS, ROWS)
 
-graph = Graph(COLS*2, ROWS)
+graph = Graph(COLS * 2, ROWS)
+
 
 def get_vertex_down_ends(v: VertexRef):
-    return [end for end in graph.VERTEX[0,0].ends_cw() if end.top]
+    return [end for end in graph.VERTEX[0, 0].ends_cw() if end.top]
+
 
 def randown(v: EndRef):
-    return random.choice(get_vertex_down_ends(graph.VERTEX[1,2]))
+    return random.choice(get_vertex_down_ends(graph.VERTEX[1, 2]))
 
-v = graph.VERTEX[0,0]
+
+v = graph.VERTEX[0, 0]
 
 vec = v.ends_cw()[0].physical_to_next()
 
-def hsv(h: float, s: float, v: float) -> tuple[float,float,float]:
+
+def hsv(h: float, s: float, v: float) -> tuple[float, float, float]:
     h = (h % 1 + 1) % 1
     i = int(h * 6)
     f = h * 6 - i
@@ -42,19 +54,26 @@ def hsv(h: float, s: float, v: float) -> tuple[float,float,float]:
 
 ZERO = Event.for_now()
 
-def make_spark_fn(lattice: LatticeWriter, end: EndRef, end_idx: int, fiber_idx: int, colors=YELLOW_ROSE):
+
+def make_spark_fn(
+    lattice: LatticeWriter,
+    end: EndRef,
+    end_idx: int,
+    fiber_idx: int,
+    colors=YELLOW_ROSE,
+):
     latch = EventLatch()
 
     def spark_fn(now: Event):
-        spark = latch.maybe(now, end.__hash__() + fiber_idx, 2000 + end_idx*13, 0.1)
+        spark = latch.maybe(now, end.__hash__() + fiber_idx, 2000 + end_idx * 13, 0.1)
 
         if spark is None:
             return
-        
+
         color = colors[(spark.rand() % len(colors))]
 
         brightness = ...
-    
+
 
 while True:
     lattice.clear()
@@ -63,13 +82,11 @@ while True:
     for end in graph.ends():
         PERIOD = 200 + (end.__hash__() % 200)
         for i in range(4):
-           hue = vary(now, .67, .7, PERIOD, i/4)
-           value = vary(now, 0, .1, PERIOD*7.1, i/4)
-           saturation = vary(now, .7, 1, PERIOD*3, i/4)
+            hue = vary(now, 0.67, 0.7, PERIOD, i / 4)
+            value = vary(now, 0, 0.1, PERIOD * 7.1, i / 4)
+            saturation = vary(now, 0.7, 1, PERIOD * 3, i / 4)
 
-           lattice[end][i] = hsv(hue, saturation, value)
+            lattice[end][i] = hsv(hue, saturation, value)
 
     time.sleep(0.02)
     lattice.show()
-
-

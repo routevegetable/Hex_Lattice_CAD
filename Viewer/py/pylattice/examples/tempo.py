@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -9,11 +11,12 @@ from typing import Any, Generic, TypeVar
 TData = TypeVar("TData")
 UData = TypeVar("UData")
 
+
 @dataclass
 class Event(Generic[TData]):
     when: int
     data: TData | None
-    
+
     @staticmethod
     def for_now(data: TData | None = None):
         return Event(int(time.monotonic() * 1000), data)
@@ -21,11 +24,11 @@ class Event(Generic[TData]):
     def rand(self, salt: int = 0):
         """Deterministic 32-bit integer mixing function."""
         x = int(self.when * 65536 + salt)
-        x = ((x >> 16) ^ x) * 0x45d9f3b
-        x = ((x >> 16) ^ x) * 0x45d9f3b
+        x = ((x >> 16) ^ x) * 0x45D9F3B
+        x = ((x >> 16) ^ x) * 0x45D9F3B
         x = (x >> 16) ^ x
         return x & 0xFFFFFFFF  # Keep as 32-bit unsigned int
-    
+
     def msec_after(self, ev: Event[Any]) -> int | None:
         if self.when is None or ev.when is None:
             return None
@@ -43,35 +46,48 @@ class Event(Generic[TData]):
         else:
             # Other did
             return self.when > ev.when
-        
+
     def delay(self, t: int) -> Event[TData]:
         return Event(self.when + t, self.data)
-
 
 
 def periodic(now: Event[Any], period: int, offset: int = 0) -> Event[int]:
     assert now.when is not None
     period_num = (now.when - offset) // period
-    return Event(when = period_num * period + offset, data=period_num)
+    return Event(when=period_num * period + offset, data=period_num)
 
 
-def sweep(now: Event[Any], trigger: Event[Any] | None, period: int, start: float, end: float, wait: float | None = None) -> float:
+def sweep(
+    now: Event[Any],
+    trigger: Event[Any] | None,
+    period: int,
+    start: float,
+    end: float,
+    wait: float | None = None,
+) -> float:
     if wait is None:
         wait = start
-    
+
     if trigger is None or not now.after(trigger):
         return wait
-    
+
     offset = now.when - trigger.when
-    
+
     if offset > period:
         return end
     else:
         frac = offset / period
         dv = end - start
         return start + frac * dv
-    
-def seq(now: Event[Any], trigger: Event[Any] | None, period: int, arr: list[TData], wait: TData | None = None) -> TData:
+
+
+def seq(
+    now: Event[Any],
+    trigger: Event[Any] | None,
+    period: int,
+    arr: list[TData],
+    wait: TData | None = None,
+) -> TData:
     assert len(arr) > 0, "Empty input list"
 
     if wait is None:
@@ -79,12 +95,18 @@ def seq(now: Event[Any], trigger: Event[Any] | None, period: int, arr: list[TDat
 
     if not now.after(trigger):
         return wait
-    
 
-    i = sweep(now, trigger, period, 0, len(arr)-1)
+    i = sweep(now, trigger, period, 0, len(arr) - 1)
     return arr[int(i)]
 
-def seq_interp(now: Event[Any], trigger: Event[Any] | None, period: int, arr: list[float], wait: float | None = None) -> float:
+
+def seq_interp(
+    now: Event[Any],
+    trigger: Event[Any] | None,
+    period: int,
+    arr: list[float],
+    wait: float | None = None,
+) -> float:
     assert len(arr) > 0, "Empty input list"
 
     if wait is None:
@@ -92,10 +114,10 @@ def seq_interp(now: Event[Any], trigger: Event[Any] | None, period: int, arr: li
 
     if trigger is None or not now.after(trigger):
         return wait
-    
+
     if now.after(trigger.delay(period)):
         return arr[-1]
-    
+
     values = len(arr)
 
     first = seq(now, trigger, period, arr[:-1])
@@ -107,11 +129,11 @@ def seq_interp(now: Event[Any], trigger: Event[Any] | None, period: int, arr: li
     print(f"{p} {first} {second}")
 
     return sweep(now, p, step_len, first, second)
-    
 
 
-
-def psweep(now: Event[Any], period: int, start: float, end: float, offset: int = 0) -> float:
+def psweep(
+    now: Event[Any], period: int, start: float, end: float, offset: int = 0
+) -> float:
     trigger = periodic(now, period, offset)
 
     e = sweep(now, trigger, period, start, end)
@@ -128,8 +150,9 @@ class LFO:
         """
         if now.after(self.sync.delay(period)):
             self.sync.when = now.when
-    
+
         return sweep(now, self.sync, period, start, end)
+
 
 class EventLatch(Generic[TData]):
     def __init__(self):
@@ -150,8 +173,15 @@ class EventLatch(Generic[TData]):
             self.ev = ev
 
         return self.ev
-    
-    def maybe(self, now: Event[Any], salt: int, period: int, likelihood: float, offset: int = 0) -> Event[TData] | None:
+
+    def maybe(
+        self,
+        now: Event[Any],
+        salt: int,
+        period: int,
+        likelihood: float,
+        offset: int = 0,
+    ) -> Event[TData] | None:
         """
         Randomly latch a new event.
         Each period, likelihood dictates how likely we are to latch a new event
@@ -170,14 +200,16 @@ class EventLatch(Generic[TData]):
         x = self.latch(Event.for_now(data))
         assert x is not None
         return x
-    
+
     def read(self) -> Event[TData] | None:
         return self.ev
+
 
 class History(Generic[TData]):
     """
     Circular buffer of same-typed event latches
     """
+
     def __init__(self, len: int = 20):
         self._d = deque[EventLatch[TData]]()
         for _ in range(len):
@@ -186,12 +218,19 @@ class History(Generic[TData]):
     def events(self) -> Iterable[Event[TData]]:
         for el in self._d:
             yield el.read()
-    
+
     def update(self) -> EventLatch[TData]:
         self._d.rotate()
         return self._d[0]
-    
-    def maybe_update(self, now: Event[Any], salt: int, period: int, likelihood: float, offset: int = 0):
+
+    def maybe_update(
+        self,
+        now: Event[Any],
+        salt: int,
+        period: int,
+        likelihood: float,
+        offset: int = 0,
+    ):
         """
         TBD
         """
@@ -216,22 +255,10 @@ while True:
     p = el.maybe(now, 20000, 0.7, A_SEC.when)
     print(p)
 
-    obj = seq(now, p, 1000, [
-        "one",
-        "two",
-        "three",
-        "four"
-    ])
+    obj = seq(now, p, 1000, ["one", "two", "three", "four"])
 
-    obj = seq_interp(now, p, 10000, [
-        0,
-        1,
-        10,
-        5
-    ])
+    obj = seq_interp(now, p, 10000, [0, 1, 10, 5])
 
     print(obj)
 
-
     time.sleep(0.1)
-

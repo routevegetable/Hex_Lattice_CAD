@@ -37,13 +37,11 @@ rotary = RotaryField(graph, midi,
                         parts_cc=71,
                         shape_cc=76)
 
-note_wipe = NoteWipeField(midi,
-                          note=44,
-                          speed_cc=75)
+note_wipe = NoteWipeField(midi, note=44, speed_cc=75)
 
 
-#midi.on_note(C1, lambda n, on: beat_event.put())
-#midi.on_note(C4, lambda n, on: beat_event.put())
+# midi.on_note(C1, lambda n, on: beat_event.put())
+# midi.on_note(C4, lambda n, on: beat_event.put())
 
 init_boom_zaps(graph, lattice)
 

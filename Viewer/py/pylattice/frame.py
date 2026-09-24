@@ -5,6 +5,7 @@ carries 4 filament RGBs (floats 0..1, may exceed 1 to drive bloom). serialize()
 packs them into the 4-channel NeoPixel byte stream the hardware expects;
 deserialize() is the exact inverse.
 """
+
 from __future__ import annotations
 
 import math
@@ -14,8 +15,9 @@ from typing import Dict, List, Tuple
 
 from .graph import EdgeClass, EndRef
 
-RGB = List[float]          # [r, g, b]
-EndFrame = List[RGB]       # 4 filaments
+RGB = List[float]  # [r, g, b]
+EndFrame = List[RGB]  # 4 filaments
+
 
 class ModuleEdge(IntEnum):
     A1 = 0
@@ -30,6 +32,7 @@ class ModuleEdge(IntEnum):
     D2 = 9
     E2 = 10
     F2 = 11
+
 
 EDGE_CLASS_TO_MODULE_EDGES: dict[EdgeClass, tuple[ModuleEdge, ModuleEdge]] = {
     EdgeClass.A: (ModuleEdge.A1, ModuleEdge.A2),
@@ -70,12 +73,17 @@ class ModuleFrame:
 
     @staticmethod
     def blank() -> "ModuleFrame":
-        return ModuleFrame([
-            EdgeFrame(Ends(
-                top=[[0.0, 0.0, 0.0] for _ in range(4)],
-                bottom=[[0.0, 0.0, 0.0] for _ in range(4)],
-            )) for _ in range(12)
-        ])
+        return ModuleFrame(
+            [
+                EdgeFrame(
+                    Ends(
+                        top=[[0.0, 0.0, 0.0] for _ in range(4)],
+                        bottom=[[0.0, 0.0, 0.0] for _ in range(4)],
+                    )
+                )
+                for _ in range(12)
+            ]
+        )
 
     def get_end_frame(self, er: EndRef) -> EndFrame:
         # Get the edges for this edge class

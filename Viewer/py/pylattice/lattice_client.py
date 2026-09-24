@@ -10,18 +10,44 @@ Frames stay on this machine by default (multicast TTL 0). To reach real hardware
 on the LAN, raise it — `LatticeClient(ttl=1)` or HEXNET_MCAST_TTL=1 — and point
 HEXNET_MCAST_IF at the real interface rather than loopback.
 """
+
+import json
 import math
 import os
 import socket
+import urllib.error
+import urllib.request
 
 from .format import STANDARD_MODULE, ChannelData, FrameFormat
 
 from .frame import RGB, ModuleFrame
 
-DEFAULT_GROUP = "239.69.69.69"          # administratively-scoped (RFC 2365)
+DEFAULT_SOCK = "/tmp/hinge-leds.sock"
+DEFAULT_HTTP = "http://localhost:8765"
+
+
+def fetch_lattice_shape(http_base: str | None = None, timeout: float = 1.0):
+    """GET serve.py's /lattice-shape - {"levels": N, "perRow": N} reported by
+    the viewer's own build() (see index.html/lite.html), or None if serve.py
+    isn't reachable or the viewer hasn't built anything yet (both fields null).
+    Lets an example size itself to whatever's actually on screen instead of a
+    guessed constant.
+    """
+    base = http_base or os.environ.get("HINGE_HTTP") or DEFAULT_HTTP
+    try:
+        with urllib.request.urlopen(f"{base}/lattice-shape", timeout=timeout) as resp:
+            shape = json.loads(resp.read())
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+    if shape.get("levels") is None or shape.get("perRow") is None:
+        return None
+    return shape
+
+
+DEFAULT_GROUP = "239.69.69.69"  # administratively-scoped (RFC 2365)
 DEFAULT_PORT = 6969
-DEFAULT_IFACE = "127.0.0.1"             # egress interface (loopback = stay local)
-DEFAULT_TTL = 0                         # 0 = never leaves this host (1 would reach the LAN)
+DEFAULT_IFACE = "127.0.0.1"  # egress interface (loopback = stay local)
+DEFAULT_TTL = 0  # 0 = never leaves this host (1 would reach the LAN)
 
 
 def _pascal(s: str) -> bytes:
@@ -33,11 +59,17 @@ def _byte(c: float) -> int:
     # Match JS Math.round (round half up) so bytes are identical across ports.
     return max(0, min(255, math.floor(c * 255 + 0.5)))
 
+
 class LatticeClient:
     """Sends module frames to the multicast group. `sendModule` is the API."""
 
-    def __init__(self, group: str | None = None, port: int | None = None,
-                 iface: str | None = None, ttl: int | None = None):
+    def __init__(
+        self,
+        group: str | None = None,
+        port: int | None = None,
+        iface: str | None = None,
+        ttl: int | None = None,
+    ):
         # group/port/iface/ttl: explicit arg > HEXNET_MCAST_* env > default.
         self.group = group or os.environ.get("HEXNET_MCAST_GROUP") or DEFAULT_GROUP
         self.port = int(port or os.environ.get("HEXNET_MCAST_PORT") or DEFAULT_PORT)
@@ -52,9 +84,13 @@ class LatticeClient:
         # datagram never reaches the wire. Loopback delivery is independent of
         # TTL, so same-host receivers (serve.py, other tools) still get it.
         self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, self.ttl)
-        self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)  # local receivers get a copy
+        self.sock.setsockopt(
+            socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1
+        )  # local receivers get a copy
         # Pin the send to `iface` (loopback keeps frames on the box).
-        self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(iface))
+        self.sock.setsockopt(
+            socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(iface)
+        )
         self._warned = False
 
     def send(self, x: int, y: int, channels: list[ChannelData]) -> None:
@@ -63,7 +99,7 @@ class LatticeClient:
         """
         payload = bytearray()
         for ch in channels:
-            payload.append(len(ch.data) & 0xFF)             # pixel count
+            payload.append(len(ch.data) & 0xFF)  # pixel count
             for px in ch.data:
                 payload.append(_byte(px[0]))
                 payload.append(_byte(px[1]))

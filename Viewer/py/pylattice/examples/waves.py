@@ -1,4 +1,3 @@
-
 import math
 import threading
 import time
@@ -31,13 +30,13 @@ lattice = LatticeWriter(COLS / 2, ROWS)
 
 import mido
 
-
-m = mido.open_input('IAC Driver Bus 1')
+m = mido.open_input("IAC Driver Bus 1")
 last_qn: int = 1
 
 gen = clk.ClockGenerator(24)
 
 lfo = clk.QNLFO(gen)
+
 
 def midi_thread():
     global last_qn
@@ -56,7 +55,7 @@ def midi_thread():
                     ...
                 case "note_off":
                     ...
-        
+
         gen.tick()
 
         qn = int(gen.get_qn())
@@ -68,13 +67,13 @@ def midi_thread():
         time.sleep(0.001)
 
 
-
 # Want a MIDI wrapper that exposes a number of events:
 # * Clock
 # * Note On
 # * Note Off
 # Clock event should be produced every N clock messages
 # Multiple divisors should be available
+
 
 class PLL:
     # Exposes an event for any given fraction of the clock
@@ -103,7 +102,6 @@ class PLL:
         # Do something
         tick_len = now.when - input.when
 
-
     def __getitem__(self, mult: float) -> Event:
         """
         mult may be 1, in which case, we should get a new thing
@@ -112,6 +110,7 @@ class PLL:
         mult may be 3, in which case we should get a new thing every 3 notes.
         """
         # Since
+
 
 # A clock generator thing has an input scaler (how many beats in a clock period)
 # and how many divisions
@@ -154,6 +153,7 @@ When the phase accumulator hits 1, that's a beat.
 
 """
 
+
 class ClockGenerator:
 
     def __init__(self, ppqn):
@@ -166,7 +166,7 @@ class ClockGenerator:
         # Current start of quarter note timer
         self.qn_start = 0
 
-        # Whether we are in the last half of the 
+        # Whether we are in the last half of the
         self.first_half = True
 
     def reset(self, now: Event):
@@ -177,7 +177,7 @@ class ClockGenerator:
     def tick(self, now: int, last_qn: int):
 
         # Called every superloop thingy
-        
+
         # How long since last quarter note start
         dt = now - self.qn_start
 
@@ -189,7 +189,7 @@ class ClockGenerator:
 
         if not self.first_half and first_half:
             # Rolled over - reset the timer, increment qn
-            self.first_half = False # Now we are in first half
+            self.first_half = False  # Now we are in first half
             self.qn_start = last_qn
             self.qn = self.qn + 1
 
@@ -199,11 +199,10 @@ class ClockGenerator:
             if not self.first_half:
                 # Came in before we hit - reset the timer, increment qn
                 self.qn = self.qn + 1
-            
+
             # Reset the timer
             self.qn_start = last_qn
             self.first_half = True
-
 
 
 class MidiControl:
@@ -211,6 +210,7 @@ class MidiControl:
         self._port = mido.open_input(port)
 
         self.BPM = {}
+
 
 # So a midi clock is just an event.
 # An LFO needs to be able to change frequency seamlessly
@@ -220,10 +220,10 @@ class MidiControl:
 
 def get_value_for_filament(now: Event, end: EndRef, filament_idx: int) -> float:
     period = 3000
-    offset = (end.__hash__() + filament_idx * (period/4)) % period
+    offset = (end.__hash__() + filament_idx * (period / 4)) % period
     x = psweep(now, period, 0, 2 * math.pi, offset)
 
-    #print(x)
+    # print(x)
 
     return math.sin(x) / 2 + 0.5
 
@@ -236,7 +236,7 @@ while True:
 
     now = Event.for_now()
 
-    #print(lfo._last_cycle)
+    # print(lfo._last_cycle)
 
     for end in graph.ends():
         for i in range(4):
@@ -244,9 +244,17 @@ while True:
             x = v
             if x < 0.9:
                 x = 0
-            lattice[end][i] = [get_value_for_filament(now, end, i, ), x/2, x/2]
+            lattice[end][i] = [
+                get_value_for_filament(
+                    now,
+                    end,
+                    i,
+                ),
+                x / 2,
+                x / 2,
+            ]
 
     lattice.show()
 
-    #time.sleep(0.01)
+    # time.sleep(0.01)
     ...
