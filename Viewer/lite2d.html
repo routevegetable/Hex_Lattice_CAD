@@ -55,14 +55,6 @@
 </div>
 
 <script>
-// ==== Phase 1: node shape (extracted offline, see hinge_obj/extract_node_shape.py) ====
-// Hinge-pin tube ("Small-Small Tube", class C), projected face-on (X,Z, dropping
-// Y depth), reduced to its convex hull and normalized to [-1,1] on its long
-// axis. The pin is a plain flat-capped cylinder, so the outline is a thin bar —
-// a faithful silhouette of the real geometry, not a placeholder shape.
-const NODE_SHAPE_PATH = "M -0.0676,-1.0000 L 0.0676,-1.0000 L 0.0676,1.0000 L -0.0676,1.0000 Z";
-const NODE_SHAPE_POINTS = [[-0.0676,-1.0000], [0.0676,-1.0000], [0.0676,1.0000], [-0.0676,1.0000]];
-
 // ==== Phase 2: grid model ====
 // A "module" = 2 adjacent hexagon segments in a ring (see MEASUREMENTS.md /
 // scheme.md). Simplified here as a flat, regular hex grid: rows = levels
@@ -234,20 +226,13 @@ function fitTransform() {
   return { scale, ox, oy };
 }
 
-// Draw NODE_SHAPE_PATH at a joint: scaled anisotropically (see Phase 1 note —
-// the real hinge pin's true-aspect silhouette is a thin bar; a small fixed
-// pixel width keeps it legible at typical grid zoom, per the Phase 3 QA note
-// in LITE2D_PLAN.md to adjust for legibility rather than complexity).
+// Draw a joint as a vertical bar — the hinge pin seen face-on is a plain
+// cylinder, i.e. a rectangle. Fixed pixel size keeps it legible at any zoom.
 const NODE_HALF_W = 3.2;   // px, half-width of the drawn pin
 const NODE_HALF_H = 11;    // px, half-height of the drawn pin
 function drawNode(x, y) {
   ctx.beginPath();
-  for (let k = 0; k < NODE_SHAPE_POINTS.length; k++) {
-    const [px, py] = NODE_SHAPE_POINTS[k];
-    const dx = x + px * NODE_HALF_W, dy = y + py * NODE_HALF_H;
-    if (k === 0) ctx.moveTo(dx, dy); else ctx.lineTo(dx, dy);
-  }
-  ctx.closePath();
+  ctx.rect(x - NODE_HALF_W, y - NODE_HALF_H, 2 * NODE_HALF_W, 2 * NODE_HALF_H);
   ctx.fillStyle = 'rgba(200,205,215,0.85)';
   ctx.strokeStyle = 'rgba(255,255,255,0.35)';
   ctx.lineWidth = 1;
