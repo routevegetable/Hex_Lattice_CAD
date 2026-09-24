@@ -2,3 +2,4 @@
 __pycache__/
 Viewer/py/pylattice/examples/tinkering.py
 .claude/settings.local.json
+.DS_Store
