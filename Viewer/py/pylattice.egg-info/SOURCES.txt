@@ -30,9 +30,9 @@ pylattice/examples/inferno.py
 pylattice/examples/instrument.py
 pylattice/examples/mic_reactive_bisexual.py
 pylattice/examples/midi.py
+pylattice/examples/sunrise.py
 pylattice/examples/tempo.py
 pylattice/examples/tester.py
-pylattice/examples/tinkering.py
 pylattice/examples/trees.py
 pylattice/examples/vec.py
 pylattice/examples/watch.py

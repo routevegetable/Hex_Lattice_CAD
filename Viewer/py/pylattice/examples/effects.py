@@ -9,12 +9,13 @@ from pylattice.effects.boom_zaps import ProbZaps, init_boom_zaps, prob_zaps, run
 from pylattice.effects.waves import BgWaves, bg_waves
 from pylattice.examples.colors import hsv, vary
 from pylattice.fields.types import ConstantField, ScalarField
-from pylattice.fields.scalar import CCField, NoteRippleField, PolyTouchField, RotaryField
+from pylattice.fields.scalar import CCField, NoteRippleField, NoteWipeField, PolyTouchField, RotaryField
 from pylattice.examples.instrument import ColorMap
 from pylattice.examples.midi import MIDI
 from pylattice.examples.tempo import Event, EventLatch, sweep
 from pylattice.graph import EndRef, Graph
 from pylattice.lattice_writer import LatticeWriter
+from pylattice.runner.preset import Preset, named
 from pylattice.runner.types import Effect
 
 
@@ -37,58 +38,82 @@ PA1, PA2, PA3, PA4, PA5, PA6, PA7, PA8 = 44, 45, 46, 47, 48, 49, 50, 51
 PB1, PB2, PB3, PB4, PB5, PB6, PB7, PB8 = 36, 37, 38, 39, 40, 41, 42, 43
 
 
-param = CCField(
-    midi,
-    value=KA1
-)
+# A class body, not a SimpleNamespace: the editor infers each attribute's
+# type from what it is assigned, so FIELDS.ripple is a NoteRippleField and
+# a typo is an error. SimpleNamespace attributes are all Any.
+class FIELDS:
+    
+    fader_a = CCField(
+        midi,
+        value=KA1
+    )
+    fader_b = CCField(
+        midi,
+        value=KA2
+    )
+    param_a = CCField(
+        midi,
+        value=KA3
+    )
+    param_b = CCField(
+        midi,
+        value=KA4
+    )
+    ripple = NoteRippleField(
+        graph, midi,
+        note=PB1,
+        speed=KB1
+    )
+    ripple2 = NoteRippleField(
+        graph, midi,
+        note=PB2,
+        speed=KB2
+    )
+    wipe1 = NoteWipeField(
+        midi,
+        note=PB3,
+        speed=KB3
+    )
+    wipe2 = NoteWipeField(
+        midi,
+        note=PB4,
+        speed=KB4
+    )
+    rotary = RotaryField(
+        graph, midi,
+        period=KA2,
+        parts=KA3,
+        shape=KA4
+    )
 
-polytouch = PolyTouchField(
-    midi,
-    note=PA1
-)
 
-ripple = NoteRippleField(
-    graph, midi,
-    note=PA1,
-    speed=KA8
-)
-
-ripple2 = NoteRippleField(
-    graph, midi,
-    note=PA2,
-    speed=KA8
-)
-
-rotary = RotaryField(
-    graph, midi,
-    period=KA2,
-    parts=KA3,
-    shape=KA4
-)
-
-# Built from the fields above
-zap_prob = ripple * polytouch
-
-effects: list[Effect] = [
-    BgWaves(
-        hue=param,
-        value=param
-    ),
-    #Pluck(
-    #    a_amp=rotary,
-    #    b_amp=ripple,
-    #    c_amp=ripple2,
-    #    period=param
-    #),
-    ProbZaps(
-        prob=ripple2
-    ),
-]
+# This is the living field-slot data structure
+class EFFECTS:
+    bg_waves = BgWaves(
+        hue=FIELDS.param_a,
+        value=FIELDS.fader_a
+    )
+    pluck = Pluck(
+        a_amp=FIELDS.rotary,
+        b_amp=FIELDS.ripple,
+        c_amp=FIELDS.ripple2,
+        period=FIELDS.param_b,
+        value=FIELDS.fader_b
+    )
+    prob_zaps = ProbZaps( # We're always zappin
+        prob=FIELDS.ripple2
+    )
 
 
 
-C1 = 36
-C4 = 72
+
+
+
+# Everything declared in EFFECTS, in the order written - so a preset patches
+# the same objects that render.
+effects: list[Effect] = list(named(EFFECTS, Effect).values())
+
+
 
 
 init_boom_zaps(graph, lattice)
@@ -140,8 +165,6 @@ while True:
     if dt < PERIOD:
         time.sleep(PERIOD - dt)
         
-    
-    
     continue
 
 

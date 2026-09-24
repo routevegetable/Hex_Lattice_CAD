@@ -11,7 +11,7 @@ from pylattice.lattice_writer import LatticeWriter
 from pylattice.fields.types import Slot
 from pylattice.runner.types import Effect
 
-def wobble(now: Event, lattice: LatticeWriter, edge: EdgeRef, p: int, amp: float, filament_offset: int, hue: float):
+def wobble(now: Event, lattice: LatticeWriter, edge: EdgeRef, p: int, amp: float, filament_offset: int, hue: float, value: float):
     end, other = edge.ends()
     
     y = math.sin(psweep(now, p, 0, 2 * math.pi))
@@ -31,6 +31,11 @@ def wobble(now: Event, lattice: LatticeWriter, edge: EdgeRef, p: int, amp: float
     center_brightness = 1 - (center_dist / DIST_T) if center_dist < DIST_T else 0
     middle_brightness = 1 - (middle_dist / DIST_T) if middle_dist < DIST_T else 0
     max_brightness = 1 - (max_dist / DIST_T) if max_dist < DIST_T else 0
+    
+    # The value field scales the whole string, so 0 draws nothing at all.
+    center_brightness *= value
+    middle_brightness *= value
+    max_brightness *= value
     
     # Center
     if center_brightness > 0.01:
@@ -61,9 +66,11 @@ class Pluck(Effect):
     b_amp: Slot
     c_amp: Slot
     period: Slot
+    value: Slot
     
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
         a_amp, b_amp, c_amp, period = self.a_amp, self.b_amp, self.c_amp, self.period
+        value = self.value
         
         first = True
         # A: Horizontal strings
@@ -84,7 +91,7 @@ class Pluck(Effect):
                     p = (period.get(now, end) + period.get(now, other)) / 2
                     p = 120
                     
-                    wobble(now, lattice, end, p, amp, 0, a_amp.get(now, end))
+                    wobble(now, lattice, end, p, amp, 0, a_amp.get(now, end), value.get(now, end))
                     
         # B: Right Strings
         for tx in range(0, graph.width):
@@ -104,7 +111,7 @@ class Pluck(Effect):
                     # Average period too, between 1 and 500ms
                     p = 120
                     
-                    wobble(now, lattice, end, p, amp, 1, 0.5)
+                    wobble(now, lattice, end, p, amp, 1, 0.5, value.get(now, end))
                     
         # C: Left Strings
         for tx in range(0, graph.width):
@@ -124,7 +131,7 @@ class Pluck(Effect):
                     # Average period too, between 1 and 500ms
                     p = 120
                     
-                    wobble(now, lattice, end, p, amp, 1, a_amp.get(now, end))
+                    wobble(now, lattice, end, p, amp, 1, a_amp.get(now, end), value.get(now, end))
             
             
 

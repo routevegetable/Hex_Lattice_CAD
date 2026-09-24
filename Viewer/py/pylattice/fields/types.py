@@ -1,15 +1,19 @@
 """What a field is: the protocols it implements, and how fields combine."""
 import operator
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from pylattice.examples.tempo import Event
 from pylattice.frame import RGB
 from pylattice.graph import EndRef
 
 
+@runtime_checkable
 class ScalarField(Protocol):
     """
     Something that has a value for each end.
+
+    Runtime-checkable, so `isinstance(x, ScalarField)` works - which is how a
+    group of fields declared in a class body gets enumerated.
     Rotating.
     Wiping.
     Particle distance.
@@ -51,6 +55,10 @@ class ConstantField(ScalarField):
     def __init__(self, value: float):
         self._value = float(value)
 
+    @property
+    def value(self) -> float:
+        return self._value
+
     def get(self, now: Event, end: EndRef) -> float:
         return self._value
 
@@ -65,6 +73,18 @@ class CombinedField(ScalarField):
         self._op = op
         self._a = a
         self._b = b
+
+    @property
+    def op(self):
+        return self._op
+
+    @property
+    def a(self) -> ScalarField:
+        return self._a
+
+    @property
+    def b(self) -> ScalarField:
+        return self._b
 
     def get(self, now: Event, end: EndRef) -> float:
         return self._op(self._a.get(now, end), self._b.get(now, end))

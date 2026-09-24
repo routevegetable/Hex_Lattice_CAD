@@ -101,6 +101,17 @@ class MIDI:
         """
         return self._cc_latch(id).read
 
+    def get_ccs(self) -> dict[int, int]:
+        """Every control's current value, by CC number."""
+        return {control: latch.read().data for control, latch in self._cc_events.items()}
+
+    def set_cc(self, id: int, value: int):
+        """Move a control from code - a preset being loaded, say. It lands as a
+        change like any other, so anything watching `when` sees it move."""
+        self._cc_latch(id).put(value)
+        if self._state is not None:
+            self._save()
+
     def _cc_latch(self, id: int, value: int = 0) -> EventLatch[int]:
         """The latch for a control, made on demand - by watching it, by it
         moving, or by being restored from file. Either way there is one store,

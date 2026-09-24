@@ -1,6 +1,6 @@
 """What an effect is: something with slots, that draws."""
 import inspect
-from typing import Protocol, Self
+from typing import Protocol, Self, runtime_checkable
 
 from pylattice.fields.types import ScalarField, Slot
 from pylattice.examples.tempo import Event
@@ -8,6 +8,7 @@ from pylattice.graph import Graph
 from pylattice.lattice_writer import LatticeWriter
 
 
+@runtime_checkable
 class Effect(Protocol):
     """Draws onto the lattice, reading the fields plugged into its slots.
 
