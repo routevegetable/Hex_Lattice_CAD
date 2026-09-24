@@ -89,7 +89,7 @@ def prob_zaps(now: Event, lattice: LatticeWriter, graph: Graph, prob_field: Scal
             #    prob = 0
                 
             prob = min(prob, 1)
-            prob = prob/3
+            prob = prob/4
             #prob = math.pow(prob, 20)
             zaps[end](now, prob, (0.8, 0.6))
 

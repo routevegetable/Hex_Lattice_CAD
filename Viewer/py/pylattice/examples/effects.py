@@ -43,6 +43,7 @@ PB1, PB2, PB3, PB4, PB5, PB6, PB7, PB8 = 36, 37, 38, 39, 40, 41, 42, 43
 # a typo is an error. SimpleNamespace attributes are all Any.
 class FIELDS:
     
+    # CC fields
     fader_a = CCField(
         midi,
         value=KA1
@@ -59,6 +60,8 @@ class FIELDS:
         midi,
         value=KA4
     )
+    
+    # Ripples
     ripple = NoteRippleField(
         graph, midi,
         note=PB1,
@@ -69,6 +72,8 @@ class FIELDS:
         note=PB2,
         speed=KB2
     )
+    
+    # Wipes
     wipe1 = NoteWipeField(
         midi,
         note=PB3,
@@ -79,11 +84,13 @@ class FIELDS:
         note=PB4,
         speed=KB4
     )
+    
+    # Rotary
     rotary = RotaryField(
         graph, midi,
-        period=KA2,
-        parts=KA3,
-        shape=KA4
+        period=KA5,
+        parts=KA6,
+        shape=KA7
     )
 
 
@@ -94,9 +101,9 @@ class EFFECTS:
         value=FIELDS.fader_a
     )
     pluck = Pluck(
-        a_amp=FIELDS.rotary,
-        b_amp=FIELDS.ripple,
-        c_amp=FIELDS.ripple2,
+        a_amp=FIELDS.wipe2,
+        b_amp=FIELDS.wipe1,
+        c_amp=FIELDS.wipe1,
         period=FIELDS.param_b,
         value=FIELDS.fader_b
     )
@@ -105,7 +112,8 @@ class EFFECTS:
     )
 
 
-
+p = Preset.capture(midi, FIELDS, EFFECTS)
+p.save("preset.json")
 
 
 

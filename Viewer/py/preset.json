@@ -1,0 +1,29 @@
+{
+  "ccs": {
+    "10": 0,
+    "75": 0,
+    "74": 127,
+    "71": 94,
+    "76": 73,
+    "114": 0,
+    "18": 73,
+    "19": 127,
+    "16": 0,
+    "77": 6,
+    "93": 0,
+    "73": 0,
+    "54": 0,
+    "123": 0,
+    "51": 0
+  },
+  "slots": {
+    "bg_waves.hue": "param_a",
+    "bg_waves.value": "fader_a",
+    "pluck.a_amp": "wipe2",
+    "pluck.b_amp": "wipe1",
+    "pluck.c_amp": "wipe1",
+    "pluck.period": "param_b",
+    "pluck.value": "fader_b",
+    "prob_zaps.prob": "ripple2"
+  }
+}

@@ -25,9 +25,9 @@ def bg_waves(
             PERIOD = 200 + (end.__hash__() % 200)
             for i in range(4):
                 hue = vary(now, base_hue, base_hue + .03, PERIOD, i/4)
-                value = vary(now, 0.1, .7 * base_value, PERIOD*7.1, i/4)
+                value = vary(now, 0.1, .7, PERIOD*7.1, i/4)
                 saturation = vary(now, .9, 1, PERIOD*3, i/4)
-                lattice[end][i] = hsv(hue, saturation, value)
+                lattice[end][i] = hsv(hue, saturation, value * base_value)
 
 
 class BgWaves(Effect):
