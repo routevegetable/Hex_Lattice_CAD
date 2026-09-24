@@ -7,7 +7,7 @@ import math
 import random
 import time
 from typing import Any, Coroutine, Generator, Optional
-from py.pylattice.examples.vec import *
+from pylattice.examples.vec import *
 from pylattice.frame import RGB, EndFrame, ModuleFrame
 from pylattice.graph import EdgeClass, EdgeRef, Graph, TileRef, VertexClass, EndRef, VertexRef
 from pylattice.lattice_client import LatticeClient
@@ -449,8 +449,6 @@ while True:
     lattice.clear()
 
     now = Event.for_now()
-
-
 
 
     for end in graph.ends():

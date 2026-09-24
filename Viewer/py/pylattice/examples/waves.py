@@ -2,10 +2,10 @@
 import math
 import threading
 import time
-from py.pylattice.examples import clk
-from py.pylattice.examples.tempo import Event, EventLatch, psweep, sweep
-from py.pylattice.graph import EndRef, Graph
-from py.pylattice.lattice_writer import LatticeWriter
+from pylattice.examples import clk
+from pylattice.examples.tempo import Event, EventLatch, psweep, sweep
+from pylattice.graph import EndRef, Graph
+from pylattice.lattice_writer import LatticeWriter
 
 
 COLS = 16

@@ -14,14 +14,14 @@ orientation directly from the structure.
 import sys
 import time
 
-from py.pylattice.graph import Graph
+from pylattice.graph import Graph
 from pylattice.format import STANDARD_MODULE, WEIRD_TUBE
 from pylattice import ModuleFrame, LatticeClient, EdgeClass, TileRef
 from pylattice.lattice_writer import LatticeWriter
 
 ROWS = 2          # stacked rings to cover
 PER_ROW = 32      # modules per ring
-FPS =40
+FPS =4
 
 FILAMENTS = 4
 WHITE = [0, 1, 0]

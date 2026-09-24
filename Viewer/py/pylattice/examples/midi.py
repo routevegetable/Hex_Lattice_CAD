@@ -10,6 +10,7 @@ class MIDI:
         self._clock_fns: list[any] = []
         self._start_fns: list[any] = []
         self._cc_map: dict[int, int] = {}
+        self._polytouch_map: dict[int, int] = {}
 
     def tick(self):
         msg: mido.Message
@@ -26,20 +27,28 @@ class MIDI:
                         self._note_map[msg.note](msg.note, msg.velocity != 0)
                 case "note_off":
                     if msg.note in self._note_map:
-                        self._note_map[msg.note](msg.note, False)
+                        self._note_map[msg.note](msg.velocity, False)
                 case "control_change":
                     self._cc_map[msg.control] = msg.value
+                case "polytouch":
+                    self._polytouch_map[msg.note] = msg.value
 
     def cc(self, id: int) -> Callable[[],int]:
         return lambda: self._cc_map.get(id, 0)
+    
+    def polytouch(self, id: int) -> Callable[[], int]:
+        return lambda: self._polytouch_map.get(id, 0)
 
-    def on_note(self, id: int, fn: Callable[[int, bool], None]):
+    def on_note(self, id: int, fn: Callable[[int, bool], None]) -> Callable[[], int]:
         """
         Could return an event.
         Called on push and release
         """
-        self._note_map[id] = fn
-        ...
+        def note_fn(v: int, on: bool):
+            self._polytouch_map[id] = v if on else 0
+            fn(v, on)
+        self._note_map[id] = note_fn
+        return self.polytouch(id)
 
     def on_clock(self, fn: Callable[[], None]):
         """

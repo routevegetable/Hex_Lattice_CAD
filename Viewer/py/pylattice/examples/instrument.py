@@ -1,10 +1,10 @@
 import math
 from typing import Protocol
-from py.pylattice.examples.colors import hsv, vary
-from py.pylattice.examples.midi import MIDI
-from py.pylattice.examples.tempo import ZERO, Event, EventLatch, psweep, sweep
-from py.pylattice.frame import RGB
-from py.pylattice.graph import Graph, TileRef, VertexRef
+from pylattice.examples.colors import hsv, vary
+from pylattice.examples.midi import MIDI
+from pylattice.examples.tempo import ZERO, Event, EventLatch, psweep, sweep
+from pylattice.frame import RGB
+from pylattice.graph import Graph, TileRef, VertexRef
 
 class ScalarField(Protocol):
     """
@@ -21,6 +21,13 @@ class ScalarField(Protocol):
             def get(self, now: Event, v: VertexRef) -> float:
                 return orig.get(now, v) + other.get(now, v)
         return Sum()
+    
+    def __mul__(self, other: ScalarField) -> ScalarField:
+        orig = self
+        class Mul(ScalarField):
+            def get(self, now: Event, v: VertexRef) -> float:
+                return orig.get(now, v) * other.get(now, v)
+        return Mul()
     
 class ColorField(Protocol):
     """
@@ -41,7 +48,6 @@ class Envelope(Protocol):
     def get(self, now: Event, trigger: Event) -> float: ...
 
 
-
 class CCField(ScalarField):
     """
     A CC as a field
@@ -51,6 +57,17 @@ class CCField(ScalarField):
         
     def get(self, now: Event, v: VertexRef) -> float:
         return self._cc() / 127
+    
+class PolyTouchField(ScalarField):
+    """
+    A polytouch as a field
+    """
+    def __init__(self, midi: MIDI, *, note: int):
+        self._poly = midi.polytouch(note)
+        
+    def get(self, now: Event, v: VertexRef) -> float:
+        return self._poly() / 127
+    
 
 class RotaryField(ScalarField):
     
@@ -149,7 +166,7 @@ class NoteWipeField(ScalarField):
     
     """
     def __init__(self, midi: MIDI, *, note: int, speed_cc: int):
-        midi.on_note(note, self.on_note)
+        self._poly = midi.on_note(note, self.on_note)
         self._speed_cc = midi.cc(speed_cc)
         self._latches = [EventLatch() for _ in range(4)]
         self._last_latch = 0
@@ -188,6 +205,7 @@ class NoteWipeField(ScalarField):
             
             output = max(output, min(1, math.sin(sweep(now, ev.delay(dy * period), period, 0, math.pi, 0))))
         
+        #print(self._poly())
         return output
             
         #if ccv > 0:
