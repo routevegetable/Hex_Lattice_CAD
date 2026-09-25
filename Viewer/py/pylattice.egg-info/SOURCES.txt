@@ -40,4 +40,5 @@ pylattice/examples/wave.py
 pylattice/examples/waves.py
 pylattice/fields/scalar.py
 pylattice/fields/types.py
+pylattice/runner/preset.py
 pylattice/runner/types.py

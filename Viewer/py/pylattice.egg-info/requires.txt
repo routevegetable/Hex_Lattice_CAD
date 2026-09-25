@@ -1,6 +1,7 @@
 stupidartnet>=1.6.0
 uvicorn
 mido
+fastapi>=0.141.1
 
 [:platform_python_implementation == "CPython"]
 python-rtmidi

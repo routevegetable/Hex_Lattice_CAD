@@ -129,3 +129,39 @@ class Preset:
         # JSON keys are strings; CC numbers are not.
         return cls(ccs={int(cc): v for cc, v in saved["ccs"].items()},
                    slots=saved["slots"])
+
+
+@dataclass
+class PresetBank:
+    """A fixed set of preset slots, one file each, under `directory`."""
+
+    directory: Path
+    size: int = 16
+
+    def __post_init__(self):
+        self.directory = Path(self.directory)
+        self.directory.mkdir(parents=True, exist_ok=True)
+
+    def path(self, number: int) -> Path:
+        self.check(number)
+        return self.directory / f"{number:02d}.json"
+
+    def check(self, number: int):
+        if not 0 <= number < self.size:
+            raise ValueError(f"preset {number} is outside 0-{self.size - 1}")
+
+    def exists(self, number: int) -> bool:
+        return self.path(number).exists()
+
+    def read(self, number: int) -> Preset:
+        path = self.path(number)
+        if not path.exists():
+            raise FileNotFoundError(f"preset {number} has not been saved")
+        return Preset.load(path)
+
+    def write(self, number: int, preset: Preset):
+        preset.save(self.path(number))
+
+    def saved(self) -> list[int]:
+        """Which slots have a file."""
+        return [n for n in range(self.size) if self.exists(n)]

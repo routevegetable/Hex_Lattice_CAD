@@ -15,7 +15,10 @@ from pylattice.examples.midi import MIDI
 from pylattice.examples.tempo import Event, EventLatch, sweep
 from pylattice.graph import EndRef, Graph
 from pylattice.lattice_writer import LatticeWriter
-from pylattice.runner.preset import Preset, named
+from pathlib import Path
+from pylattice.runner.api import serve
+from pylattice.runner.console import Console
+from pylattice.runner.preset import Preset, PresetBank, named
 from pylattice.runner.types import Effect
 
 
@@ -36,6 +39,9 @@ KB1, KB2, KB3, KB4, KB5, KB6, KB7, KB8 = 114, 18, 19, 16, 17, 91, 79, 72
 
 PA1, PA2, PA3, PA4, PA5, PA6, PA7, PA8 = 44, 45, 46, 47, 48, 49, 50, 51
 PB1, PB2, PB3, PB4, PB5, PB6, PB7, PB8 = 36, 37, 38, 39, 40, 41, 42, 43
+
+# The step buttons, one preset each. They send CCs, and a press arrives as 127.
+STEPS = list(range(20, 56))
 
 
 # A class body, not a SimpleNamespace: the editor infers each attribute's
@@ -127,6 +133,31 @@ effects: list[Effect] = list(named(EFFECTS, Effect).values())
 init_boom_zaps(graph, lattice)
 
 
+BANK = PresetBank(Path("presets"))
+CONSOLE = Console(midi, FIELDS, EFFECTS, BANK)
+serve(CONSOLE)
+
+# A step button loads the preset of the same number.
+step_ccs = [midi.cc(cc) for cc in STEPS[:BANK.size]]
+step_seen = [0] * len(step_ccs)
+
+
+def check_steps():
+    """Load a preset when its step button is newly pressed - a CC of 127."""
+    for number, watch in enumerate(step_ccs):
+        moved = watch()
+
+        if moved.when == step_seen[number] or moved.data != 127:
+            continue        # not new, or the button coming back up
+
+        step_seen[number] = moved.when
+        try:
+            CONSOLE.load_current_from(number)
+            print(f"preset {number} loaded")
+        except (FileNotFoundError, ValueError) as e:
+            print(f"preset {number}: {e}")
+
+
 
 # PyPy collects incrementally, so a bounded step per frame is what its GC
 # wants. CPython has no such thing - the youngest generation is the cheap
@@ -141,19 +172,26 @@ gc_len = 0
 
 while True:
     t0 = time.time_ns()
-    lattice.clear()
 
-    now = Event.for_now()
-    midi.tick()
+    # The API thread takes this same lock, so a preset can never land halfway
+    # through a frame.
+    with CONSOLE.lock:
+        lattice.clear()
 
-    for effect in effects:
-        effect.render(now, lattice, graph)
-    lattice.show()
+        now = Event.for_now()
+        midi.tick()
+        check_steps()
+
+        for effect in effects:
+            effect.render(now, lattice, graph)
+        lattice.show()
 
     frames += 1
     elapsed = now.when - counted_from.when
     if elapsed >= 1000:
-        print(f"{frames * 1000 / elapsed:.1f} fps (Render: {dt_render/1000000}ms GC: {dt_gc/1000000}ms)")
+        fps = frames * 1000 / elapsed
+        print(f"{fps:.1f} fps (Render: {dt_render/1000000}ms GC: {dt_gc/1000000}ms)")
+        CONSOLE.set_stats(fps, dt_render / 1000000, dt_gc / 1000000)
         frames = 0
         counted_from = now
 

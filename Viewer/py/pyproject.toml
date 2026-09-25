@@ -17,6 +17,7 @@ dependencies = [
     # mido's default backend, but it cannot build on PyPy - there the ctypes
     # portmidi backend is used instead (brew install portmidi).
     "python-rtmidi; platform_python_implementation == 'CPython'",
+    "fastapi>=0.141.1",
 ]
 
 # Every pylattice subpackage - examples, effects, runner, fields - not a hand-kept list.
