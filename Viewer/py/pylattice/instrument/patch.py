@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from pylattice.examples.midi import MIDI
-from pylattice.fields.types import CombinedField, ConstantField, ScalarField
-from pylattice.runner.types import Effect
+from pylattice.fields.types import CombinedField, ConstantField, ScalarField, average, divide
+from pylattice.instrument.types import Effect
 
 # What drives a slot, as JSON. A live field cannot be pickled - the MIDI-backed
 # ones hold closures, and a copy would be detached from the desk anyway - so
@@ -17,7 +17,8 @@ from pylattice.runner.types import Effect
 #   {"op": "mul", "a": "ripple", "b": 0.5}    a combination, nested freely
 FieldRef = str | float | dict
 
-OPS = {"add": operator.add, "sub": operator.sub, "mul": operator.mul}
+OPS = {"add": operator.add, "sub": operator.sub, "mul": operator.mul,
+       "div": divide, "avg": average}
 OP_NAMES = {op: name for name, op in OPS.items()}
 
 
@@ -67,11 +68,11 @@ def named(namespace: type, kind: type) -> dict[str, object]:
 
 
 @dataclass
-class Preset:
-    """A snapshot of the patch: where the knobs are, and what drives what.
+class Patch:
+    """Every setting there is: where the knobs are, and what drives what.
 
-        Preset.capture(midi, FIELDS, EFFECTS).save("preset.json")
-        Preset.load("preset.json").apply(midi, FIELDS, EFFECTS)
+        Patch.capture(midi, FIELDS, EFFECTS).save("preset.json")
+        Patch.load("preset.json").apply(midi, FIELDS, EFFECTS)
     """
 
     # CC number -> value
@@ -81,7 +82,7 @@ class Preset:
     slots: dict[str, FieldRef]
 
     @classmethod
-    def capture(cls, midi: MIDI, fields: type, effects: type) -> "Preset":
+    def capture(cls, midi: MIDI, fields: type, effects: type) -> "Patch":
         """Read the current patch off the live objects."""
         field_names = {id(field): name for name, field in named(fields, ScalarField).items()}
 
@@ -124,7 +125,7 @@ class Preset:
         Path(path).write_text(json.dumps({"ccs": self.ccs, "slots": self.slots}, indent=2))
 
     @classmethod
-    def load(cls, path: str) -> "Preset":
+    def load(cls, path: str) -> "Patch":
         saved = json.loads(Path(path).read_text())
         # JSON keys are strings; CC numbers are not.
         return cls(ccs={int(cc): v for cc, v in saved["ccs"].items()},
@@ -153,13 +154,13 @@ class PresetBank:
     def exists(self, number: int) -> bool:
         return self.path(number).exists()
 
-    def read(self, number: int) -> Preset:
+    def read(self, number: int) -> Patch:
         path = self.path(number)
         if not path.exists():
             raise FileNotFoundError(f"preset {number} has not been saved")
-        return Preset.load(path)
+        return Patch.load(path)
 
-    def write(self, number: int, preset: Preset):
+    def write(self, number: int, preset: Patch):
         preset.save(self.path(number))
 
     def saved(self) -> list[int]:

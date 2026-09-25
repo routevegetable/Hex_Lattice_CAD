@@ -38,7 +38,7 @@ The effects app:
 
 ```sh
 cd py
-uv run -m pylattice.examples.effects
+uv run -m pylattice.instrument
 ```
 
 The tester app:

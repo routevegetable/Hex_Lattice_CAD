@@ -2,7 +2,7 @@ from pylattice.examples.tempo import Event
 from pylattice.fields.types import Slot
 from pylattice.graph import Graph
 from pylattice.lattice_writer import LatticeWriter
-from pylattice.runner.types import Effect
+from pylattice.instrument.types import Effect
 
 
 class PersistentEffect(Effect):

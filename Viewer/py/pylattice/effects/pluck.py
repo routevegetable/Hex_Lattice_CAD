@@ -9,7 +9,7 @@ from pylattice.examples.tempo import ZERO, Event, psweep, sweep
 from pylattice.graph import EdgeClass, EdgeRef, EndRef, Graph
 from pylattice.lattice_writer import LatticeWriter
 from pylattice.fields.types import Slot
-from pylattice.runner.types import Effect
+from pylattice.instrument.types import Effect
 
 def wobble(now: Event, lattice: LatticeWriter, edge: EdgeRef, p: int, amp: float, filament_offset: int, hue: float, value: float):
     end, other = edge.ends()
@@ -56,6 +56,22 @@ def wobble(now: Event, lattice: LatticeWriter, edge: EdgeRef, p: int, amp: float
         lattice[end][3] = [max_brightness] * 3
         lattice[other][3] = [max_brightness] * 3
                     
+
+class WobbleNet(Effect):
+    amp: Slot
+    hue: Slot
+    value: Slot
+    
+    def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
+        p = 120
+        
+        amp_in = self.amp
+        value = self.value
+        
+        for edge in graph.edges():
+            end = edge.ends()[0]
+            amp = (amp_in.get(now, end) + amp_in.get(now, end.other())) / 2
+            wobble(now, lattice, end, p, amp, 0, self.hue.get(now, end), value.get(now, end))
 
 class Pluck(Effect):
     """

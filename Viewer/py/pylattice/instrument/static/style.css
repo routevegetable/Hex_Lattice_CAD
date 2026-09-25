@@ -1,0 +1,53 @@
+* { box-sizing: border-box; }
+ body { font: 14px/1.5 system-ui, sans-serif; margin: 0; color: #222; }
+ header { display: flex; align-items: baseline; gap: 1rem;
+          padding: .6rem 1rem; border-bottom: 1px solid #ddd; }
+ header h1 { font-size: 1rem; margin: 0; }
+ .stats { color: #666; font-variant-numeric: tabular-nums; font-size: .85rem; }
+ .layout { display: flex; align-items: stretch; min-height: calc(100vh - 3rem); }
+
+ .side { width: 12rem; flex: none; border-right: 1px solid #ddd; padding: .6rem; }
+ .tab { display: block; width: 100%; text-align: left; border: 0; background: none;
+        font: inherit; padding: .35rem .5rem; border-radius: .3rem; cursor: pointer; }
+ .tab:hover { background: #f2f2f2; }
+ .tab.on { background: #e8eeff; font-weight: 600; }
+ .tab small { display: block; color: #888; font-weight: 400; font-size: .75rem; }
+ .side h2 { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em;
+            color: #888; margin: 1.2rem 0 .4rem .5rem; }
+ .presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: .25rem; }
+ .preset { border: 1px solid #ddd; border-radius: .3rem; padding: .2rem; text-align: center;
+           font-size: .75rem; cursor: pointer; background: #fff; }
+ .preset.saved { background: #eef; }
+ .preset.on { border-color: #556; font-weight: 700; }
+ .preset:hover { border-color: #99a; }
+
+ .main { flex: 1; padding: .8rem 1rem; }
+ .tiles { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-start; }
+ .tile { border: 1px solid #ccd; border-radius: .4rem; background: #fff; }
+ .tile.shut { writing-mode: vertical-rl; text-orientation: mixed; padding: .6rem .35rem;
+              cursor: pointer; color: #445; min-height: 8rem; }
+ .tile.shut:hover { background: #f6f7ff; }
+ .tile.shut .who { color: #99a; font-size: .8rem; }
+ .tile.shut.empty { border-style: dashed; border-color: #c88; }
+ .tile.open { min-width: 15rem; padding: .5rem .6rem .6rem; }
+ .tile .head { display: flex; justify-content: space-between; align-items: baseline;
+               cursor: pointer; }
+ .tile .head b { font-size: .9rem; }
+ .tile .head span { color: #999; font-size: .75rem; }
+
+ .node { margin-top: .35rem; }
+ .node .row { display: flex; gap: .25rem; align-items: center; }
+ .kids { margin-left: .6rem; padding-left: .5rem; border-left: 2px solid #dde; }
+ .op { font-size: .7rem; color: #667; letter-spacing: .08em; text-transform: uppercase; }
+ select, input[type=number] { font: inherit; font-size: .85rem; padding: .1rem; }
+ input[type=number] { width: 5rem; }
+ .ops button { font: inherit; font-size: .75rem; width: 1.6rem; padding: .05rem;
+               border: 1px solid #ccd; background: #fafaff; border-radius: .25rem; cursor: pointer; }
+ .ops button:hover { background: #e8eeff; }
+ .drop { border: 0; background: none; color: #a55; cursor: pointer; font-size: .8rem; }
+
+ .controls { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: 1.2rem; }
+ .cc { border: 1px solid #ddd; border-radius: .25rem; padding: .1rem .4rem; min-width: 4.2rem;
+       font-size: .75rem; font-variant-numeric: tabular-nums; }
+ .cc.step { border-color: #99c; background: #f4f4ff; }
+ .cc .bar { display: block; height: 3px; background: #69c; margin-top: 2px; }

@@ -4,31 +4,31 @@ import gc
 import math
 import time
 from typing import Callable
-from pylattice.effects.pluck import Pluck
+from pylattice.effects.pluck import Pluck, WobbleNet
 from pylattice.effects.boom_zaps import ProbZaps, init_boom_zaps, prob_zaps, run_boom_zaps
 from pylattice.effects.waves import BgWaves, bg_waves
 from pylattice.examples.colors import hsv, vary
 from pylattice.fields.types import ConstantField, ScalarField
+from pylattice.fields.artnet import artnet_universes
 from pylattice.fields.scalar import CCField, NoteRippleField, NoteWipeField, PolyTouchField, RotaryField
-from pylattice.examples.instrument import ColorMap
+from pylattice.instrument.maps import ColorMap
 from pylattice.examples.midi import MIDI
 from pylattice.examples.tempo import Event, EventLatch, sweep
 from pylattice.graph import EndRef, Graph
 from pylattice.lattice_writer import LatticeWriter
 from pathlib import Path
-from pylattice.runner.api import serve
-from pylattice.runner.console import Console
-from pylattice.runner.preset import Preset, PresetBank, named
-from pylattice.runner.types import Effect
+from pylattice.instrument.api import serve
+from pylattice.instrument.console import Console
+from pylattice.instrument.patch import Patch, PresetBank, named
+from pylattice.instrument.types import Effect
 
 
-COLS = 16
+COLS = 6
 ROWS = 2
 
 graph = Graph(COLS, ROWS)
 
 lattice = LatticeWriter(COLS / 2, ROWS)
-
 #midi = MIDI('Arturia BeatStep Pro Arturia BeatStepPro')
 midi = MIDI()
 
@@ -44,9 +44,8 @@ PB1, PB2, PB3, PB4, PB5, PB6, PB7, PB8 = 36, 37, 38, 39, 40, 41, 42, 43
 STEPS = list(range(20, 56))
 
 
-# A class body, not a SimpleNamespace: the editor infers each attribute's
-# type from what it is assigned, so FIELDS.ripple is a NoteRippleField and
-# a typo is an error. SimpleNamespace attributes are all Any.
+ARTNET = artnet_universes(graph, count=4)
+
 class FIELDS:
     
     # CC fields
@@ -98,6 +97,12 @@ class FIELDS:
         parts=KA6,
         shape=KA7
     )
+    
+    # Art-Net pixels, per universe: red, green, blue, and their average
+    artnet0_r, artnet0_g, artnet0_b, artnet0_v = ARTNET[0]
+    artnet1_r, artnet1_g, artnet1_b, artnet1_v = ARTNET[1]
+    artnet2_r, artnet2_g, artnet2_b, artnet2_v = ARTNET[2]
+    artnet3_r, artnet3_g, artnet3_b, artnet3_v = ARTNET[3]
 
 
 # This is the living field-slot data structure
@@ -113,14 +118,14 @@ class EFFECTS:
         period=FIELDS.param_b,
         value=FIELDS.fader_b
     )
+    net = WobbleNet(
+        amp=FIELDS.ripple2,
+        hue=FIELDS.param_b,
+        value=FIELDS.fader_b
+    )
     prob_zaps = ProbZaps( # We're always zappin
         prob=FIELDS.ripple2
     )
-
-
-p = Preset.capture(midi, FIELDS, EFFECTS)
-p.save("preset.json")
-
 
 
 # Everything declared in EFFECTS, in the order written - so a preset patches

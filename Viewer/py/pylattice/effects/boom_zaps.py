@@ -2,7 +2,7 @@ from collections.abc import Iterable
 import math
 from typing import Callable
 from pylattice.fields.types import Slot
-from pylattice.runner.types import Effect
+from pylattice.instrument.types import Effect
 from pylattice.examples.colors import hsv
 from pylattice.fields.types import ScalarField
 from pylattice.examples.tempo import Event, EventLatch, History, periodic, sweep

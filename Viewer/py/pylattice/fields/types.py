@@ -41,6 +41,12 @@ class ScalarField(Protocol):
     def __rmul__(self, other: "ScalarField | float") -> "ScalarField":
         return _combine(operator.mul, other, self)
 
+    def __truediv__(self, other: "ScalarField | float") -> "ScalarField":
+        return _combine(divide, self, other)
+
+    def __rtruediv__(self, other: "ScalarField | float") -> "ScalarField":
+        return _combine(divide, other, self)
+
 
 class ColorField(Protocol):
     """
@@ -91,6 +97,20 @@ class CombinedField(ScalarField):
 
     def __repr__(self) -> str:
         return f"({self._a!r} {self._op.__name__} {self._b!r})"
+
+
+def divide(a: float, b: float) -> float:
+    """Division that cannot take the show down: anything over zero reads zero.
+
+    A field's value is only known per vertex per frame, so a divisor that
+    happens to reach 0 would otherwise raise mid-render.
+    """
+    return a / b if b else 0.0
+
+
+def average(a: float, b: float) -> float:
+    """Halfway between two values - an operator with no Python symbol."""
+    return (a + b) / 2
 
 
 def as_field(x: "ScalarField | float") -> ScalarField | None:

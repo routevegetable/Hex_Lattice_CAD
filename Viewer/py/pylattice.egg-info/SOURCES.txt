@@ -27,7 +27,6 @@ pylattice/examples/effects.py
 pylattice/examples/example.py
 pylattice/examples/four_colors.py
 pylattice/examples/inferno.py
-pylattice/examples/instrument.py
 pylattice/examples/mic_reactive_bisexual.py
 pylattice/examples/midi.py
 pylattice/examples/sunrise.py
@@ -40,5 +39,11 @@ pylattice/examples/wave.py
 pylattice/examples/waves.py
 pylattice/fields/scalar.py
 pylattice/fields/types.py
-pylattice/runner/preset.py
-pylattice/runner/types.py
+pylattice/instrument/api.py
+pylattice/instrument/console.py
+pylattice/instrument/maps.py
+pylattice/instrument/patch.py
+pylattice/instrument/types.py
+pylattice/instrument/static/app.js
+pylattice/instrument/static/index.html
+pylattice/instrument/static/style.css
