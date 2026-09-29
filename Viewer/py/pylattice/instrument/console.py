@@ -22,6 +22,13 @@ class Stats:
 
 
 @dataclass
+class FieldInfo:
+    """A field a slot can be pointed at, and what kind it is."""
+    name: str
+    kind: str
+
+
+@dataclass
 class Rig:
     """What can be patched - the names a Patch refers to, and the bank.
 
@@ -29,7 +36,7 @@ class Rig:
     vocabulary, so a UI knows which fields it may choose and which slots exist
     at all, including the ones nothing is plugged into.
     """
-    fields: list[str] = field(default_factory=list)
+    fields: list[FieldInfo] = field(default_factory=list)
     slots: list[str] = field(default_factory=list)      # "effect.slot"
     presets: list[int] = field(default_factory=list)
     selected: int | None = None
@@ -99,7 +106,8 @@ class Console:
                      for slot in effect.get_slots()]
 
             return Rig(
-                fields=list(named(self._fields, ScalarField)),
+                fields=[FieldInfo(name, type(f).__name__)
+                        for name, f in named(self._fields, ScalarField).items()],
                 slots=slots,
                 presets=self._bank.saved(),
                 selected=self._selected,

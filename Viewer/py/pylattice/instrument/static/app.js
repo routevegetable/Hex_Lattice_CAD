@@ -27,7 +27,7 @@ function leafEditor(node, onChange) {
 
   const sel = document.createElement('select');
   sel.append(new Option(node === null ? '— pick a field —' : '— none —', '__none__'));
-  for (const f of rig.fields) sel.append(new Option(f, f));
+  for (const f of rig.fields) sel.append(new Option(`${f.name}  (${f.kind})`, f.name));
   sel.append(new Option('number…', '__num__'));
   sel.value = typeof node === 'string' ? node : (typeof node === 'number' ? '__num__' : '__none__');
   sel.onchange = () => {

@@ -4,7 +4,7 @@
     "75": 0,
     "74": 0,
     "71": 91,
-    "76": 77,
+    "76": 38,
     "114": 65,
     "18": 86,
     "19": 117,
@@ -35,7 +35,7 @@
   },
   "slots": {
     "bg_waves.hue": "rotary",
-    "bg_waves.value": "fader_a",
+    "bg_waves.value": "rotary",
     "pluck.a_amp": "wipe2",
     "pluck.b_amp": "wipe1",
     "pluck.c_amp": "wipe1",

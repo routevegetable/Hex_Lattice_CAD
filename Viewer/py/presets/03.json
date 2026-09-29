@@ -1,12 +1,12 @@
 {
   "ccs": {
-    "10": 1,
+    "10": 0,
     "75": 0,
     "74": 127,
     "71": 91,
     "76": 77,
     "114": 65,
-    "18": 86,
+    "18": 19,
     "19": 117,
     "16": 127,
     "77": 3,
@@ -41,6 +41,6 @@
     "pluck.c_amp": "wipe1",
     "pluck.period": "param_b",
     "pluck.value": "fader_b",
-    "prob_zaps.prob": 0.0
+    "prob_zaps.prob": "ripple2"
   }
 }

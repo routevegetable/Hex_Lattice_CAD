@@ -35,7 +35,11 @@
   },
   "slots": {
     "bg_waves.hue": "param_a",
-    "bg_waves.value": "fader_a",
+    "bg_waves.value": {
+      "op": "avg",
+      "a": "fader_a",
+      "b": "artnet0_v"
+    },
     "pluck.a_amp": "wipe2",
     "pluck.b_amp": "wipe1",
     "pluck.c_amp": "wipe1",

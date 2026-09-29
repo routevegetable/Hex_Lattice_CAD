@@ -20,9 +20,9 @@ dependencies = [
     "fastapi>=0.141.1",
 ]
 
-# Every pylattice subpackage - examples, effects, runner, fields - not a hand-kept list.
+# Every pylattice subpackage - examples, effects, instrument, fields - not a hand-kept list.
 [tool.setuptools.packages.find]
 include = ["pylattice*"]
 
 [tool.setuptools.package-data]
-pylattice = ["py.typed"]            # PEP 561: let consumers' type checkers use our annotations
+pylattice = ["py.typed", "instrument/static/*"]            # PEP 561: let consumers' type checkers use our annotations

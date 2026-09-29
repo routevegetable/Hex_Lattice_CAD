@@ -1,15 +1,15 @@
 {
   "ccs": {
-    "10": 0,
+    "10": 76,
     "75": 0,
-    "74": 127,
-    "71": 45,
-    "76": 0,
-    "114": 65,
-    "18": 19,
+    "74": 0,
+    "71": 125,
+    "76": 46,
+    "114": 77,
+    "18": 86,
     "19": 117,
     "16": 127,
-    "77": 0,
+    "77": 3,
     "93": 0,
     "73": 0,
     "54": 0,
@@ -31,19 +31,31 @@
     "32": 0,
     "33": 0,
     "34": 0,
-    "35": 0
+    "35": 0,
+    "52": 0,
+    "53": 0
   },
   "slots": {
     "bg_waves.hue": "param_a",
-    "bg_waves.value": "fader_a",
+    "bg_waves.value": 0.0,
     "pluck.a_amp": "wipe2",
     "pluck.b_amp": "wipe1",
     "pluck.c_amp": "wipe1",
     "pluck.period": "param_b",
-    "pluck.value": "fader_b",
+    "pluck.value": 0.0,
     "net.amp": "ripple2",
     "net.hue": "param_b",
-    "net.value": "fader_b",
-    "prob_zaps.prob": "ripple2"
+    "net.value": 0.0,
+    "bisexual.value": {
+      "op": "add",
+      "a": "ripple",
+      "b": "fader_a"
+    },
+    "bisexual.speed": {
+      "op": "sub",
+      "a": 0.3,
+      "b": "ripple"
+    },
+    "prob_zaps.prob": "ripple"
   }
 }

@@ -36,7 +36,7 @@ def wobble(now: Event, lattice: LatticeWriter, edge: EdgeRef, p: int, amp: float
     center_brightness *= value
     middle_brightness *= value
     max_brightness *= value
-    
+    #print(value)
     # Center
     if center_brightness > 0.01:
         c = list(hsv(hue, 0.7, center_brightness))

@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>lattice</title>
+<link rel="stylesheet" href="/static/mobile.css">
+
+<div class="app">
+  <header id="stats">…</header>
+
+  <nav class="effects" id="effects"></nav>
+
+  <main id="main">
+    <div class="slots" id="slots"></div>
+
+    <!-- covers the slots, never the effects bar -->
+    <div class="modal" id="modal" hidden>
+      <div class="modal-bar">
+        <button id="modal-back">‹ back</button>
+        <span id="modal-title"></span>
+        <button id="modal-close">✕</button>
+      </div>
+      <div class="picker" id="picker"></div>
+    </div>
+  </main>
+</div>
+
+<script src="/static/mobile.js"></script>

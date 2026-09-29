@@ -28,6 +28,11 @@ def make_app(console: Console) -> FastAPI:
     def page() -> str:
         return (STATIC / "index.html").read_text()
 
+    @app.get("/mobile", response_class=HTMLResponse)
+    def mobile() -> str:
+        """The touch layout - same API, built for a small landscape screen."""
+        return (STATIC / "mobile.html").read_text()
+
     @app.get("/stats")
     def stats() -> Stats:
         return console.get_stats()

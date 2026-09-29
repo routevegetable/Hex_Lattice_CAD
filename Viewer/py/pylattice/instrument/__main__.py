@@ -8,13 +8,13 @@ from pylattice.effects.pluck import Pluck, WobbleNet
 from pylattice.effects.boom_zaps import ProbZaps, init_boom_zaps, prob_zaps, run_boom_zaps
 from pylattice.effects.waves import BgWaves, bg_waves
 from pylattice.examples.colors import hsv, vary
-from pylattice.fields.types import ConstantField, ScalarField
+from pylattice.fields.types import ConstantField, ScalarField, Slot
 from pylattice.fields.artnet import artnet_universes
 from pylattice.fields.scalar import CCField, NoteRippleField, NoteWipeField, PolyTouchField, RotaryField
 from pylattice.instrument.maps import ColorMap
 from pylattice.examples.midi import MIDI
 from pylattice.examples.tempo import Event, EventLatch, sweep
-from pylattice.graph import EndRef, Graph
+from pylattice.graph import EdgeClass, EndRef, Graph
 from pylattice.lattice_writer import LatticeWriter
 from pathlib import Path
 from pylattice.instrument.api import serve
@@ -29,8 +29,8 @@ ROWS = 2
 graph = Graph(COLS, ROWS)
 
 lattice = LatticeWriter(COLS / 2, ROWS)
-#midi = MIDI('Arturia BeatStep Pro Arturia BeatStepPro')
-midi = MIDI()
+midi = MIDI('Arturia BeatStep Pro Arturia BeatStepPro')
+#midi = MIDI()
 
 # BSP control mode. Knobs KA1-KB8 are CCs, pads PA1-PB8 are notes; row A is
 # the top/upper one.
@@ -45,6 +45,7 @@ STEPS = list(range(20, 56))
 
 
 ARTNET = artnet_universes(graph, count=4)
+
 
 class FIELDS:
     
@@ -105,8 +106,68 @@ class FIELDS:
     artnet3_r, artnet3_g, artnet3_b, artnet3_v = ARTNET[3]
 
 
+
+class BisexualSpin(Effect):
+    value: Slot
+    speed: Slot
+
+
+    def draw_hex(self, base: EndRef, lattice: LatticeWriter):
+        val = self.value.get(now, base)
+        hue = 0.8
+
+        period = self.speed.get(now, base) * 10000 + 1
+
+        if period > 500:
+            period = 10000
+        else:
+            period = 500
+
+        for dist, end in enumerate(base.path("RRRRR")):
+
+            f = dist / 6
+
+            #hue = vary(now, 0.66, 1, 5000, f)
+
+            for i in range(4):
+
+                hue = vary(now, 0.66, 1.02, period, f + i*0.05)
+                #print(hue)
+                col = list(hsv(hue, 1, val))
+                lattice[end][i] = col
+                lattice[end.lr()[0]][i] = col
+
+
+
+
+    def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
+
+
+        for base in [
+            graph.TILE[0,0].bottom_end(EdgeClass.D),
+            graph.TILE[1,1].bottom_end(EdgeClass.D),
+        ]:
+            self.draw_hex(base, lattice)
+
+        return
+
+class DumbEffect(Effect):
+    value: Slot
+    def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
+
+        for end in graph.ends():
+
+            val = self.value.get(now, end)
+
+            lattice[end][0] = [val, val, 1]
+
+        return
+
+
+
 # This is the living field-slot data structure
 class EFFECTS:
+
     bg_waves = BgWaves(
         hue=FIELDS.param_a,
         value=FIELDS.fader_a
@@ -122,6 +183,13 @@ class EFFECTS:
         amp=FIELDS.ripple2,
         hue=FIELDS.param_b,
         value=FIELDS.fader_b
+    )
+    #dumb = DumbEffect(
+    #    value = FIELDS.param_a
+    #)
+    bisexual = BisexualSpin(
+        value = FIELDS.param_a,
+        speed = FIELDS.param_b
     )
     prob_zaps = ProbZaps( # We're always zappin
         prob=FIELDS.ripple2

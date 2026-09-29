@@ -136,7 +136,7 @@ sun = Sun(
         SunStage(level=1, edges=[ModuleEdge.F1, ModuleEdge.F2]),
         SunStage(level=1, edges=[ModuleEdge.D2, ModuleEdge.E1]),
     ],
-    x=1,
+    x=0,
 )
 
 
