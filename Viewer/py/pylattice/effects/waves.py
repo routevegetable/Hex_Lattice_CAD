@@ -19,9 +19,9 @@ def bg_waves(
     for v in graph.vertexes():
         ends = v.ends_cw()
         # A field keyed on the vertex answers the same at any of its ends.
-        base_hue = bg_hue.get(now, ends[0])
-        base_value = bg_value.get(now, ends[0])
         for end in ends:
+            base_hue = bg_hue.get(now, end)
+            base_value = bg_value.get(now, end)
             PERIOD = 200 + (end.__hash__() % 200)
             for i in range(4):
                 hue = vary(now, base_hue, base_hue + .03, PERIOD, i/4)

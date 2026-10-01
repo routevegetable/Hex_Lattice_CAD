@@ -361,6 +361,7 @@ class Graph:
             yield from edge.ends()
 
     def vertexes(self) -> Generator[VertexRef, None, None]:
+        yield self.TILE[0,0].vertex(VertexClass.ABC)
         for tile in self.tiles():
             for c in VertexClass:
                 yield tile.vertex(c)

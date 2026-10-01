@@ -10,7 +10,9 @@ let rig = null;
 let patch = null;
 let active = null;          // effect showing its slots
 let open = null;            // "effect.slot" of the expanded slot, one at a time
-let picking = null;         // {key, path} while the modal is up
+let picking = null;         // {key, path} while the field picker is up
+let presetsUp = false;      // the preset list uses the same modal
+let editing = {};           // slot edits, held until every operand is filled
 
 const effectOf = (key) => key.split('.')[0];
 const slotOf = (key) => key.split('.').slice(1).join('.');
@@ -41,30 +43,85 @@ async function write(key, tree) {
 
 // ---- the slot list -------------------------------------------------------
 
+const fmt = (n) => (Math.round(n * 100) / 100).toFixed(2);
+
+// Every leaf carries its three choices: a named field, a math node, or a
+// constant. The one it currently is, is lit. Only picking *which* field needs
+// the modal - the list is too long for a row.
 function leaf(key, tree, path) {
   const node = at(tree, path);
-  const wrap = document.createElement('div');
-  wrap.className = 'row-wrap';
+  const row = document.createElement('div');
+  row.className = 'row-wrap';
 
-  const b = document.createElement('button');
-  b.className = 'leaf' + (node === null ? ' unset' : '');
-  b.textContent = node === null ? 'choose…' : describe(node);
-  b.onclick = () => openPicker(key, path);
-  wrap.append(b);
+  const kinds = document.createElement('div');
+  kinds.className = 'kindsel';
 
-  if (node !== null) {
-    const ops = document.createElement('div');
-    ops.className = 'ops';
-    for (const [name, glyph] of Object.entries(OPS)) {
-      const o = document.createElement('button');
-      o.textContent = glyph;
-      o.onclick = () => redrawSlot(key, replace(tree, path, {op: name, a: node, b: null}));
-      ops.append(o);
-    }
-    wrap.append(ops);
+  // field - the chosen name sits inside this segment
+  const field = document.createElement('button');
+  field.title = 'field';
+  field.className = typeof node === 'string' ? 'on' : '';
+  field.textContent = '\u{1D453}(x)';
+  if (typeof node === 'string') {
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = node;
+    field.append(name);
   }
-  return wrap;
+  field.onclick = () => openPicker(key, path);
+
+  // math - whatever is here already becomes the first operand, so this
+  // doubles as "wrap what I have in an operation"
+  const math = document.createElement('button');
+  math.title = 'math';
+  math.className = 'math';                  // two short rows of operators
+  math.innerHTML = '<span>+\u2212</span><span>\u00d7\u00f7</span>';
+  math.onclick = () => redrawSlot(key, replace(tree, path, {op: 'mul', a: node, b: null}));
+
+
+  // const - the slider lives in this segment, and takes the icon's place
+  if (typeof node === 'number') {
+    const seg = document.createElement('div');
+    seg.className = 'on knob';
+
+    const slider = document.createElement('input');
+    slider.type = 'range'; slider.min = '0'; slider.max = '1'; slider.step = '0.01';
+    slider.value = String(node);
+
+    const shown = document.createElement('span');
+    shown.className = 'num';
+    shown.textContent = fmt(node);
+
+    // Follow the drag on screen, send once it is let go.
+    slider.oninput = () => { shown.textContent = fmt(parseFloat(slider.value)); };
+    slider.onchange = () => redrawSlot(key, replace(tree, path, parseFloat(slider.value)));
+
+    seg.append(slider, shown);
+    kinds.append(field, math, seg);         // the one in use goes last
+  } else if (typeof node === 'string') {
+    kinds.append(math, konst(), field);
+  } else {
+    kinds.append(field, math, konst());
+  }
+
+  function konst() {
+    const b = document.createElement('button');
+    b.title = 'const';
+    b.textContent = '\u{1F39A}';
+    b.onclick = () => redrawSlot(key, replace(tree, path, 0.5));
+    return b;
+  }
+
+  row.append(kinds);
+
+  if (node === null) {
+    const hint = document.createElement('span');
+    hint.className = 'hint';
+    hint.textContent = 'empty';
+    row.append(hint);
+  }
+  return row;
 }
+
 
 function nodeView(key, tree, path) {
   const node = at(tree, path);
@@ -73,17 +130,28 @@ function nodeView(key, tree, path) {
   const box = document.createElement('div');
   box.className = 'node';
 
+  // The operation is adjustable in place - the current one is lit.
   const head = document.createElement('div');
   head.className = 'row-wrap';
-  const label = document.createElement('span');
-  label.className = 'op-label';
-  label.textContent = node.op;
-  const un = document.createElement('button');
-  un.className = 'unwrap';
-  un.textContent = '⨯';
-  un.title = 'drop this operator';
-  un.onclick = () => redrawSlot(key, replace(tree, path, node.a));
-  head.append(label, un);
+
+  const ops = document.createElement('div');
+  ops.className = 'opsel';
+  for (const [name, glyph] of Object.entries(OPS)) {
+    const b = document.createElement('button');
+    b.textContent = glyph;
+    b.title = name;
+    if (name === node.op) b.className = 'on';
+    b.onclick = () => redrawSlot(key, replace(tree, path, {...node, op: name}));
+    ops.append(b);
+  }
+
+  const drop = document.createElement('button');
+  drop.className = 'unwrap';
+  drop.textContent = '⨯';
+  drop.title = 'drop this operation, keep the first operand';
+  drop.onclick = () => redrawSlot(key, replace(tree, path, node.a));
+
+  head.append(ops, drop);
 
   const kids = document.createElement('div');
   kids.className = 'kids';
@@ -92,9 +160,6 @@ function nodeView(key, tree, path) {
   box.append(head, kids);
   return box;
 }
-
-// Local edits live here until every operand is filled, then they are sent.
-let editing = {};
 
 function redrawSlot(key, tree) {
   editing[key] = tree;
@@ -136,64 +201,81 @@ function drawSlots() {
 
 function openPicker(key, path) {
   picking = {key, path};
-  showClasses();
+  showFields();
   document.getElementById('modal').hidden = false;
 }
 
 function closePicker() {
   picking = null;
+  presetsUp = false;
   document.getElementById('modal').hidden = true;
 }
 
-function showClasses() {
+// ---- the preset list -----------------------------------------------------
+
+function openPresets() {
+  presetsUp = true;
   const picker = document.getElementById('picker');
-  document.getElementById('modal-title').textContent = 'what kind of field?';
-  document.getElementById('modal-back').style.visibility = 'hidden';
+  document.getElementById('modal-title').textContent = 'presets';
+  back(null);
   picker.innerHTML = '';
 
-  const byKind = {};
-  for (const f of rig.fields) (byKind[f.kind] ??= []).push(f);
+  for (let n = 0; n < rig.size; n++) {
+    const saved = rig.presets.includes(n);
+    const cell = document.createElement('div');
+    cell.className = 'pcell' + (saved ? ' saved' : '') + (n === rig.selected ? ' on' : '');
 
-  for (const [kind, fields] of Object.entries(byKind).sort()) {
-    const b = document.createElement('button');
-    b.innerHTML = `<b>${kind}</b><small>${fields.length} field${fields.length > 1 ? 's' : ''}</small>`;
-    b.onclick = () => showFields(kind, fields);
-    picker.append(b);
+    const label = document.createElement('b');
+    label.textContent = n;
+
+    const to = document.createElement('button');
+    to.textContent = '▶';                      // recall this preset
+    to.title = `switch to preset ${n}`;
+    to.disabled = !saved;
+    to.onclick = () => act(`/presets/${n}/load`);
+
+    const store = document.createElement('button');
+    store.textContent = '⬤';                   // write the live settings here
+    store.className = 'rec';
+    store.title = `store current settings to ${n}`;
+    store.onclick = () => act(`/presets/${n}/store`);
+
+    cell.append(label, to, store);
+    picker.append(cell);
   }
-
-  const num = document.createElement('button');
-  num.innerHTML = '<b>a number</b><small>constant value</small>';
-  num.onclick = showNumber;
-  picker.append(num);
 }
 
-function showFields(kind, fields) {
+// Storing also switches - the console marks what it just wrote as selected.
+async function act(path) {
+  const r = await post(path);
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  closePicker();
+  open = null;
+  editing = {};
+  await load();
+}
+
+function back(to) {
+  const b = document.getElementById('modal-back');
+  b.style.visibility = to ? 'visible' : 'hidden';
+  b.onclick = to ?? null;
+}
+
+// One flat list, A to Z. The kind rides along as a hint rather than a category.
+function showFields() {
   const picker = document.getElementById('picker');
-  document.getElementById('modal-title').textContent = kind;
-  document.getElementById('modal-back').style.visibility = 'visible';
+  document.getElementById('modal-title').textContent = 'which field?';
+  back(null);
   picker.innerHTML = '';
 
-  for (const f of fields) {
+  for (const f of [...rig.fields].sort((x, y) => x.name.localeCompare(y.name))) {
     const b = document.createElement('button');
-    b.innerHTML = `<b>${f.name}</b>`;
+    b.textContent = f.name;
     b.onclick = () => choose(f.name);
     picker.append(b);
   }
 }
 
-function showNumber() {
-  const picker = document.getElementById('picker');
-  document.getElementById('modal-title').textContent = 'a number';
-  document.getElementById('modal-back').style.visibility = 'visible';
-  picker.innerHTML = '';
-
-  const input = document.createElement('input');
-  input.type = 'number'; input.step = '0.05'; input.value = '0.5';
-  const ok = document.createElement('button');
-  ok.innerHTML = '<b>use it</b>';
-  ok.onclick = () => choose(parseFloat(input.value) || 0);
-  picker.append(input, ok);
-}
 
 function choose(value) {
   const {key, path} = picking;
@@ -221,6 +303,7 @@ async function load() {
     b.onclick = () => { active = name; open = null; closePicker(); drawSlots(); redrawTabs(); };
     bar.append(b);
   }
+  drawChip();
   drawSlots();
 }
 
@@ -231,15 +314,28 @@ function redrawTabs() {
 
 async function drawStats() {
   const s = await get('/stats');
-  document.getElementById('stats').textContent =
-    `${s.fps.toFixed(0)} fps · render ${s.render_ms.toFixed(1)}ms · gc ${s.gc_ms.toFixed(1)}ms`;
+  document.getElementById('fps').textContent = `${s.fps.toFixed(0)} fps`;
+}
+
+function drawChip() {
+  const chip = document.getElementById('preset-chip');
+  const n = rig.selected;
+  chip.textContent = n === null ? 'preset —' : `preset ${n}`;
+  chip.className = n === null ? 'none' : '';
 }
 
 document.getElementById('modal-close').onclick = closePicker;
-document.getElementById('modal-back').onclick = showClasses;
+document.getElementById('preset-chip').onclick = () => {
+  if (presetsUp) { closePicker(); return; }
+  openPresets();
+  document.getElementById('modal').hidden = false;
+};
 
 load(); drawStats();
 setInterval(async () => {
   drawStats();
-  if (open === null && picking === null) { patch = await get('/current'); drawSlots(); }
+  if (open === null && picking === null && !presetsUp) {
+    patch = await get('/current');
+    drawSlots();
+  }
 }, 1000);

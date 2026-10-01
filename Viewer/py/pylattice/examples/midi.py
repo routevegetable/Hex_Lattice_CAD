@@ -1,8 +1,6 @@
 
 import os
-import pickle
 import sys
-from pathlib import Path
 from typing import Callable
 import mido
 
@@ -10,7 +8,7 @@ from pylattice.examples.tempo import Event, EventLatch
 
 
 class MIDI:
-    def __init__(self, port: str = 'IAC Driver Bus 1', state: str | Path | None = 'midi_cc.pickle'):
+    def __init__(self, port: str = 'IAC Driver Bus 1'):
         # mido reaches for python-rtmidi by default, which cannot build on
         # PyPy. portmidi talks to CoreMIDI through ctypes instead, so it needs
         # nothing compiled. An explicit MIDO_BACKEND still wins.
@@ -23,42 +21,6 @@ class MIDI:
         self._note_off: dict[int, EventLatch[int]] = {}
         self._cc_events: dict[int, EventLatch[int]] = {}
         self._polytouch_map: dict[int, int] = {}
-
-        # Where the knobs were last time, kept open for the life of the run.
-        self._state = None
-        if state is not None:
-            path = Path(state)
-            path.touch(exist_ok=True)
-            self._state = open(path, 'r+b')
-            self._load()
-
-    def _load(self):
-        """Put the knobs back where they were. Only the values are kept - an
-        Event's `when` is monotonic time, which means nothing across runs, so
-        restored controls read as having last moved at 0."""
-        self._state.seek(0)
-        saved = self._state.read()
-        if not saved:
-            return
-
-        try:
-            values = pickle.loads(saved)
-        except Exception as e:
-            print(f'ignoring unreadable MIDI state: {e}')
-            return
-
-        for control, value in values.items():
-            self._cc_latch(control, value)
-
-    def _save(self):
-        """Hand the current values to the OS. No fsync - if the machine dies,
-        a knob position is not worth the wait."""
-        values = {control: latch.read().data for control, latch in self._cc_events.items()}
-
-        self._state.seek(0)
-        pickle.dump(values, self._state)
-        self._state.truncate()
-        self._state.flush()
 
     def tick(self):
         msg: mido.Message
@@ -89,9 +51,6 @@ class MIDI:
         for control, value in moved.items():
             self._cc_latch(control).put(value)
 
-        if self._state is not None:
-            self._save()
-
     def cc(self, id: int) -> Callable[[], Event[int]]:
         """
         Watch a control. Returns a getter for the latest event - its `data` is
@@ -109,17 +68,16 @@ class MIDI:
         """Move a control from code - a preset being loaded, say. It lands as a
         change like any other, so anything watching `when` sees it move."""
         self._cc_latch(id).put(value)
-        if self._state is not None:
-            self._save()
 
-    def _cc_latch(self, id: int, value: int = 0) -> EventLatch[int]:
-        """The latch for a control, made on demand - by watching it, by it
-        moving, or by being restored from file. Either way there is one store,
-        and a control that moved before anyone watched it keeps its value."""
+    def _cc_latch(self, id: int) -> EventLatch[int]:
+        """The latch for a control, made on demand - by watching it or by it
+        moving. Either way there is one store, so a control that moved before
+        anyone watched it keeps its value. Knob positions across runs are a
+        preset's job, not this one's."""
         latch = self._cc_events.get(id)
         if latch is None:
             latch = EventLatch()
-            latch.latch(Event(when=0, data=value))
+            latch.latch(Event(when=0, data=0))
             self._cc_events[id] = latch
         return latch
     

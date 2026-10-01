@@ -177,7 +177,7 @@ def sun_on(sun: Sun, now: Event, frac: float, frames: dict[int, ModuleFrame]) ->
             )
 
 
-def sunrise(color_transitions: list[ColorTransition], duration: int):
+def sunrise(color_transitions: list[ColorTransition], duration: int = 30000):
     shape = fetch_lattice_shape()
     if shape is None:
         raise RuntimeError("couldn't fetch lattice shape - is serve.py running?")
@@ -220,4 +220,4 @@ def sunrise(color_transitions: list[ColorTransition], duration: int):
             break
 
 
-sunrise(color_transitions, duration=30000)
+#sunrise(color_transitions, duration=30000)

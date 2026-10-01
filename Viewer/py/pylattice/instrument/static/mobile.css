@@ -1,56 +1,93 @@
-/* Landscape phone / small touch panel. Nothing relies on hover, and every
-   target is at least 44px. */
+/* Landscape phone / small touch panel.
+   One idea throughout, the same as the effects bar: surfaces butt together and
+   are divided by 1px lines. No gaps, no margins between cells, no radii, no
+   floating boxes. Rows are ~30px, not the usual 44 - vertical space is the
+   scarce thing here. Nothing relies on hover. */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 html, body { height: 100%; margin: 0; overscroll-behavior: none; }
-body { font: 15px/1.3 system-ui, sans-serif; color: #eee; background: #111;
+body { font: 14px/1.25 system-ui, sans-serif; color: #eee; background: #111;
        user-select: none; }
 
 .app { display: flex; flex-direction: column; height: 100%; }
 
-header { flex: none; padding: .35rem .7rem; background: #000; color: #8c8;
-         font-variant-numeric: tabular-nums; font-size: .8rem;
-         white-space: nowrap; overflow: hidden; }
+/* top bar: framerate, and the current preset on the right */
+header { flex: none; display: flex; align-items: stretch; justify-content: space-between;
+         background: #000; color: #8c8; font-variant-numeric: tabular-nums;
+         font-size: .85rem; white-space: nowrap; overflow: hidden;
+         border-bottom: 1px solid #333; }
+header #fps { display: flex; align-items: center; padding: 0 .7rem; }
 
-/* the effects bar - scrolls sideways, stays put */
-.effects { flex: none; display: flex; gap: .3rem; padding: .3rem .4rem;
-           overflow-x: auto; background: #1a1a1a; border-bottom: 1px solid #333;
-           scrollbar-width: none; }
+#preset-chip { min-height: 32px; padding: 0 .9rem; border: 0; border-left: 1px solid #333;
+               background: #1c1c1c; color: #ddd; font: inherit;
+               font-variant-numeric: tabular-nums; }
+#preset-chip.none { color: #a87; }
+
+/* effects: one segment each, divided by lines, scrolls sideways */
+.effects { flex: none; display: flex; overflow-x: auto; background: #1a1a1a;
+           border-bottom: 1px solid #333; scrollbar-width: none; }
 .effects::-webkit-scrollbar { display: none; }
-.effects button { flex: none; min-height: 44px; padding: .2rem .9rem;
-                  border: 1px solid #444; border-radius: .5rem;
-                  background: #222; color: #ccc; font: inherit; }
-.effects button.on { background: #35507a; border-color: #6a8fd0; color: #fff; }
-.effects button small { display: block; font-size: .65rem; color: #999; }
+.effects button { flex: none; min-height: 38px; padding: .15rem .8rem;
+                  border: 0; border-right: 1px solid #333;
+                  background: transparent; color: #bbb; font: inherit; }
+.effects button:last-child { border-right: 0; }
+.effects button.on { background: #24334d; color: #fff;
+                     box-shadow: inset 0 -3px 0 #6a8fd0; }
+.effects button small { display: block; font-size: .65rem; color: #888; }
 .effects button.on small { color: #cfe; }
 
 /* the slot list, and the modal that covers exactly it */
 main { flex: 1; position: relative; overflow: hidden; }
-.slots { position: absolute; inset: 0; overflow-y: auto;
-         padding: .4rem; display: flex; flex-direction: column; gap: .35rem; }
+.slots { position: absolute; inset: 0; overflow-y: auto; }
 
-.slot { border: 1px solid #333; border-radius: .5rem; background: #1c1c1c; }
-.slot > .row { display: flex; align-items: center; gap: .5rem;
-               min-height: 48px; padding: .3rem .6rem; }
-.slot .name { font-weight: 600; flex: none; min-width: 5.5rem; }
+.slot { border-bottom: 1px solid #2a2a2a; background: #161616; }
+.slot > .row { display: flex; align-items: center; gap: .4rem;
+               min-height: 32px; padding: .1rem .5rem; }
+.slot .name { font-weight: 600; flex: none; min-width: 4.5rem; font-size: .85rem; }
 .slot .value { color: #9bd; flex: 1; overflow: hidden; text-overflow: ellipsis;
                white-space: nowrap; }
 .slot.empty .value { color: #d77; }
 .slot .chev { color: #666; flex: none; }
-.slot.open { border-color: #557; }
+.slot.open { background: #1b1f26; box-shadow: inset 3px 0 0 #6a8fd0; }
 
-.tree { padding: .2rem .6rem .6rem; }
-.node { margin-top: .3rem; }
-.node .kids { margin-left: .5rem; padding-left: .5rem; border-left: 2px solid #345; }
-.op-label { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: #89a; }
+/* a math node stacks rows - the operation, then each operand - so they get
+   breathing room above and below */
+.tree { padding: .1rem .5rem .35rem; }
+.node { margin-top: .25rem; }
+.node .kids { margin-left: .4rem; padding-left: .4rem; border-left: 1px solid #345; }
+.node .kids > * { margin: .25rem 0; }
+.row-wrap { display: flex; align-items: center; flex-wrap: wrap; }
 
-button.leaf { min-height: 44px; padding: .2rem .8rem; border-radius: .4rem;
-              border: 1px solid #456; background: #223; color: #cde; font: inherit; }
-button.leaf.unset { border-style: dashed; border-color: #a55; color: #d99; }
-.ops { display: flex; gap: .25rem; margin-left: .4rem; }
-.ops button, .unwrap { min-width: 44px; min-height: 44px; border-radius: .4rem;
-                       border: 1px solid #444; background: #222; color: #bbb; font: inherit; }
-.row-wrap { display: flex; align-items: center; flex-wrap: wrap; gap: .3rem; }
+/* what a leaf is, and what a math node does: segmented, divided, no gaps.
+   The kind group is the one thing with rounded ends - the outer corners only,
+   clipped by overflow, so the dividers between segments stay square. */
+.kindsel, .opsel { display: flex; border: 1px solid #333; }
+.kindsel { border-radius: 3px; overflow: hidden; }
+/* segments, whether they hold a glyph, a name or a slider */
+.kindsel > *, .opsel button {
+  display: flex; align-items: center; border: 0; border-right: 1px solid #333;
+  background: #1d1d1d; color: #888; font: inherit; line-height: 1; min-height: 26px; }
+.kindsel > * { min-width: 30px; padding: 0 .3rem; font-size: .8rem;
+               letter-spacing: .04em; justify-content: center; }
+.opsel button { min-width: 28px; padding: 0; justify-content: center; }
+.kindsel > *:last-child, .opsel button:last-child { border-right: 0; }
+.kindsel > .on, .opsel button.on { background: #24334d; color: #fff; }
+.kindsel .name { margin-left: .4rem; color: #cde; font-size: .85rem;
+                 letter-spacing: 0; }
+.kindsel .knob { padding: 0 .3rem 0 .15rem; }
+/* the math segment stacks its operators, +- over */
+.kindsel .math { flex-direction: column; font-size: .55rem; line-height: 1.15;
+                 letter-spacing: .06em; padding: 0 .35rem; }
+
+.unwrap { min-width: 28px; min-height: 26px; border: 0; border-left: 1px solid #333;
+          background: #1d1d1d; color: #a77; font: inherit; line-height: 1; padding: 0; }
+.hint { color: #666; font-size: .75rem; padding: 0 .5rem; }
+
+/* a constant is dragged, not typed */
+input[type=range] { flex: 1; min-width: 5rem; max-width: 12rem; height: 24px;
+                    accent-color: #6a8fd0; margin: 0 .3rem 0 0; }
+.num { min-width: 2.4rem; text-align: right; color: #9bd; font-size: .8rem;
+       font-variant-numeric: tabular-nums; }
 
 /* modal: covers the slots only */
 .modal { position: absolute; inset: 0; background: #151515; display: flex;
@@ -58,20 +95,35 @@ button.leaf.unset { border-style: dashed; border-color: #a55; color: #d99; }
 /* `display: flex` above outranks the browser's rule for the hidden attribute,
    so say it here or setting `hidden` does nothing. */
 .modal[hidden] { display: none; }
-.modal-bar { flex: none; display: flex; align-items: center; gap: .5rem;
-             padding: .3rem .5rem; background: #222; border-bottom: 1px solid #333; }
-.modal-bar button { min-width: 48px; min-height: 40px; border: 1px solid #444;
-                    border-radius: .4rem; background: #2a2a2a; color: #ddd; font: inherit; }
-.modal-bar span { flex: 1; text-align: center; color: #aaa; font-size: .85rem; }
+.modal-bar { flex: none; display: flex; align-items: stretch; background: #222;
+             border-bottom: 1px solid #333; }
+.modal-bar button { min-width: 44px; min-height: 32px; border: 0;
+                    background: #262626; color: #ddd; font: inherit; font-size: .85rem; }
+.modal-bar #modal-back { border-right: 1px solid #333; }
+.modal-bar #modal-close { border-left: 1px solid #333; }
+.modal-bar span { flex: 1; display: flex; align-items: center; justify-content: center;
+                  color: #aaa; font-size: .8rem; }
 
-.picker { flex: 1; overflow-y: auto; padding: .4rem;
-          display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-          gap: .4rem; align-content: start; }
-.picker button { min-height: 56px; padding: .3rem .6rem; border-radius: .5rem;
-                 border: 1px solid #3a4a5a; background: #1e2630; color: #dee;
-                 font: inherit; text-align: left; }
-.picker button b { display: block; }
-.picker button small { color: #89a; font-size: .7rem; }
-.picker input { min-height: 48px; font: inherit; font-size: 1.1rem; width: 100%;
-                padding: .3rem .5rem; border-radius: .5rem; border: 1px solid #456;
-                background: #111; color: #eee; }
+/* pickers: a grid whose cells touch, lines between them */
+.picker { flex: 1; overflow-y: auto; align-content: start;
+          display: grid; grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); }
+.picker > * { border-right: 1px solid #2d3238; border-bottom: 1px solid #2d3238; }
+.picker button { min-height: 28px; padding: .1rem .45rem; border: 0;
+                 background: #1a1f26; color: #dee; font: inherit; font-size: .8rem;
+                 text-align: left; white-space: nowrap; overflow: hidden;
+                 text-overflow: ellipsis; }
+.picker input { min-height: 34px; font: inherit; width: 100%; padding: .15rem .4rem;
+                border: 0; background: #111; color: #eee; }
+
+/* preset list: number, recall, store - all touching */
+.pcell { display: flex; align-items: stretch; background: #1a1f26; }
+.pcell.saved { background: #1b2a38; }
+.pcell.on { box-shadow: inset 2px 0 0 #6a8fd0; }
+.pcell b { flex: none; display: flex; align-items: center; justify-content: flex-end;
+           min-width: 1.8rem; padding-right: .3rem; color: #dee; font-size: .8rem;
+           font-variant-numeric: tabular-nums; }
+.pcell button { flex: 1; min-height: 26px; border: 0; border-left: 1px solid #2d3238;
+                background: #20262e; color: #cde; font: inherit; font-size: .8rem;
+                line-height: 1; padding: 0; }
+.pcell button.rec { color: #d88; }
+.pcell button:disabled { opacity: .3; }

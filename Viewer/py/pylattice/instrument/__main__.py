@@ -10,7 +10,8 @@ from pylattice.effects.waves import BgWaves, bg_waves
 from pylattice.examples.colors import hsv, vary
 from pylattice.fields.types import ConstantField, ScalarField, Slot
 from pylattice.fields.artnet import artnet_universes
-from pylattice.fields.scalar import CCField, NoteRippleField, NoteWipeField, PolyTouchField, RotaryField
+from pylattice.fields.scalar import (CCField, NoteRippleField, NoteWipeField, PolyTouchField,
+                                     RandomTraceField, RotaryField)
 from pylattice.instrument.maps import ColorMap
 from pylattice.examples.midi import MIDI
 from pylattice.examples.tempo import Event, EventLatch, sweep
@@ -91,6 +92,14 @@ class FIELDS:
         speed=KB4
     )
     
+    # A particle tracing a path of its own from wherever it spawned
+    trace = RandomTraceField(
+        graph, midi,
+        note=PB5,
+        speed=KB5,
+        aim=KB6
+    )
+    
     # Rotary
     rotary = RotaryField(
         graph, midi,
@@ -105,6 +114,18 @@ class FIELDS:
     artnet2_r, artnet2_g, artnet2_b, artnet2_v = ARTNET[2]
     artnet3_r, artnet3_g, artnet3_b, artnet3_v = ARTNET[3]
 
+from pylattice.examples.sunrise import color_transitions, sunrise
+
+class Sunrise(Effect):
+    value: Slot
+
+    def draw_sunrise(self):
+        sunrise(color_transitions)
+
+    def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
+        return
+
+
 
 
 class BisexualSpin(Effect):
@@ -114,6 +135,8 @@ class BisexualSpin(Effect):
 
     def draw_hex(self, base: EndRef, lattice: LatticeWriter):
         val = self.value.get(now, base)
+        if val < 0.1:
+            return
         hue = 0.8
 
         period = self.speed.get(now, base) * 10000 + 1
@@ -146,6 +169,7 @@ class BisexualSpin(Effect):
         for base in [
             graph.TILE[0,0].bottom_end(EdgeClass.D),
             graph.TILE[1,1].bottom_end(EdgeClass.D),
+            graph.TILE[2,0].bottom_end(EdgeClass.B),
         ]:
             self.draw_hex(base, lattice)
 
@@ -163,6 +187,23 @@ class DumbEffect(Effect):
 
         return
 
+
+class MapFiber(Effect):
+    value: Slot
+    hue: Slot
+    saturation: Slot
+    def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
+
+        for end in graph.ends():
+
+            val = self.value.get(now, end)
+            hue = self.hue.get(now, end)
+            saturation = self.saturation.get(now, end)
+
+            if val > 0.1:
+                lattice[end][0] = list(hsv(hue, saturation, val))
+
+        return
 
 
 # This is the living field-slot data structure
@@ -187,12 +228,20 @@ class EFFECTS:
     #dumb = DumbEffect(
     #    value = FIELDS.param_a
     #)
+    sunrise = Sunrise( 
+        value=FIELDS.param_a,
+    )
     bisexual = BisexualSpin(
         value = FIELDS.param_a,
         speed = FIELDS.param_b
     )
     prob_zaps = ProbZaps( # We're always zappin
         prob=FIELDS.ripple2
+    )
+    map_fiber = MapFiber( # We're always zappin
+        value=0,
+        hue=0,
+        saturation=0
     )
 
 
@@ -209,6 +258,13 @@ init_boom_zaps(graph, lattice)
 BANK = PresetBank(Path("presets"))
 CONSOLE = Console(midi, FIELDS, EFFECTS, BANK)
 serve(CONSOLE)
+
+# Start from preset 0 - the knobs and wiring are only remembered by presets.
+try:
+    CONSOLE.load_current_from(0)
+    print("preset 0 loaded")
+except (FileNotFoundError, ValueError) as e:
+    print(f"preset 0: {e}")
 
 # A step button loads the preset of the same number.
 step_ccs = [midi.cc(cc) for cc in STEPS[:BANK.size]]
