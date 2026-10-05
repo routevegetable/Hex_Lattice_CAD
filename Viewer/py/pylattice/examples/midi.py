@@ -102,6 +102,8 @@ class MIDI:
 
         def get() -> tuple[Event[int], Event[int] | None] | None:
             pressed = on.read()
+            if pressed:
+                self._polytouch_map[id] = 127
             return None if pressed is None else (pressed, off.read())
 
         return get

@@ -10,8 +10,9 @@ from pylattice.effects.waves import BgWaves, bg_waves
 from pylattice.examples.colors import hsv, vary
 from pylattice.fields.types import ConstantField, ScalarField, Slot
 from pylattice.fields.artnet import artnet_universes
-from pylattice.fields.scalar import (CCField, NoteRippleField, NoteWipeField, PolyTouchField,
-                                     RandomTraceField, RotaryField)
+from pylattice.fields.scalar import (CCField, NoteRandomField, NoteRippleField, NoteWipeField,
+                                     PolyTouchField, RandomTraceField, RotaryField,
+                                     ScopeFieldBetter)
 from pylattice.instrument.maps import ColorMap
 from pylattice.examples.midi import MIDI
 from pylattice.examples.tempo import Event, EventLatch, sweep
@@ -80,6 +81,13 @@ class FIELDS:
         speed=KB2
     )
     
+    # Every edge jumps to a new random number
+    random = NoteRandomField(
+        midi,
+        note=PB6,
+        period=KA8
+    )
+    
     # Wipes
     wipe1 = NoteWipeField(
         midi,
@@ -98,6 +106,13 @@ class FIELDS:
         note=PB5,
         speed=KB5,
         aim=KB6
+    )
+    
+    # A spot going round and round one flat line of the lattice
+    scope = ScopeFieldBetter(
+        graph, midi,
+        speed=KB7,
+        pattern=KB8
     )
     
     # Rotary
@@ -200,8 +215,15 @@ class MapFiber(Effect):
             hue = self.hue.get(now, end)
             saturation = self.saturation.get(now, end)
 
+
             if val > 0.1:
                 lattice[end][0] = list(hsv(hue, saturation, val))
+            if val > 0.3:
+                lattice[end][1] = list(hsv(hue, saturation, val/2))
+            if val > 0.6:
+                lattice[end][2] = list(hsv(hue, saturation, val/3))
+            if val > 0.8:
+                lattice[end][3] = list(hsv(hue, saturation, val/4))
 
         return
 
@@ -211,7 +233,8 @@ class EFFECTS:
 
     bg_waves = BgWaves(
         hue=FIELDS.param_a,
-        value=FIELDS.fader_a
+        value=FIELDS.fader_a,
+        flow=0
     )
     pluck = Pluck(
         a_amp=FIELDS.wipe2,
