@@ -680,10 +680,10 @@ class ScopeFieldBetter(ScalarField):
             #return 1 # TODO Thing
 
             phases = self._phases[end]
-            acc = 0
+            result = 0
             for phase in phases:
-                acc += psweep(now.delay(period * -phase), period, 1, 0)
-            return acc / len(phases)
+                result = max(result,psweep(now.delay(period * -phase), period, 1, 0))
+            return result
             
         else:
             return 0

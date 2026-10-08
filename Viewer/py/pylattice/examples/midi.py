@@ -21,6 +21,9 @@ class MIDI:
         self._note_off: dict[int, EventLatch[int]] = {}
         self._cc_events: dict[int, EventLatch[int]] = {}
         self._polytouch_map: dict[int, int] = {}
+        # One program per channel, not one per number, so a single latch does.
+        self._program_event: EventLatch[int] = EventLatch()
+        self._program_event.latch(Event(when=0, data=0))
 
     def tick(self):
         msg: mido.Message
@@ -28,6 +31,8 @@ class MIDI:
         # at the end means a burst of messages keeps its last value - latching
         # per message would keep the first, since Event.after is a strict >.
         moved: dict[int, int] = {}
+        # Likewise the program, if one was selected this tick.
+        chosen: int | None = None
         # Consume any pending MIDI messages
         while msg := self._m.poll():
             match msg.type:
@@ -47,9 +52,15 @@ class MIDI:
                     moved[msg.control] = msg.value
                 case "polytouch":
                     self._polytouch_map[msg.note] = msg.value
+                case "program_change":
+                    print(msg)
+                    chosen = msg.program
 
         for control, value in moved.items():
             self._cc_latch(control).put(value)
+
+        if chosen is not None:
+            self._program_event.put(chosen)
 
     def cc(self, id: int) -> Callable[[], Event[int]]:
         """
@@ -59,6 +70,17 @@ class MIDI:
         Seeded at zero, so it is never None.
         """
         return self._cc_latch(id).read
+
+    def program(self) -> Callable[[], Event[int]]:
+        """
+        Watch the program. Returns a getter for the latest program change -
+        its `data` is the 0-127 program number, its `when` is when it arrived.
+
+        Seeded at zero like cc(), so it is never None. That seed is not a
+        program change, though: it carries `when` 0, which nothing that watches
+        for the number changing will mistake for a selection.
+        """
+        return self._program_event.read
 
     def get_ccs(self) -> dict[int, int]:
         """Every control's current value, by CC number."""

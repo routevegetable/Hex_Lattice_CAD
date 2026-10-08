@@ -293,16 +293,26 @@ BANK = PresetBank(Path("presets"))
 CONSOLE = Console(midi, FIELDS, EFFECTS, BANK)
 serve(CONSOLE)
 
-# Start from preset 0 - the knobs and wiring are only remembered by presets.
-try:
-    CONSOLE.load_current_from(0)
-    print("preset 0 loaded")
-except (FileNotFoundError, ValueError) as e:
-    print(f"preset 0: {e}")
+def load_preset(number: int):
+    """Switch the bank to a preset, saying so either way."""
+    try:
+        CONSOLE.load_current_from(number)
+        print(f"preset {number} loaded")
+    except (FileNotFoundError, ValueError) as e:
+        print(f"preset {number}: {e}")
 
-# A step button loads the preset of the same number.
+
+# Start from preset 0 - the knobs and wiring are only remembered by presets.
+load_preset(0)
+
+# A step button loads the preset of the same number, and so does a program
+# change - the BSP sends one per project, and a sequencer upstream can send
+# them wherever it likes.
 step_ccs = [midi.cc(cc) for cc in STEPS[:BANK.size]]
 step_seen = [0] * len(step_ccs)
+
+program = midi.program()
+program_seen = 0
 
 
 def check_steps():
@@ -314,11 +324,25 @@ def check_steps():
             continue        # not new, or the button coming back up
 
         step_seen[number] = moved.when
-        try:
-            CONSOLE.load_current_from(number)
-            print(f"preset {number} loaded")
-        except (FileNotFoundError, ValueError) as e:
-            print(f"preset {number}: {e}")
+        load_preset(number)
+
+
+def check_program():
+    """Load a preset when a program change picks it."""
+    global program_seen
+
+    chosen = program()
+
+    if chosen.when == program_seen:
+        return              # nothing new - the seed included
+
+    program_seen = chosen.when
+
+    if chosen.data >= BANK.size:
+        print(f"program {chosen.data}: only {BANK.size} presets")
+        return
+
+    load_preset(chosen.data)
 
 
 
@@ -344,6 +368,7 @@ while True:
         now = Event.for_now()
         midi.tick()
         check_steps()
+        check_program()
 
         for effect in effects:
             effect.render(now, lattice, graph)
