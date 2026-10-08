@@ -10,9 +10,9 @@ from pylattice.effects.waves import BgWaves, bg_waves
 from pylattice.examples.colors import hsv, vary
 from pylattice.fields.types import ConstantField, ScalarField, Slot
 from pylattice.fields.artnet import artnet_universes
-from pylattice.fields.scalar import (CCField, NoteRandomField, NoteRippleField, NoteWipeField,
+from pylattice.fields.scalar import (CCField, EdgeMaskField, NoteRandomField, NoteRippleField, NoteWipeField,
                                      PolyTouchField, RandomTraceField, RotaryField,
-                                     ScopeFieldBetter)
+                                     ScopeFieldBetter, StrobeField)
 from pylattice.instrument.maps import ColorMap
 from pylattice.examples.midi import MIDI
 from pylattice.examples.tempo import Event, EventLatch, sweep
@@ -31,8 +31,8 @@ ROWS = 2
 graph = Graph(COLS, ROWS)
 
 lattice = LatticeWriter(COLS / 2, ROWS)
-midi = MIDI('Arturia BeatStep Pro Arturia BeatStepPro')
-#midi = MIDI()
+#midi = MIDI('Arturia BeatStep Pro Arturia BeatStepPro')
+midi = MIDI()
 
 # BSP control mode. Knobs KA1-KB8 are CCs, pads PA1-PB8 are notes; row A is
 # the top/upper one.
@@ -129,6 +129,16 @@ class FIELDS:
     artnet2_r, artnet2_g, artnet2_b, artnet2_v = ARTNET[2]
     artnet3_r, artnet3_g, artnet3_b, artnet3_v = ARTNET[3]
 
+    v_edges = EdgeMaskField({EdgeClass.C, EdgeClass.F})
+    h_edges = EdgeMaskField({EdgeClass.A, EdgeClass.B, EdgeClass.D, EdgeClass.E})
+    d1_edges = EdgeMaskField({EdgeClass.A, EdgeClass.C, EdgeClass.E, EdgeClass.F})
+    d2_edges = EdgeMaskField({EdgeClass.B, EdgeClass.C, EdgeClass.D, EdgeClass.F})
+
+    strobe0 = StrobeField(midi, strobe=PA1)
+    strobe1 = StrobeField(midi, strobe=PA2)
+    strobe2 = StrobeField(midi, strobe=PA3)
+
+
 from pylattice.examples.sunrise import color_transitions, sunrise
 
 class Sunrise(Effect):
@@ -183,8 +193,9 @@ class BisexualSpin(Effect):
 
         for base in [
             graph.TILE[0,0].bottom_end(EdgeClass.D),
-            graph.TILE[1,1].bottom_end(EdgeClass.D),
-            graph.TILE[2,0].bottom_end(EdgeClass.B),
+            graph.TILE[1,0].bottom_end(EdgeClass.B),
+            graph.TILE[3,1].bottom_end(EdgeClass.D),
+            graph.TILE[4,0].bottom_end(EdgeClass.B),
         ]:
             self.draw_hex(base, lattice)
 

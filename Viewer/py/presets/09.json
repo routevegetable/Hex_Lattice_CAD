@@ -1,19 +1,19 @@
 {
   "ccs": {
-    "10": 102,
+    "10": 48,
     "74": 115,
     "71": 75,
-    "76": 113,
-    "114": 92,
+    "76": 60,
+    "114": 20,
     "18": 127,
     "75": 24,
-    "19": 97,
+    "19": 127,
     "16": 127,
-    "17": 67,
-    "91": 97,
-    "79": 127,
-    "72": 6,
-    "77": 77,
+    "17": 62,
+    "91": 127,
+    "79": 0,
+    "72": 3,
+    "77": 3,
     "93": 0,
     "73": 0,
     "54": 0,
@@ -41,29 +41,25 @@
     "50": 0
   },
   "slots": {
-    "bg_waves.hue": 0.0,
-    "bg_waves.value": {
-      "op": "mul",
-      "a": "wipe1",
-      "b": {
+    "bg_waves.hue": {
+      "op": "add",
+      "a": {
         "op": "mul",
         "a": {
-          "op": "sub",
-          "a": "rotary",
-          "b": 0.24
-        },
-        "b": {
           "op": "add",
-          "a": 0.49,
-          "b": {
-            "op": "mul",
-            "a": "strobe0",
-            "b": 0.0
-          }
-        }
+          "a": "random",
+          "b": 0.35
+        },
+        "b": 0.42
+      },
+      "b": {
+        "op": "mul",
+        "a": "scope",
+        "b": 0.0
       }
     },
-    "bg_waves.flow": 0.0,
+    "bg_waves.value": 0.41,
+    "bg_waves.flow": "ripple",
     "pluck.a_amp": "wipe2",
     "pluck.b_amp": "wipe1",
     "pluck.c_amp": "wipe1",
@@ -71,7 +67,11 @@
     "pluck.value": 0.0,
     "net.amp": "wipe1",
     "net.hue": 0.4,
-    "net.value": 0.0,
+    "net.value": {
+      "op": "mul",
+      "a": "ripple",
+      "b": 0.0
+    },
     "sunrise.value": "param_a",
     "bisexual.value": 0.0,
     "bisexual.speed": {
@@ -81,19 +81,27 @@
     },
     "prob_zaps.prob": {
       "op": "mul",
-      "a": 0.0,
-      "b": {
-        "op": "sub",
-        "a": "strobe0",
-        "b": 0.55
-      }
+      "a": 0.18,
+      "b": "ripple"
     },
     "map_fiber.value": {
-      "op": "mul",
-      "a": "trace",
-      "b": 0.34
+      "op": "sub",
+      "a": "scope",
+      "b": 1.0
     },
-    "map_fiber.hue": 0.15,
-    "map_fiber.saturation": 1.0
+    "map_fiber.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "rotary",
+        "b": 0.1
+      },
+      "b": 0.4
+    },
+    "map_fiber.saturation": {
+      "op": "sub",
+      "a": 1.0,
+      "b": "wipe1"
+    }
   }
 }

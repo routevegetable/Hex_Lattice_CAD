@@ -562,6 +562,47 @@ class RandomTraceField(ScalarField):
         return self._state.get(end, 0.0)
 
 
+
+
+class EdgeMaskField(ScalarField):
+    def __init__(self, edges: set[EdgeClass]):
+        self._edges = edges
+
+    def get(self, now: Event, end: EndRef) -> float:
+
+        return 1 if end.edge_class in self._edges else 0
+
+
+class FaderField(ScalarField):
+    def __init__(self, midi: MIDI, fader: int):
+        self._fader_cc = midi.cc(fader)
+        self._flipped = False
+
+    def set_flipped(self, flipped: bool):
+        self._flipped = flipped
+
+    def get(self, now: Event, end: EndRef) -> float:
+
+        if self._flipped:
+            return 1 - self._fader_cc()
+        else:
+            return self._fader_cc()
+
+
+class StrobeField(ScalarField):
+    def __init__(self, midi: MIDI, strobe: int):
+        self._note = midi.note(strobe)
+
+    def get(self, now: Event, end: EndRef) -> float:
+        n = self._note()
+        if n is None:
+            return 0
+        
+        _, release = n
+        return 1 if release is None else 0
+
+        
+
 class ScopeFieldBetter(ScalarField):
 
 
@@ -570,9 +611,7 @@ class ScopeFieldBetter(ScalarField):
         (0, EdgeClass.A, "LRRRLL"),
         (0, EdgeClass.A, "LRLRRRLRLL"),
         (0, EdgeClass.A, "LRLRRLRRLRLRLLLR"),
-        (0, EdgeClass.A, "LRLRRLRRLRLL"),
-        (0, EdgeClass.A, "LRLRRLRRLRLLRL"),
-        (0, EdgeClass.A, "LLLLLRLR")
+        (0, EdgeClass.E, "LRRLRLRLRLRL"),
     ]
     def __init__(self, graph: Graph, midi: MIDI, *, speed: int, pattern: int):
         self._width = graph.width * TileRef.WIDTH
@@ -643,7 +682,7 @@ class ScopeFieldBetter(ScalarField):
             phases = self._phases[end]
             acc = 0
             for phase in phases:
-                acc += psweep(now.delay(period * phase), period, 1, 0)
+                acc += psweep(now.delay(period * -phase), period, 1, 0)
             return acc / len(phases)
             
         else:

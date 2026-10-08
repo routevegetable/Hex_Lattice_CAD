@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1200" viewBox="0 0 1500 1200" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="1500" height="1200" fill="#101317"/>
+<text x="40" y="44" font-size="22" fill="#e8ecf1" font-weight="bold" text-anchor="start">Arturia BeatStep Pro — controller mode</text>
+<text x="40" y="68" font-size="12.5" fill="#8d96a3" font-weight="normal" text-anchor="start">what every control does, and to which field in FIELDS · pylattice/instrument/__main__.py</text>
+<rect x="40" y="88" width="1420" height="952" fill="#1b1f25" stroke="#3a424e"/>
+<rect x="64" y="112" width="166" height="904" fill="#272d36" stroke="#3a424e"/>
+<text x="147" y="150" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">transport,</text>
+<text x="147" y="170" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">mode, project,</text>
+<text x="147" y="190" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">sequencer and</text>
+<text x="147" y="210" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">channel buttons</text>
+<text x="147" y="230" font-size="11.5" fill="#e8ecf1" font-weight="normal" text-anchor="middle"></text>
+<text x="147" y="250" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">none of these</text>
+<text x="147" y="270" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">reach the app —</text>
+<text x="147" y="290" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">it only reads</text>
+<text x="147" y="310" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">the CCs and</text>
+<text x="147" y="330" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">notes shown</text>
+<text x="147" y="350" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">here</text>
+<text x="258" y="130" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="start">ENCODERS — ROW A</text>
+<circle cx="333" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="333" cy="186" r="24" fill="none" stroke="#6a8fd0" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="333" y1="186" x2="320" y2="168" stroke="#6a8fd0" stroke-width="3"/>
+<text x="333" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KA1  ·  CC 10</text>
+<text x="333" y="256" font-size="12.5" fill="#6a8fd0" font-weight="bold" text-anchor="middle">fader_a</text>
+<text x="333" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">raw value, 0 to 1</text>
+<circle cx="482" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="482" cy="186" r="24" fill="none" stroke="#6a8fd0" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="482" y1="186" x2="469" y2="168" stroke="#6a8fd0" stroke-width="3"/>
+<text x="482" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KA2  ·  CC 74</text>
+<text x="482" y="256" font-size="12.5" fill="#6a8fd0" font-weight="bold" text-anchor="middle">fader_b</text>
+<text x="482" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">raw value, 0 to 1</text>
+<circle cx="631" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="631" cy="186" r="24" fill="none" stroke="#6a8fd0" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="631" y1="186" x2="619" y2="168" stroke="#6a8fd0" stroke-width="3"/>
+<text x="631" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KA3  ·  CC 71</text>
+<text x="631" y="256" font-size="12.5" fill="#6a8fd0" font-weight="bold" text-anchor="middle">param_a</text>
+<text x="631" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">raw value, 0 to 1</text>
+<circle cx="780" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="780" cy="186" r="24" fill="none" stroke="#6a8fd0" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="780" y1="186" x2="768" y2="168" stroke="#6a8fd0" stroke-width="3"/>
+<text x="780" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KA4  ·  CC 76</text>
+<text x="780" y="256" font-size="12.5" fill="#6a8fd0" font-weight="bold" text-anchor="middle">param_b</text>
+<text x="780" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">raw value, 0 to 1</text>
+<circle cx="930" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="930" cy="186" r="24" fill="none" stroke="#d9a84a" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="930" y1="186" x2="917" y2="168" stroke="#d9a84a" stroke-width="3"/>
+<text x="930" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KA5  ·  CC 77</text>
+<text x="930" y="256" font-size="12.5" fill="#d9a84a" font-weight="bold" text-anchor="middle">rotary</text>
+<text x="930" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">rotation period</text>
+<text x="930" y="286" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">0.5s → 16s</text>
+<circle cx="1079" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="1079" cy="186" r="24" fill="none" stroke="#d9a84a" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="1079" y1="186" x2="1066" y2="168" stroke="#d9a84a" stroke-width="3"/>
+<text x="1079" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KA6  ·  CC 93</text>
+<text x="1079" y="256" font-size="12.5" fill="#d9a84a" font-weight="bold" text-anchor="middle">rotary</text>
+<text x="1079" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">parts — read, but</text>
+<text x="1079" y="286" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">unused in get()</text>
+<circle cx="1228" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="1228" cy="186" r="24" fill="none" stroke="#d9a84a" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="1228" y1="186" x2="1216" y2="168" stroke="#d9a84a" stroke-width="3"/>
+<text x="1228" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KA7  ·  CC 73</text>
+<text x="1228" y="256" font-size="12.5" fill="#d9a84a" font-weight="bold" text-anchor="middle">rotary</text>
+<text x="1228" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">shape — read, but</text>
+<text x="1228" y="286" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">unused in get()</text>
+<circle cx="1377" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="1377" cy="186" r="24" fill="none" stroke="#d06aa8" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="1377" y1="186" x2="1365" y2="168" stroke="#d06aa8" stroke-width="3"/>
+<text x="1377" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KA8  ·  CC 75</text>
+<text x="1377" y="256" font-size="12.5" fill="#d06aa8" font-weight="bold" text-anchor="middle">random</text>
+<text x="1377" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">glide time</text>
+<text x="1377" y="286" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">4s → 30ms</text>
+<text x="258" y="326" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="start">ENCODERS — ROW B</text>
+<circle cx="333" cy="382" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="333" cy="382" r="24" fill="none" stroke="#e07a4a" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="333" y1="382" x2="320" y2="364" stroke="#e07a4a" stroke-width="3"/>
+<text x="333" y="436" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KB1  ·  CC 114</text>
+<text x="333" y="452" font-size="12.5" fill="#e07a4a" font-weight="bold" text-anchor="middle">ripple</text>
+<text x="333" y="469" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">front crossing time</text>
+<text x="333" y="482" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">2s → 250ms</text>
+<circle cx="482" cy="382" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="482" cy="382" r="24" fill="none" stroke="#e07a4a" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="482" y1="382" x2="469" y2="364" stroke="#e07a4a" stroke-width="3"/>
+<text x="482" y="436" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KB2  ·  CC 18</text>
+<text x="482" y="452" font-size="12.5" fill="#e07a4a" font-weight="bold" text-anchor="middle">ripple2</text>
+<text x="482" y="469" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">front crossing time</text>
+<text x="482" y="482" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">2s → 250ms</text>
+<circle cx="631" cy="382" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="631" cy="382" r="24" fill="none" stroke="#5fb87a" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="631" y1="382" x2="619" y2="364" stroke="#5fb87a" stroke-width="3"/>
+<text x="631" y="436" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KB3  ·  CC 19</text>
+<text x="631" y="452" font-size="12.5" fill="#5fb87a" font-weight="bold" text-anchor="middle">wipe1</text>
+<text x="631" y="469" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">direction + speed</text>
+<text x="631" y="482" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">2s mid → 333ms ends</text>
+<circle cx="780" cy="382" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="780" cy="382" r="24" fill="none" stroke="#5fb87a" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="780" y1="382" x2="768" y2="364" stroke="#5fb87a" stroke-width="3"/>
+<text x="780" y="436" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KB4  ·  CC 16</text>
+<text x="780" y="452" font-size="12.5" fill="#5fb87a" font-weight="bold" text-anchor="middle">wipe2</text>
+<text x="780" y="469" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">direction + speed</text>
+<text x="780" y="482" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">2s mid → 333ms ends</text>
+<circle cx="930" cy="382" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="930" cy="382" r="24" fill="none" stroke="#9b7ad0" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="930" y1="382" x2="917" y2="364" stroke="#9b7ad0" stroke-width="3"/>
+<text x="930" y="436" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KB5  ·  CC 17</text>
+<text x="930" y="452" font-size="12.5" fill="#9b7ad0" font-weight="bold" text-anchor="middle">trace</text>
+<text x="930" y="469" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">ms per edge</text>
+<text x="930" y="482" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">500ms → 15ms</text>
+<circle cx="1079" cy="382" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="1079" cy="382" r="24" fill="none" stroke="#9b7ad0" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="1079" y1="382" x2="1066" y2="364" stroke="#9b7ad0" stroke-width="3"/>
+<text x="1079" y="436" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KB6  ·  CC 91</text>
+<text x="1079" y="452" font-size="12.5" fill="#9b7ad0" font-weight="bold" text-anchor="middle">trace</text>
+<text x="1079" y="469" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">aim: 0 down,</text>
+<text x="1079" y="482" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">0.5 all ways, 1 up</text>
+<circle cx="1228" cy="382" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="1228" cy="382" r="24" fill="none" stroke="#4ab8c4" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="1228" y1="382" x2="1216" y2="364" stroke="#4ab8c4" stroke-width="3"/>
+<text x="1228" y="436" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KB7  ·  CC 79</text>
+<text x="1228" y="452" font-size="12.5" fill="#4ab8c4" font-weight="bold" text-anchor="middle">scope</text>
+<text x="1228" y="469" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">lap time</text>
+<text x="1228" y="482" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">4s → 30ms</text>
+<circle cx="1377" cy="382" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="1377" cy="382" r="24" fill="none" stroke="#4ab8c4" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="1377" y1="382" x2="1365" y2="364" stroke="#4ab8c4" stroke-width="3"/>
+<text x="1377" y="436" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KB8  ·  CC 72</text>
+<text x="1377" y="452" font-size="12.5" fill="#4ab8c4" font-weight="bold" text-anchor="middle">scope</text>
+<text x="1377" y="469" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">pattern</text>
+<text x="1377" y="482" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 0 / 1 / 2 and up</text>
+<text x="258" y="522" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="start">STEP BUTTONS</text>
+<rect x="261" y="534" width="69" height="36" fill="#272d36" stroke="#7e93b8"/>
+<text x="295" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">1</text>
+<text x="295" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 20</text>
+<rect x="336" y="534" width="69" height="36" fill="#272d36" stroke="#7e93b8"/>
+<text x="370" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">2</text>
+<text x="370" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 21</text>
+<rect x="410" y="534" width="69" height="36" fill="#272d36" stroke="#7e93b8"/>
+<text x="445" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">3</text>
+<text x="445" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 22</text>
+<rect x="485" y="534" width="69" height="36" fill="#272d36" stroke="#7e93b8"/>
+<text x="519" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">4</text>
+<text x="519" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 23</text>
+<rect x="560" y="534" width="69" height="36" fill="#272d36" stroke="#7e93b8"/>
+<text x="594" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">5</text>
+<text x="594" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 24</text>
+<rect x="634" y="534" width="69" height="36" fill="#272d36" stroke="#7e93b8"/>
+<text x="668" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">6</text>
+<text x="668" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 25</text>
+<rect x="709" y="534" width="69" height="36" fill="#272d36" stroke="#7e93b8"/>
+<text x="743" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">7</text>
+<text x="743" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 26</text>
+<rect x="783" y="534" width="69" height="36" fill="#272d36" stroke="#7e93b8"/>
+<text x="818" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">8</text>
+<text x="818" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 27</text>
+<rect x="858" y="534" width="69" height="36" fill="#272d36" stroke="#7e93b8"/>
+<text x="892" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">9</text>
+<text x="892" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 28</text>
+<rect x="933" y="534" width="69" height="36" fill="#272d36" stroke="#7e93b8"/>
+<text x="967" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">10</text>
+<text x="967" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 29</text>
+<rect x="1007" y="534" width="69" height="36" fill="#272d36" stroke="#7e93b8"/>
+<text x="1042" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">11</text>
+<text x="1042" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 30</text>
+<rect x="1082" y="534" width="69" height="36" fill="#272d36" stroke="#7e93b8"/>
+<text x="1116" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">12</text>
+<text x="1116" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 31</text>
+<rect x="1156" y="534" width="69" height="36" fill="#272d36" stroke="#7e93b8"/>
+<text x="1191" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">13</text>
+<text x="1191" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 32</text>
+<rect x="1231" y="534" width="69" height="36" fill="#272d36" stroke="#7e93b8"/>
+<text x="1265" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">14</text>
+<text x="1265" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 33</text>
+<rect x="1306" y="534" width="69" height="36" fill="#272d36" stroke="#7e93b8"/>
+<text x="1340" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">15</text>
+<text x="1340" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 34</text>
+<rect x="1380" y="534" width="69" height="36" fill="#272d36" stroke="#7e93b8"/>
+<text x="1415" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">16</text>
+<text x="1415" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 35</text>
+<text x="855" y="606" font-size="11" fill="#7e93b8" font-weight="normal" text-anchor="middle">a press arrives as 127 and loads the preset of the same number — presets/00.json … 15.json</text>
+<text x="258" y="646" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="start">PADS — ROW A</text>
+<rect x="289" y="670" width="88" height="72" fill="#272d36" stroke="#e0d04a" stroke-width="2"/>
+<rect x="297" y="678" width="72" height="56" fill="none" stroke="#e0d04a" stroke-opacity="0.35"/>
+<text x="333" y="764" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PA1  ·  note 44</text>
+<text x="333" y="780" font-size="12.5" fill="#e0d04a" font-weight="bold" text-anchor="middle">strobe0</text>
+<text x="333" y="797" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">1 while held, else 0</text>
+<rect x="438" y="670" width="88" height="72" fill="#272d36" stroke="#e0d04a" stroke-width="2"/>
+<rect x="446" y="678" width="72" height="56" fill="none" stroke="#e0d04a" stroke-opacity="0.35"/>
+<text x="482" y="764" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PA2  ·  note 45</text>
+<text x="482" y="780" font-size="12.5" fill="#e0d04a" font-weight="bold" text-anchor="middle">strobe1</text>
+<text x="482" y="797" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">1 while held, else 0</text>
+<rect x="587" y="670" width="88" height="72" fill="#272d36" stroke="#e0d04a" stroke-width="2"/>
+<rect x="595" y="678" width="72" height="56" fill="none" stroke="#e0d04a" stroke-opacity="0.35"/>
+<text x="631" y="764" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PA3  ·  note 46</text>
+<text x="631" y="780" font-size="12.5" fill="#e0d04a" font-weight="bold" text-anchor="middle">strobe2</text>
+<text x="631" y="797" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">1 while held, else 0</text>
+<rect x="736" y="670" width="88" height="72" fill="#272d36" stroke="#474d56" stroke-width="2"/>
+<rect x="744" y="678" width="72" height="56" fill="none" stroke="#474d56" stroke-opacity="0.35"/>
+<text x="780" y="764" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PA4  ·  note 47</text>
+<text x="780" y="780" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">—</text>
+<text x="780" y="797" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">free</text>
+<rect x="886" y="670" width="88" height="72" fill="#272d36" stroke="#474d56" stroke-width="2"/>
+<rect x="894" y="678" width="72" height="56" fill="none" stroke="#474d56" stroke-opacity="0.35"/>
+<text x="930" y="764" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PA5  ·  note 48</text>
+<text x="930" y="780" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">—</text>
+<text x="930" y="797" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">free</text>
+<rect x="1035" y="670" width="88" height="72" fill="#272d36" stroke="#474d56" stroke-width="2"/>
+<rect x="1043" y="678" width="72" height="56" fill="none" stroke="#474d56" stroke-opacity="0.35"/>
+<text x="1079" y="764" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PA6  ·  note 49</text>
+<text x="1079" y="780" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">—</text>
+<text x="1079" y="797" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">free</text>
+<rect x="1184" y="670" width="88" height="72" fill="#272d36" stroke="#474d56" stroke-width="2"/>
+<rect x="1192" y="678" width="72" height="56" fill="none" stroke="#474d56" stroke-opacity="0.35"/>
+<text x="1228" y="764" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PA7  ·  note 50</text>
+<text x="1228" y="780" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">—</text>
+<text x="1228" y="797" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">free</text>
+<rect x="1333" y="670" width="88" height="72" fill="#272d36" stroke="#474d56" stroke-width="2"/>
+<rect x="1341" y="678" width="72" height="56" fill="none" stroke="#474d56" stroke-opacity="0.35"/>
+<text x="1377" y="764" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PA8  ·  note 51</text>
+<text x="1377" y="780" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">—</text>
+<text x="1377" y="797" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">free</text>
+<text x="258" y="850" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="start">PADS — ROW B</text>
+<rect x="289" y="874" width="88" height="72" fill="#272d36" stroke="#e07a4a" stroke-width="2"/>
+<rect x="297" y="882" width="72" height="56" fill="none" stroke="#e07a4a" stroke-opacity="0.35"/>
+<text x="333" y="968" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PB1  ·  note 36</text>
+<text x="333" y="984" font-size="12.5" fill="#e07a4a" font-weight="bold" text-anchor="middle">ripple</text>
+<text x="333" y="1001" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">spawn a ripple</text>
+<text x="333" y="1014" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">aftertouch = level</text>
+<rect x="438" y="874" width="88" height="72" fill="#272d36" stroke="#e07a4a" stroke-width="2"/>
+<rect x="446" y="882" width="72" height="56" fill="none" stroke="#e07a4a" stroke-opacity="0.35"/>
+<text x="482" y="968" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PB2  ·  note 37</text>
+<text x="482" y="984" font-size="12.5" fill="#e07a4a" font-weight="bold" text-anchor="middle">ripple2</text>
+<text x="482" y="1001" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">spawn a ripple</text>
+<text x="482" y="1014" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">aftertouch = level</text>
+<rect x="587" y="874" width="88" height="72" fill="#272d36" stroke="#5fb87a" stroke-width="2"/>
+<rect x="595" y="882" width="72" height="56" fill="none" stroke="#5fb87a" stroke-opacity="0.35"/>
+<text x="631" y="968" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PB3  ·  note 38</text>
+<text x="631" y="984" font-size="12.5" fill="#5fb87a" font-weight="bold" text-anchor="middle">wipe1</text>
+<text x="631" y="1001" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">start a wipe</text>
+<rect x="736" y="874" width="88" height="72" fill="#272d36" stroke="#5fb87a" stroke-width="2"/>
+<rect x="744" y="882" width="72" height="56" fill="none" stroke="#5fb87a" stroke-opacity="0.35"/>
+<text x="780" y="968" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PB4  ·  note 39</text>
+<text x="780" y="984" font-size="12.5" fill="#5fb87a" font-weight="bold" text-anchor="middle">wipe2</text>
+<text x="780" y="1001" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">start a wipe</text>
+<rect x="886" y="874" width="88" height="72" fill="#272d36" stroke="#9b7ad0" stroke-width="2"/>
+<rect x="894" y="882" width="72" height="56" fill="none" stroke="#9b7ad0" stroke-opacity="0.35"/>
+<text x="930" y="968" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PB5  ·  note 40</text>
+<text x="930" y="984" font-size="12.5" fill="#9b7ad0" font-weight="bold" text-anchor="middle">trace</text>
+<text x="930" y="1001" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">fire a particle</text>
+<text x="930" y="1014" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">8 in flight</text>
+<rect x="1035" y="874" width="88" height="72" fill="#272d36" stroke="#d06aa8" stroke-width="2"/>
+<rect x="1043" y="882" width="72" height="56" fill="none" stroke="#d06aa8" stroke-opacity="0.35"/>
+<text x="1079" y="968" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PB6  ·  note 41</text>
+<text x="1079" y="984" font-size="12.5" fill="#d06aa8" font-weight="bold" text-anchor="middle">random</text>
+<text x="1079" y="1001" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">re-roll every edge</text>
+<rect x="1184" y="874" width="88" height="72" fill="#272d36" stroke="#474d56" stroke-width="2"/>
+<rect x="1192" y="882" width="72" height="56" fill="none" stroke="#474d56" stroke-opacity="0.35"/>
+<text x="1228" y="968" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PB7  ·  note 42</text>
+<text x="1228" y="984" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">—</text>
+<text x="1228" y="1001" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">free</text>
+<rect x="1333" y="874" width="88" height="72" fill="#272d36" stroke="#474d56" stroke-width="2"/>
+<rect x="1341" y="882" width="72" height="56" fill="none" stroke="#474d56" stroke-opacity="0.35"/>
+<text x="1377" y="968" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PB8  ·  note 43</text>
+<text x="1377" y="984" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">—</text>
+<text x="1377" y="1001" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">free</text>
+<text x="40" y="1086" font-size="13" fill="#e8ecf1" font-weight="bold" text-anchor="start">fields with no control on this box</text>
+<text x="40" y="1110" font-size="12" fill="#6a8fd0" font-weight="bold" text-anchor="start">artnet0_r · _g · _b · _v  …  artnet3_*</text>
+<text x="330" y="1110" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="start">16 fields, Art-Net universes 0–3 on UDP 6454, one pixel per vertex</text>
+<text x="40" y="1132" font-size="12" fill="#6a8fd0" font-weight="bold" text-anchor="start">v_edges · h_edges · d1_edges · d2_edges</text>
+<text x="330" y="1132" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="start">static masks — 1 on the edge classes they name, 0 elsewhere</text>
+</svg>

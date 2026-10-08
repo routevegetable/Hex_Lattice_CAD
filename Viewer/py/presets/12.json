@@ -1,21 +1,18 @@
 {
   "ccs": {
-    "10": 127,
-    "74": 0,
-    "71": 15,
-    "76": 15,
-    "114": 77,
-    "18": 127,
-    "19": 127,
-    "16": 127,
-    "17": 36,
-    "91": 68,
-    "79": 18,
-    "72": 0,
-    "77": 0,
+    "10": 53,
+    "74": 111,
+    "71": 40,
+    "76": 51,
+    "114": 65,
+    "18": 112,
+    "19": 8,
+    "16": 99,
+    "17": 0,
+    "77": 1,
     "93": 0,
     "73": 0,
-    "75": 1,
+    "75": 0,
     "54": 0,
     "123": 0,
     "51": 0,
@@ -41,22 +38,29 @@
     "50": 0
   },
   "slots": {
-    "bg_waves.hue": 0.66,
-    "bg_waves.value": 0.66,
-    "bg_waves.flow": {
-      "op": "mul",
-      "a": "trace",
-      "b": 0.0
+    "bg_waves.hue": {
+      "op": "div",
+      "a": "fader_a",
+      "b": 3.0
     },
+    "bg_waves.value": 0.0,
     "pluck.a_amp": "wipe2",
     "pluck.b_amp": "wipe1",
     "pluck.c_amp": "wipe1",
     "pluck.period": "param_b",
-    "pluck.value": "fader_b",
-    "net.amp": "wipe1",
-    "net.hue": "ripple",
-    "net.value": "fader_b",
-    "sunrise.value": "param_a",
+    "pluck.value": 0.0,
+    "net.amp": {
+      "op": "sub",
+      "a": "rotary",
+      "b": 0.95
+    },
+    "net.hue": 0.42,
+    "net.value": {
+      "op": "add",
+      "a": "wipe2",
+      "b": 0.57
+    },
+    "sunrise.value": 0.0,
     "bisexual.value": 0.0,
     "bisexual.speed": {
       "op": "sub",
@@ -65,11 +69,10 @@
     },
     "prob_zaps.prob": {
       "op": "sub",
-      "a": "trace",
+      "a": "wipe2",
       "b": 1.0
     },
-    "map_fiber.value": "trace",
-    "map_fiber.hue": 0.45,
-    "map_fiber.saturation": 0.95
+    "map_fiber.value": 0.0,
+    "map_fiber.hue": 0.0
   }
 }
