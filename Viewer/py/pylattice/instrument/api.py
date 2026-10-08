@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from pylattice.instrument.console import Console, Rig, Stats
+from pylattice.instrument.console import Console, Knob, Rig, Stats
 from pylattice.instrument.patch import Patch
 
 STATIC = Path(__file__).parent / "static"
@@ -36,6 +36,11 @@ def make_app(console: Console) -> FastAPI:
     @app.get("/stats")
     def stats() -> Stats:
         return console.get_stats()
+
+    @app.get("/knobinfo")
+    def knob() -> Knob | None:
+        """The control that moved last. Null until one does."""
+        return console.last_cc()
 
     @app.get("/rig")
     def rig() -> Rig:

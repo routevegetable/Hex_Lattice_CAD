@@ -334,8 +334,86 @@ document.getElementById('preset-chip').onclick = () => {
 load(); drawStats();
 setInterval(async () => {
   drawStats();
+
+  // The preset can change from the controller - a step button or a program
+  // change - so the chip follows it rather than showing what it was at load.
+  if (rig !== null) {
+    const fresh = await get('/rig');
+    const moved = fresh.selected !== rig.selected;
+    rig = fresh;
+    drawChip();
+    if (moved && presetsUp) openPresets();   // the marker moves with it
+  }
+
   if (open === null && picking === null && !presetsUp) {
     patch = await get('/current');
     drawSlots();
   }
 }, 1000);
+
+
+// --- the knob that moved last -------------------------------------------
+// Polled faster than the rest: it is only up for two seconds, so a one-second
+// poll would catch some of them late and miss others entirely.
+const CC_SHOWN = 2000;              // ms a move stays on screen
+const CC_POLL = 200;
+
+const ccbar = document.getElementById('ccbar');
+const ccNum = document.getElementById('cc-num');
+const ccVal = document.getElementById('cc-val');
+const ccComments = document.getElementById('cc-comments');
+const dialTrack = document.getElementById('dial-track');
+const dialValue = document.getElementById('dial-value');
+const dialPin = document.getElementById('dial-pin');
+
+// A rev counter: three quarters of a turn with the gap at the bottom.
+const DIAL_FROM = Math.PI * 0.75, DIAL_SWEEP = Math.PI * 1.5, DIAL_R = 15;
+const dialAt = (r, a) => [20 + r * Math.cos(a), 20 + r * Math.sin(a)];
+
+function arc(from, to) {
+  const [x0, y0] = dialAt(DIAL_R, from), [x1, y1] = dialAt(DIAL_R, to);
+  const big = to - from > Math.PI ? 1 : 0;
+  return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${DIAL_R} ${DIAL_R} 0 ${big} 1 ` +
+         `${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+
+dialTrack.setAttribute('d', arc(DIAL_FROM, DIAL_FROM + DIAL_SWEEP));
+
+let ccHide = null;
+
+function drawKnob(k) {
+  const frac = Math.max(0, Math.min(1, k.value / 127));
+  const a = DIAL_FROM + DIAL_SWEEP * frac;
+
+  // An arc of zero length still draws a cap, so leave it out entirely.
+  dialValue.setAttribute('d', frac > 0.002 ? arc(DIAL_FROM, a) : '');
+
+  const [x1, y1] = dialAt(5, a), [x2, y2] = dialAt(13, a);
+  dialPin.setAttribute('x1', x1.toFixed(2));
+  dialPin.setAttribute('y1', y1.toFixed(2));
+  dialPin.setAttribute('x2', x2.toFixed(2));
+  dialPin.setAttribute('y2', y2.toFixed(2));
+
+  ccNum.textContent = `cc ${k.cc}`;
+  ccVal.textContent = k.value;
+  ccComments.textContent = k.comments.length ? k.comments.join(' · ') : 'not named';
+  ccComments.className = k.comments.length ? '' : 'none';
+  ccbar.hidden = false;
+}
+
+async function pollKnob() {
+  let k;
+  try { k = await get('/knobinfo'); } catch (e) { return; }
+
+  if (!k) return;                           // nothing has ever moved
+
+  const left = CC_SHOWN - k.age_ms;
+  if (left <= 0) return;                    // that was a while ago
+
+  drawKnob(k);
+  clearTimeout(ccHide);
+  ccHide = setTimeout(() => { ccbar.hidden = true; }, left);
+}
+
+setInterval(pollKnob, CC_POLL);
+pollKnob();

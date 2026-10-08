@@ -98,7 +98,10 @@ class Patch:
                 except ValueError:
                     pass
 
-        return cls(ccs=midi.get_ccs(), slots=slots)
+        # get_ccs hands back the controls themselves; a preset only wants
+        # where each one is sitting.
+        return cls(ccs={control: state.value for control, state in midi.get_ccs().items()},
+                   slots=slots)
 
     def apply(self, midi: MIDI, fields: type, effects: type):
         """Put the knobs back and re-patch the slots."""

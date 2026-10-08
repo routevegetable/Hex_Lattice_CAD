@@ -8,6 +8,7 @@ import threading
 from dataclasses import dataclass, field
 
 from pylattice.examples.midi import MIDI
+from pylattice.examples.tempo import Event
 from pylattice.fields.types import ScalarField
 from pylattice.instrument.patch import Patch, PresetBank, named
 from pylattice.instrument.types import Effect
@@ -26,6 +27,19 @@ class FieldInfo:
     """A field a slot can be pointed at, and what kind it is."""
     name: str
     kind: str
+
+
+@dataclass
+class Knob:
+    """The control that moved most recently, for a UI to show as it happens.
+
+    `age_ms` is how long ago, worked out here because the clock is monotonic
+    and means nothing on the other side of the wire.
+    """
+    cc: int
+    value: int
+    comments: list[str] = field(default_factory=list)
+    age_ms: int = 0
 
 
 @dataclass
@@ -54,6 +68,39 @@ class Console:
         self._bank = bank
         self._stats = Stats()
         self._selected: int | None = None
+        # When a patch was last applied. Controls it moved are not news - the
+        # display is for knobs someone turned, not knobs a preset put back.
+        self._applied = 0
+
+    def last_cc(self) -> Knob | None:
+        """Whichever control moved last, or None if none ever has.
+
+        Controls are seeded at `when` 0, which is not a move - a knob nobody
+        has touched since the app started is not news, nor is a knob that a
+        preset moved. Controls marked hidden are skipped outright.
+        """
+        with self.lock:
+            now = Event.for_now().when
+
+            latest, moved = None, 0
+            for number, state in self._midi.get_ccs().items():
+                if state.hidden:
+                    continue                # plumbing, not a knob anyone turned
+
+                when = state.event.read().when
+
+                if when <= self._applied:
+                    continue                # a preset put it there, not a hand
+
+                if when > moved:
+                    latest, moved = (number, state), when
+
+            if latest is None:
+                return None
+
+            number, state = latest
+            return Knob(cc=number, value=state.value,
+                        comments=list(state.comments), age_ms=now - moved)
 
     # -- settings ---------------------------------------------------------
 
@@ -66,6 +113,7 @@ class Console:
         """Apply a patch. Knobs it does not mention are left alone."""
         with self.lock:
             patch.apply(self._midi, self._fields, self._effects)
+            self._applied = Event.for_now().when
 
     # -- presets ----------------------------------------------------------
 

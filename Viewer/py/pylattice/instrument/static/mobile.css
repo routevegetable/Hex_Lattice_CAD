@@ -89,6 +89,24 @@ input[type=range] { flex: 1; min-width: 5rem; max-width: 12rem; height: 24px;
 .num { min-width: 2.4rem; text-align: right; color: #9bd; font-size: .8rem;
        font-variant-numeric: tabular-nums; }
 
+/* the last knob that moved, sitting over whatever is on screen. Above the
+   modal too - you can be turning knobs while browsing the field picker. */
+.ccbar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6;
+         display: flex; align-items: center; gap: .5rem;
+         min-height: 40px; padding: .2rem .5rem;
+         background: #0d1115; border-top: 1px solid #39414d;
+         font-variant-numeric: tabular-nums; }
+.ccbar[hidden] { display: none; }
+.dial { flex: none; width: 32px; height: 32px; }
+/* what the knob is for leads; which knob it was sits in the corner */
+#cc-comments { flex: 1; min-width: 0; color: #e8ecf1; font-size: .95rem;
+               font-weight: 600; letter-spacing: .01em;
+               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#cc-comments.none { color: #6a5f55; font-weight: 400; font-style: italic; }
+#cc-val { flex: none; min-width: 2.2rem; text-align: right;
+          color: #fff; font-size: 1.05rem; font-weight: 600; }
+#cc-num { flex: none; color: #6d7681; font-size: .75rem; letter-spacing: .03em; }
+
 /* modal: covers the slots only */
 .modal { position: absolute; inset: 0; background: #151515; display: flex;
          flex-direction: column; z-index: 5; }
