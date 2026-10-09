@@ -218,29 +218,32 @@ function openPresets() {
   const picker = document.getElementById('picker');
   document.getElementById('modal-title').textContent = 'presets';
   back(null);
+  picker.className = 'picker presets';
   picker.innerHTML = '';
 
   for (let n = 0; n < rig.size; n++) {
-    const saved = rig.presets.includes(n);
+    // Every slot holds a patch, written or not, so every one can be switched
+    // to. Saving and reverting are up in the header, on whatever is playing.
     const cell = document.createElement('div');
-    cell.className = 'pcell' + (saved ? ' saved' : '') + (n === rig.selected ? ' on' : '');
+    cell.className = 'pcell' + (rig.presets.includes(n) ? ' saved' : '') +
+                     (rig.dirty.includes(n) ? ' dirty' : '') +
+                     (n === rig.selected ? ' on' : '');
 
     const label = document.createElement('b');
     label.textContent = n;
 
-    const to = document.createElement('button');
-    to.textContent = '▶';                      // recall this preset
-    to.title = `switch to preset ${n}`;
-    to.disabled = !saved;
-    to.onclick = () => act(`/presets/${n}/load`);
+    const key = (glyph, title, path) => {
+      const b = document.createElement('button');
+      b.textContent = glyph;
+      b.title = title;
+      b.onclick = () => act(path);
+      return b;
+    };
 
-    const store = document.createElement('button');
-    store.textContent = '⬤';                   // write the live settings here
-    store.className = 'rec';
-    store.title = `store current settings to ${n}`;
-    store.onclick = () => act(`/presets/${n}/store`);
-
-    cell.append(label, to, store);
+    cell.append(label,
+                key('\u25b6', `switch to preset ${n}`, `/presets/${n}/load`),
+                key('\u29c9', `copy what is playing into preset ${n}`,
+                    `/presets/${n}/duplicate`));
     picker.append(cell);
   }
 }
@@ -266,6 +269,7 @@ function showFields() {
   const picker = document.getElementById('picker');
   document.getElementById('modal-title').textContent = 'which field?';
   back(null);
+  picker.className = 'picker';
   picker.innerHTML = '';
 
   for (const f of [...rig.fields].sort((x, y) => x.name.localeCompare(y.name))) {
@@ -320,10 +324,25 @@ async function drawStats() {
 function drawChip() {
   const chip = document.getElementById('preset-chip');
   const n = rig.selected;
+  const dirty = n !== null && rig.dirty.includes(n);
+
   chip.textContent = n === null ? 'preset —' : `preset ${n}`;
-  chip.className = n === null ? 'none' : '';
+  chip.className = (n === null ? 'none' : '') + (dirty ? ' dirty' : '');
+
+  // Saving and reverting act on whatever is playing, so they live up here
+  // rather than once per row.
+  for (const [id, verb] of [['save-chip', 'save'], ['revert-chip', 'revert']]) {
+    const b = document.getElementById(id);
+    b.disabled = !dirty;
+    b.title = dirty ? `${verb} preset ${n}` : `nothing to ${verb}`;
+  }
 }
 
+for (const [id, path] of [['save-chip', 'save'], ['revert-chip', 'revert']]) {
+  document.getElementById(id).onclick = () => {
+    if (rig.selected !== null) act(`/presets/${rig.selected}/${path}`);
+  };
+}
 document.getElementById('modal-close').onclick = closePicker;
 document.getElementById('preset-chip').onclick = () => {
   if (presetsUp) { closePicker(); return; }
@@ -334,8 +353,86 @@ document.getElementById('preset-chip').onclick = () => {
 load(); drawStats();
 setInterval(async () => {
   drawStats();
+
+  // The preset can change from the controller - a step button or a program
+  // change - so the chip follows it rather than showing what it was at load.
+  if (rig !== null) {
+    const fresh = await get('/rig');
+    const moved = fresh.selected !== rig.selected;
+    rig = fresh;
+    drawChip();
+    if (moved && presetsUp) openPresets();   // the marker moves with it
+  }
+
   if (open === null && picking === null && !presetsUp) {
     patch = await get('/current');
     drawSlots();
   }
 }, 1000);
+
+
+// --- the knob that moved last -------------------------------------------
+// Polled faster than the rest: it is only up for two seconds, so a one-second
+// poll would catch some of them late and miss others entirely.
+const CC_SHOWN = 2000;              // ms a move stays on screen
+const CC_POLL = 200;
+
+const ccbar = document.getElementById('ccbar');
+const ccNum = document.getElementById('cc-num');
+const ccVal = document.getElementById('cc-val');
+const ccComments = document.getElementById('cc-comments');
+const dialTrack = document.getElementById('dial-track');
+const dialValue = document.getElementById('dial-value');
+const dialPin = document.getElementById('dial-pin');
+
+// A rev counter: three quarters of a turn with the gap at the bottom.
+const DIAL_FROM = Math.PI * 0.75, DIAL_SWEEP = Math.PI * 1.5, DIAL_R = 15;
+const dialAt = (r, a) => [20 + r * Math.cos(a), 20 + r * Math.sin(a)];
+
+function arc(from, to) {
+  const [x0, y0] = dialAt(DIAL_R, from), [x1, y1] = dialAt(DIAL_R, to);
+  const big = to - from > Math.PI ? 1 : 0;
+  return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${DIAL_R} ${DIAL_R} 0 ${big} 1 ` +
+         `${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+
+dialTrack.setAttribute('d', arc(DIAL_FROM, DIAL_FROM + DIAL_SWEEP));
+
+let ccHide = null;
+
+function drawKnob(k) {
+  const frac = Math.max(0, Math.min(1, k.value / 127));
+  const a = DIAL_FROM + DIAL_SWEEP * frac;
+
+  // An arc of zero length still draws a cap, so leave it out entirely.
+  dialValue.setAttribute('d', frac > 0.002 ? arc(DIAL_FROM, a) : '');
+
+  const [x1, y1] = dialAt(5, a), [x2, y2] = dialAt(13, a);
+  dialPin.setAttribute('x1', x1.toFixed(2));
+  dialPin.setAttribute('y1', y1.toFixed(2));
+  dialPin.setAttribute('x2', x2.toFixed(2));
+  dialPin.setAttribute('y2', y2.toFixed(2));
+
+  ccNum.textContent = `cc ${k.cc}`;
+  ccVal.textContent = k.value;
+  ccComments.textContent = k.comments.length ? k.comments.join(' · ') : 'not named';
+  ccComments.className = k.comments.length ? '' : 'none';
+  ccbar.hidden = false;
+}
+
+async function pollKnob() {
+  let k;
+  try { k = await get('/knobinfo'); } catch (e) { return; }
+
+  if (!k) return;                           // nothing has ever moved
+
+  const left = CC_SHOWN - k.age_ms;
+  if (left <= 0) return;                    // that was a while ago
+
+  drawKnob(k);
+  clearTimeout(ccHide);
+  ccHide = setTimeout(() => { ccbar.hidden = true; }, left);
+}
+
+setInterval(pollKnob, CC_POLL);
+pollKnob();

@@ -1,0 +1,107 @@
+{
+  "ccs": {
+    "10": 48,
+    "74": 115,
+    "71": 75,
+    "76": 60,
+    "114": 20,
+    "18": 127,
+    "75": 24,
+    "19": 127,
+    "16": 127,
+    "17": 62,
+    "91": 127,
+    "79": 0,
+    "72": 3,
+    "77": 3,
+    "93": 0,
+    "73": 0,
+    "54": 0,
+    "123": 0,
+    "51": 0,
+    "21": 0,
+    "20": 0,
+    "22": 0,
+    "23": 0,
+    "24": 0,
+    "25": 0,
+    "26": 0,
+    "27": 0,
+    "28": 0,
+    "29": 0,
+    "55": 0,
+    "30": 0,
+    "31": 0,
+    "32": 0,
+    "33": 0,
+    "34": 0,
+    "35": 0,
+    "52": 0,
+    "53": 0,
+    "50": 0
+  },
+  "slots": {
+    "bg_waves.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": {
+          "op": "add",
+          "a": "random",
+          "b": 0.35
+        },
+        "b": 0.42
+      },
+      "b": {
+        "op": "mul",
+        "a": "scope",
+        "b": 0.0
+      }
+    },
+    "bg_waves.value": 0.41,
+    "bg_waves.flow": "ripple",
+    "pluck.a_amp": "wipe2",
+    "pluck.b_amp": "wipe1",
+    "pluck.c_amp": "wipe1",
+    "pluck.period": "param_b",
+    "pluck.value": 0.0,
+    "net.amp": "wipe1",
+    "net.hue": 0.4,
+    "net.value": {
+      "op": "mul",
+      "a": "ripple",
+      "b": 0.0
+    },
+    "sunrise.value": "param_a",
+    "bisexual.value": 0.0,
+    "bisexual.speed": {
+      "op": "sub",
+      "a": 0.3,
+      "b": "ripple"
+    },
+    "prob_zaps.prob": {
+      "op": "mul",
+      "a": 0.18,
+      "b": "ripple"
+    },
+    "map_fiber.value": {
+      "op": "sub",
+      "a": "scope",
+      "b": 1.0
+    },
+    "map_fiber.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "rotary",
+        "b": 0.1
+      },
+      "b": 0.4
+    },
+    "map_fiber.saturation": {
+      "op": "sub",
+      "a": 1.0,
+      "b": "wipe1"
+    }
+  }
+}

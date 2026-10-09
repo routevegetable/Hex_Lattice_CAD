@@ -27,12 +27,13 @@ from pylattice.fields.scalar import (
     ScopeFieldBetter,
 )
 from pylattice.instrument.maps import ColorMap
-from pylattice.examples.midi import MIDI
 from pylattice.examples.tempo import Event, EventLatch, sweep
 from pylattice.graph import EdgeClass, EndRef, Graph
 from pylattice.lattice_writer import LatticeWriter
 from pathlib import Path
 from pylattice.instrument.api import serve
+from pylattice.instrument.fields import FIELDS
+from pylattice.instrument.hardware import STEPS, graph, lattice, midi
 from pylattice.instrument.console import Console
 from pylattice.instrument.patch import Patch, PresetBank, named
 from pylattice.instrument.types import Effect
@@ -228,6 +229,16 @@ BANK = PresetBank(Path("presets"))
 CONSOLE = Console(midi, FIELDS, EFFECTS, BANK)
 serve(CONSOLE)
 
+
+def load_preset(number: int):
+    """Switch the bank to a preset, saying so either way."""
+    try:
+        CONSOLE.load_current_from(number)
+        print(f"preset {number} loaded")
+    except (FileNotFoundError, ValueError) as e:
+        print(f"preset {number}: {e}")
+
+
 # Start from preset 0 - the knobs and wiring are only remembered by presets.
 try:
     CONSOLE.load_current_from(0)
@@ -239,6 +250,9 @@ except (FileNotFoundError, ValueError) as e:
 step_ccs = [midi.cc(cc) for cc in STEPS[: BANK.size]]
 step_seen = [0] * len(step_ccs)
 
+program = midi.program()
+program_seen = 0
+
 
 def check_steps():
     """Load a preset when its step button is newly pressed - a CC of 127."""
@@ -249,11 +263,25 @@ def check_steps():
             continue  # not new, or the button coming back up
 
         step_seen[number] = moved.when
-        try:
-            CONSOLE.load_current_from(number)
-            print(f"preset {number} loaded")
-        except (FileNotFoundError, ValueError) as e:
-            print(f"preset {number}: {e}")
+        load_preset(number)
+
+
+def check_program():
+    """Load a preset when a program change picks it."""
+    global program_seen
+
+    chosen = program()
+
+    if chosen.when == program_seen:
+        return  # nothing new - the seed included
+
+    program_seen = chosen.when
+
+    if chosen.data >= BANK.size:
+        print(f"program {chosen.data}: only {BANK.size} presets")
+        return
+
+    load_preset(chosen.data)
 
 
 # PyPy collects incrementally, so a bounded step per frame is what its GC
@@ -278,9 +306,13 @@ while True:
         now = Event.for_now()
         midi.tick()
         check_steps()
+        check_program()
 
         for effect in effects:
-            effect.render(now, lattice, graph)
+            try:
+                effect.render(now, lattice, graph)
+            except UnconnectedSlot:
+                pass  # nothing plugged into it - it just does not draw
         lattice.show()
 
     frames += 1
