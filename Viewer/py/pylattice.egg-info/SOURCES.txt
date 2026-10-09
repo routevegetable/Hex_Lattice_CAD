@@ -20,10 +20,8 @@ pylattice/examples/__init__.py
 pylattice/examples/artnet.py
 pylattice/examples/bisexual.py
 pylattice/examples/brightness_cycle_snake.py
-pylattice/examples/clk.py
 pylattice/examples/color_temp_lightning_edges.py
 pylattice/examples/colors.py
-pylattice/examples/effects.py
 pylattice/examples/example.py
 pylattice/examples/four_colors.py
 pylattice/examples/inferno.py
@@ -32,13 +30,16 @@ pylattice/examples/midi.py
 pylattice/examples/sunrise.py
 pylattice/examples/tempo.py
 pylattice/examples/tester.py
+pylattice/examples/tinkering.py
 pylattice/examples/trees.py
 pylattice/examples/vec.py
 pylattice/examples/watch.py
 pylattice/examples/wave.py
 pylattice/examples/waves.py
+pylattice/fields/artnet.py
 pylattice/fields/scalar.py
 pylattice/fields/types.py
+pylattice/instrument/__main__.py
 pylattice/instrument/api.py
 pylattice/instrument/console.py
 pylattice/instrument/maps.py
@@ -46,4 +47,7 @@ pylattice/instrument/patch.py
 pylattice/instrument/types.py
 pylattice/instrument/static/app.js
 pylattice/instrument/static/index.html
+pylattice/instrument/static/mobile.css
+pylattice/instrument/static/mobile.html
+pylattice/instrument/static/mobile.js
 pylattice/instrument/static/style.css
