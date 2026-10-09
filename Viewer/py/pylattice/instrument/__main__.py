@@ -16,16 +16,13 @@ from pylattice.effects.hex_bloom_stateless import HexBloom
 from pylattice.examples.colors import hsv, vary
 from pylattice.fields.types import ConstantField, ScalarField, Slot
 from pylattice.fields.artnet import artnet_universes
-from pylattice.fields.scalar import (
-    CCField,
-    NoteRandomField,
-    NoteRippleField,
-    NoteWipeField,
-    PolyTouchField,
-    RandomTraceField,
-    RotaryField,
-    ScopeFieldBetter,
-)
+from pylattice.fields.controls import CCField, PolyTouchField
+from pylattice.fields.random import NoteRandomField
+from pylattice.fields.ripple import NoteRippleField
+from pylattice.fields.rotary import RotaryField
+from pylattice.fields.scope import ScopeFieldBetter
+from pylattice.fields.trace import RandomTraceField
+from pylattice.fields.wipe import NoteWipeField
 from pylattice.instrument.maps import ColorMap
 from pylattice.examples.tempo import Event, EventLatch, sweep
 from pylattice.graph import EdgeClass, EndRef, Graph
@@ -37,15 +34,6 @@ from pylattice.instrument.hardware import STEPS, graph, lattice, midi
 from pylattice.instrument.console import Console
 from pylattice.instrument.patch import Patch, PresetBank, named
 from pylattice.instrument.types import Effect
-
-COLS = 6
-ROWS = 2
-
-graph = Graph(COLS, ROWS)
-
-lattice = LatticeWriter(COLS / 2, ROWS)
-# midi = MIDI('Arturia BeatStep Pro Arturia BeatStepPro')
-midi = MIDI()
 
 # BSP control mode. Knobs KA1-KB8 are CCs, pads PA1-PB8 are notes; row A is
 # the top/upper one.
