@@ -14,7 +14,7 @@ from pylattice.effects.boom_zaps import (
 from pylattice.effects.waves import BgWaves, bg_waves
 from pylattice.effects.hex_bloom_stateless import HexBloom
 from pylattice.examples.colors import hsv, vary
-from pylattice.fields.types import ConstantField, ScalarField, Slot
+from pylattice.fields.types import ConstantField, ScalarField, Slot, UnconnectedSlot
 from pylattice.fields.artnet import artnet_universes
 from pylattice.fields.controls import CCField, PolyTouchField
 from pylattice.fields.random import NoteRandomField
