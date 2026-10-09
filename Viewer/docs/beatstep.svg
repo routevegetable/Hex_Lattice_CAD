@@ -176,6 +176,7 @@
 <text x="1415" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">16</text>
 <text x="1415" y="585" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 35</text>
 <text x="855" y="606" font-size="11" fill="#7e93b8" font-weight="normal" text-anchor="middle">a press arrives as 127 and loads the preset of the same number — presets/00.json … 15.json</text>
+<text x="855" y="624" font-size="11" fill="#7e93b8" font-weight="normal" text-anchor="middle">a program change of 0–15 on any channel does the same, and nothing moves if that preset has not been saved</text>
 <text x="258" y="646" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="start">PADS — ROW A</text>
 <rect x="289" y="670" width="88" height="72" fill="#272d36" stroke="#e0d04a" stroke-width="2"/>
 <rect x="297" y="678" width="72" height="56" fill="none" stroke="#e0d04a" stroke-opacity="0.35"/>

@@ -5,6 +5,7 @@ preset can name - docs/beatstep.svg has the same thing as a control layout.
 """
 from pylattice.fields.artnet import artnet_universes
 from pylattice.fields.controls import CCField, StrobeField
+from pylattice.fields.fire import FireField
 from pylattice.fields.mask import EdgeMaskField
 from pylattice.fields.random import NoteRandomField
 from pylattice.fields.ripple import NoteRippleField
@@ -14,7 +15,7 @@ from pylattice.fields.trace import RandomTraceField
 from pylattice.fields.wipe import NoteWipeField
 from pylattice.graph import EdgeClass
 from pylattice.instrument.hardware import (
-    KA1, KA2, KA3, KA4, KA5, KA6, KA7, KA8, KB1, KB2, KB3, KB4, KB5, KB6, KB7, KB8, PA1, PA2, PA3, PB1, PB2, PB3, PB4, PB5, PB6, graph, midi,
+    KA1, KA2, KA3, KA4, KA5, KA6, KA7, KA8, KB1, KB2, KB3, KB4, KB5, KB6, KB7, KB8, PA1, PA2, PA3, PB1, PB2, PB3, PB4, PB5, PB6, PB7, graph, midi,
 )
 
 
@@ -86,9 +87,43 @@ class FIELDS:
         speed=KB7,
         pattern=KB8
     )
+
+    # Rotated versions of scope
+    scope180 = ScopeFieldBetter(
+        graph, midi.for_("scope"),
+        speed=KB7,
+        pattern=KB8,
+        phase_offset=0.5
+    )
+    scope120 = ScopeFieldBetter(
+        graph, midi.for_("scope"),
+        speed=KB7,
+        pattern=KB8,
+        phase_offset=0.3
+    )
+    scope240 = ScopeFieldBetter(
+        graph, midi.for_("scope"),
+        speed=KB7,
+        pattern=KB8,
+        phase_offset=0.6
+    )
+    
+    # Fire climbing from the bottom, as hard as PB7 is leaned on
+    fire = FireField(
+        graph, midi.for_("fire"),
+        note=PB7
+    )
     
     # Rotary
     rotary = RotaryField(
+        graph, midi.for_("rotary"),
+        period=KA5,
+        parts=KA6,
+        shape=KA7
+    )
+
+    # Rotated version of rotary
+    rotary180 = RotaryField(
         graph, midi.for_("rotary"),
         period=KA5,
         parts=KA6,

@@ -167,6 +167,10 @@ class Slot(ScalarField):
         self._field = resolved
         return resolved
 
+    def clear(self):
+        """Unplug whatever is in here, back to how it started."""
+        self._field = None
+
     @property
     def field(self) -> ScalarField | None:
         """What is plugged in, if anything."""

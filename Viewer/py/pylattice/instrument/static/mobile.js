@@ -218,29 +218,32 @@ function openPresets() {
   const picker = document.getElementById('picker');
   document.getElementById('modal-title').textContent = 'presets';
   back(null);
+  picker.className = 'picker presets';
   picker.innerHTML = '';
 
   for (let n = 0; n < rig.size; n++) {
-    const saved = rig.presets.includes(n);
+    // Every slot holds a patch, written or not, so every one can be switched
+    // to. Saving and reverting are up in the header, on whatever is playing.
     const cell = document.createElement('div');
-    cell.className = 'pcell' + (saved ? ' saved' : '') + (n === rig.selected ? ' on' : '');
+    cell.className = 'pcell' + (rig.presets.includes(n) ? ' saved' : '') +
+                     (rig.dirty.includes(n) ? ' dirty' : '') +
+                     (n === rig.selected ? ' on' : '');
 
     const label = document.createElement('b');
     label.textContent = n;
 
-    const to = document.createElement('button');
-    to.textContent = '▶';                      // recall this preset
-    to.title = `switch to preset ${n}`;
-    to.disabled = !saved;
-    to.onclick = () => act(`/presets/${n}/load`);
+    const key = (glyph, title, path) => {
+      const b = document.createElement('button');
+      b.textContent = glyph;
+      b.title = title;
+      b.onclick = () => act(path);
+      return b;
+    };
 
-    const store = document.createElement('button');
-    store.textContent = '⬤';                   // write the live settings here
-    store.className = 'rec';
-    store.title = `store current settings to ${n}`;
-    store.onclick = () => act(`/presets/${n}/store`);
-
-    cell.append(label, to, store);
+    cell.append(label,
+                key('\u25b6', `switch to preset ${n}`, `/presets/${n}/load`),
+                key('\u29c9', `copy what is playing into preset ${n}`,
+                    `/presets/${n}/duplicate`));
     picker.append(cell);
   }
 }
@@ -266,6 +269,7 @@ function showFields() {
   const picker = document.getElementById('picker');
   document.getElementById('modal-title').textContent = 'which field?';
   back(null);
+  picker.className = 'picker';
   picker.innerHTML = '';
 
   for (const f of [...rig.fields].sort((x, y) => x.name.localeCompare(y.name))) {
@@ -320,10 +324,25 @@ async function drawStats() {
 function drawChip() {
   const chip = document.getElementById('preset-chip');
   const n = rig.selected;
+  const dirty = n !== null && rig.dirty.includes(n);
+
   chip.textContent = n === null ? 'preset —' : `preset ${n}`;
-  chip.className = n === null ? 'none' : '';
+  chip.className = (n === null ? 'none' : '') + (dirty ? ' dirty' : '');
+
+  // Saving and reverting act on whatever is playing, so they live up here
+  // rather than once per row.
+  for (const [id, verb] of [['save-chip', 'save'], ['revert-chip', 'revert']]) {
+    const b = document.getElementById(id);
+    b.disabled = !dirty;
+    b.title = dirty ? `${verb} preset ${n}` : `nothing to ${verb}`;
+  }
 }
 
+for (const [id, path] of [['save-chip', 'save'], ['revert-chip', 'revert']]) {
+  document.getElementById(id).onclick = () => {
+    if (rig.selected !== null) act(`/presets/${rig.selected}/${path}`);
+  };
+}
 document.getElementById('modal-close').onclick = closePicker;
 document.getElementById('preset-chip').onclick = () => {
   if (presetsUp) { closePicker(); return; }

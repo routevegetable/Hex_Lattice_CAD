@@ -16,12 +16,32 @@ header { flex: none; display: flex; align-items: stretch; justify-content: space
          background: #000; color: #8c8; font-variant-numeric: tabular-nums;
          font-size: .85rem; white-space: nowrap; overflow: hidden;
          border-bottom: 1px solid #333; }
-header #fps { display: flex; align-items: center; padding: 0 .7rem; }
+header #fps { flex: 1; display: flex; align-items: center; padding: 0 .7rem; }
 
 #preset-chip { min-height: 32px; padding: 0 .9rem; border: 0; border-left: 1px solid #333;
                background: #1c1c1c; color: #ddd; font: inherit;
                font-variant-numeric: tabular-nums; }
 #preset-chip.none { color: #a87; }
+/* the preset showing has edits that are not on disk - same amber the preset
+   list marks a dirty row with */
+#preset-chip.dirty { color: #e0b070; }
+#preset-chip.dirty::after { content: '\25cf'; margin-left: .4rem;
+                            font-size: .6em; vertical-align: middle; }
+
+/* save what is playing, in the corner. Lit only when there is something to
+   write - which makes it the second half of the dirty indicator. */
+#save-chip { min-height: 32px; min-width: 46px; padding: 0 .6rem;
+             border: 0; border-left: 1px solid #333;
+             background: #1c1c1c; color: #e0b070; font: inherit; font-size: 1rem;
+             line-height: 1; }
+/* the glyph is a colour emoji, so `color` does nothing to it - dim the lot */
+#save-chip:disabled { opacity: .25; }
+
+#revert-chip { min-height: 32px; min-width: 42px; padding: 0 .6rem;
+               border: 0; border-left: 1px solid #333;
+               background: #1c1c1c; color: #c99; font: inherit; font-size: 1rem;
+               line-height: 1; }
+#revert-chip:disabled { color: #3c434d; }
 
 /* effects: one segment each, divided by lines, scrolls sideways */
 .effects { flex: none; display: flex; overflow-x: auto; background: #1a1a1a;
@@ -133,15 +153,18 @@ input[type=range] { flex: 1; min-width: 5rem; max-width: 12rem; height: 24px;
 .picker input { min-height: 34px; font: inherit; width: 100%; padding: .15rem .4rem;
                 border: 0; background: #111; color: #eee; }
 
-/* preset list: number, recall, store - all touching */
+/* preset list: a number, switch to it, or copy what is playing into it.
+   Saving and reverting are in the header, on whatever is playing. */
+.picker.presets { grid-template-columns: repeat(auto-fill, minmax(5.6rem, 1fr)); }
 .pcell { display: flex; align-items: stretch; background: #1a1f26; }
-.pcell.saved { background: #1b2a38; }
-.pcell.on { box-shadow: inset 2px 0 0 #6a8fd0; }
 .pcell b { flex: none; display: flex; align-items: center; justify-content: flex-end;
-           min-width: 1.8rem; padding-right: .3rem; color: #dee; font-size: .8rem;
+           min-width: 1.9rem; padding-right: .35rem; color: #dee; font-size: .85rem;
            font-variant-numeric: tabular-nums; }
-.pcell button { flex: 1; min-height: 26px; border: 0; border-left: 1px solid #2d3238;
+.pcell button { flex: 1; min-height: 38px; border: 0; border-left: 1px solid #2d3238;
                 background: #20262e; color: #cde; font: inherit; font-size: .8rem;
                 line-height: 1; padding: 0; }
-.pcell button.rec { color: #d88; }
-.pcell button:disabled { opacity: .3; }
+.pcell.saved { background: #1b2a38; }
+.pcell.on { box-shadow: inset 2px 0 0 #6a8fd0; color: #fff; }
+/* edited since it was last written - on the number, not the whole cell */
+.pcell.dirty b { color: #e0b070; }
+.pcell.dirty b::after { content: '\00b7'; margin-left: .15rem; }

@@ -17,13 +17,14 @@ class ScopeFieldBetter(ScalarField):
         (0, EdgeClass.A, "LRLRRLRRLRLRLLLR"),
         (0, EdgeClass.E, "LRRLRLRLRLRL"),
     ]
-    def __init__(self, graph: Graph, midi: MIDIFor, *, speed: int, pattern: int):
+    def __init__(self, graph: Graph, midi: MIDIFor, *, speed: int, pattern: int, phase_offset: float = 0):
         self._width = graph.width * TileRef.WIDTH
         self._height = graph.height * TileRef.HEIGHT
         self._graph = graph
 
         self._speed_cc = midi.cc(speed, "speed")
         self._pattern_cc = midi.cc(pattern, "pattern")
+        self._phase_offset = phase_offset
 
         self._phases: dict[EndRef, list[float]] = {} # 0 to 1
         self._built_time = ZERO
@@ -65,11 +66,6 @@ class ScopeFieldBetter(ScalarField):
             if v not in self._phases:
                 self._phases[v] = []
             self._phases[v].append(phase)
-            #if v not in self._phases or self._phases[v] < phase:
-            #    self._phases[v] = phase 
-
-            #print(f"phases{v} = {phase}")
-        #print(self._phases)
 
         self._built_time = now
 
@@ -81,12 +77,11 @@ class ScopeFieldBetter(ScalarField):
         self._rebuild_phases(now)
 
         if end in self._phases:
-            #return 1 # TODO Thing
-
             phases = self._phases[end]
             result = 0
             for phase in phases:
-                result = max(result,psweep(now.delay(period * -phase), period, 1, 0))
+                phase += self._phase_offset
+                result = max(result, psweep(now.delay(period * -phase), period, 1, 0))
             return result
             
         else:

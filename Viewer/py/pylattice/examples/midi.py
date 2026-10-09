@@ -22,6 +22,10 @@ class CCState:
     # still latched, just not something to put in front of anyone. Once a
     # watcher calls it plumbing it stays that way; nothing unsets it.
     hidden: bool = False
+    # Whether anything asked for this control, as opposed to it merely turning
+    # up. A stray CC still gets a state - so it can be seen arriving - but it
+    # is not part of the instrument and does not belong in a preset.
+    watched: bool = False
 
     def __post_init__(self):
         # Seeded, so a control nobody has touched reads 0 rather than None.
@@ -45,6 +49,8 @@ class NoteState:
 
     on: EventLatch[int] = field(default_factory=EventLatch)
     off: EventLatch[int] = field(default_factory=EventLatch)
+    # Set to the velocity when the key goes down, then moved by aftertouch.
+    # It is not cleared on release - the last press stands as a level.
     pressure: int = 0
     comments: list[str] = field(default_factory=list)
 
@@ -83,6 +89,9 @@ class MIDI:
                         else:
                             note.off.clear()            # this press is not over
                             note.on.put(msg.velocity)
+                            # How hard it was hit is where the pressure
+                            # starts; polytouch takes it from there.
+                            note.pressure = msg.velocity
                 case "note_off":
                     note = self._notes.get(msg.note)
                     if note is not None:
@@ -122,8 +131,11 @@ class MIDI:
         Seeded at zero, so it is never None. A comment says what is watching
         it, and is kept on the control's state. `hidden` marks the control as
         plumbing, which keeps it out of anything showing what just moved.
+
+        Asking here is also what makes a control part of the instrument, and
+        so part of a preset.
         """
-        return self._cc_state(id, comment, hidden).event.read
+        return self._cc_state(id, comment, hidden, watched=True).event.read
 
     def program(self, comment: str | None = None) -> Callable[[], Event[int]]:
         """
@@ -149,7 +161,7 @@ class MIDI:
         self._cc_state(id).event.put(value)
 
     def _cc_state(self, id: int, comment: str | None = None,
-                  hidden: bool = False) -> CCState:
+                  hidden: bool = False, watched: bool = False) -> CCState:
         """The state of a control, made on demand - by watching it or by it
         moving. Either way there is one store, so a control that moved before
         anyone watched it keeps its value. Knob positions across runs are a
@@ -165,6 +177,9 @@ class MIDI:
 
         if hidden:
             state.hidden = True
+
+        if watched:
+            state.watched = True
 
         return state
 
@@ -205,8 +220,6 @@ class MIDI:
 
         def get() -> tuple[Event[int], Event[int] | None] | None:
             pressed = state.on.read()
-            if pressed:
-                state.pressure = 127
             return None if pressed is None else (pressed, state.off.read())
 
         return get

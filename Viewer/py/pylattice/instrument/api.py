@@ -53,8 +53,10 @@ def make_app(console: Console) -> FastAPI:
 
     @app.post("/current")
     def write_current(patch: Patch) -> Patch:
+        """Change what the patch mentions. Slots it leaves out are left alone -
+        the UI posts one slot at a time."""
         try:
-            console.write_settings(patch)
+            console.write_settings(patch, whole=False)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from None
         return console.read_settings()
@@ -63,6 +65,41 @@ def make_app(console: Console) -> FastAPI:
     def read_preset(number: int) -> Patch:
         try:
             return console.read_preset(number)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from None
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from None
+
+    @app.get("/presets")
+    def all_presets() -> dict[int, Patch]:
+        """Every preset the bank holds, each flagged dirty or not."""
+        return console.all_presets()
+
+    @app.post("/presets/{number}/duplicate")
+    def duplicate_preset(number: int) -> Patch:
+        """Copy what is playing into a preset and move there, unsaved."""
+        try:
+            console.duplicate_current_to(number)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from None
+        return console.read_preset(number)
+
+    @app.post("/presets/{number}/save")
+    def save_preset(number: int) -> Patch:
+        """Write a preset's edits out."""
+        try:
+            console.save_preset(number)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from None
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from None
+        return console.read_preset(number)
+
+    @app.post("/presets/{number}/revert")
+    def revert_preset(number: int) -> Patch:
+        """Throw a preset's edits away and read its file back."""
+        try:
+            return console.revert_preset(number)
         except FileNotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e)) from None
         except ValueError as e:

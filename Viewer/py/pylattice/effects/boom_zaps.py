@@ -32,7 +32,7 @@ def make_zap_edge(end: EndRef, lattice: LatticeWriter):
     for _ in range(4):
         latches.append(EventLatch())
 
-    def zap_fn(now: Event, level: float, hues: tuple[float, float]):
+    def zap_fn(now: Event, level: float, hues: tuple[float, float], value: float=1):
 
         for idx in range(4):
 
@@ -44,12 +44,10 @@ def make_zap_edge(end: EndRef, lattice: LatticeWriter):
             #s = sweep(now, trg, 30, 0.4, 1, 0.4)
 
             # Value envelope
-            v = sweep(now, trg, 60, 1, 0, 0)
+            v = sweep(now, trg, 60, value, 0, 0)
             if trg:
                 hue = trg.rand(idx + end.__hash__()) % 4 / 4
                 hue = 0.8
-                
-            
 
             if v > 0.01:
                 # This end
@@ -80,7 +78,7 @@ def init_boom_zaps(graph_: Graph, lattice_: LatticeWriter):
 booms = History(30)
 new_boom = EventLatch()
 
-def prob_zaps(now: Event, lattice: LatticeWriter, graph: Graph, prob_field: ScalarField):
+def prob_zaps(now: Event, lattice: LatticeWriter, graph: Graph, prob_field: ScalarField, hue_field: ScalarField, value_field: ScalarField):
     
     for end in graph.ends():
         if end.top:
@@ -88,10 +86,13 @@ def prob_zaps(now: Event, lattice: LatticeWriter, graph: Graph, prob_field: Scal
             #if prob < 0.2:
             #    prob = 0
                 
+
+            hue = hue_field.get(now, end)
+            value = value_field.get(now, end)
             prob = min(prob, 1)
             prob = prob/4
             #prob = math.pow(prob, 20)
-            zaps[end](now, prob, (0.8, 0.6))
+            zaps[end](now, prob, (hue, hue), value)
 
 
 
@@ -99,11 +100,13 @@ class ProbZaps(Effect):
     """Random zaps along every edge, at a field-driven likelihood."""
 
     prob: Slot
+    hue: Slot
+    value: Slot
 
     def render(self, now: Event, lattice_: LatticeWriter, graph_: Graph):
         if not graph:
             init_boom_zaps(graph_, lattice_)
-        prob_zaps(now, lattice, graph, self.prob)
+        prob_zaps(now, lattice, graph, self.prob, self.hue, self.value)
 
 def run_boom_zaps(now: Event):
 

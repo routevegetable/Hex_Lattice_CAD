@@ -8,7 +8,7 @@ from pylattice.effects.pluck import Pluck, WobbleNet
 from pylattice.effects.boom_zaps import ProbZaps, init_boom_zaps, prob_zaps, run_boom_zaps
 from pylattice.effects.waves import BgWaves, bg_waves
 from pylattice.examples.colors import hsv, vary
-from pylattice.fields.types import ConstantField, ScalarField, Slot
+from pylattice.fields.types import ConstantField, ScalarField, Slot, UnconnectedSlot
 from pylattice.instrument.maps import ColorMap
 from pylattice.examples.tempo import Event, EventLatch, sweep
 from pylattice.graph import EdgeClass, EndRef, Graph
@@ -134,21 +134,16 @@ class EFFECTS:
         value=FIELDS.fader_a,
         flow=0
     )
-    pluck = Pluck(
-        a_amp=FIELDS.wipe2,
-        b_amp=FIELDS.wipe1,
-        c_amp=FIELDS.wipe1,
-        period=FIELDS.param_b,
-        value=FIELDS.fader_b
+    bg_waves2 = BgWaves(
+        hue=FIELDS.param_a,
+        value=FIELDS.fader_a,
+        flow=0
     )
     net = WobbleNet(
         amp=FIELDS.ripple2,
         hue=FIELDS.param_b,
         value=FIELDS.fader_b
     )
-    #dumb = DumbEffect(
-    #    value = FIELDS.param_a
-    #)
     sunrise = Sunrise( 
         value=FIELDS.param_a,
     )
@@ -156,10 +151,20 @@ class EFFECTS:
         value = FIELDS.param_a,
         speed = FIELDS.param_b
     )
-    prob_zaps = ProbZaps( # We're always zappin
+    prob_zaps = ProbZaps(
         prob=FIELDS.ripple2
     )
-    map_fiber = MapFiber( # We're always zappin
+    map_fiber = MapFiber(
+        value=0,
+        hue=0,
+        saturation=0
+    )
+    map_fiber2 = MapFiber(
+        value=0,
+        hue=0,
+        saturation=0
+    )
+    map_fiber3 = MapFiber(
         value=0,
         hue=0,
         saturation=0
@@ -259,7 +264,10 @@ while True:
         check_program()
 
         for effect in effects:
-            effect.render(now, lattice, graph)
+            try:
+                effect.render(now, lattice, graph)
+            except UnconnectedSlot:
+                pass        # nothing plugged into it - it just does not draw
         lattice.show()
 
     frames += 1
