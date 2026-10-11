@@ -3,12 +3,14 @@ from collections.abc import Iterable
 import gc
 import math
 import time
+import traceback
 from typing import Callable
+from pylattice.effects.map_tiles import MapTiles
 from pylattice.effects.pluck import Pluck, WobbleNet
 from pylattice.effects.boom_zaps import ProbZaps, init_boom_zaps, prob_zaps, run_boom_zaps
 from pylattice.effects.waves import BgWaves, bg_waves
 from pylattice.examples.colors import hsv, vary
-from pylattice.fields.types import ConstantField, ScalarField, Slot, UnconnectedSlot
+from pylattice.fields.types import Slot
 from pylattice.instrument.maps import ColorMap
 from pylattice.examples.tempo import Event, EventLatch, sweep
 from pylattice.graph import EdgeClass, EndRef, Graph
@@ -264,10 +266,7 @@ while True:
         check_program()
 
         for effect in effects:
-            try:
-                effect.render(now, lattice, graph)
-            except UnconnectedSlot:
-                pass        # nothing plugged into it - it just does not draw
+            effect.render(now, lattice, graph)
         lattice.show()
 
     frames += 1

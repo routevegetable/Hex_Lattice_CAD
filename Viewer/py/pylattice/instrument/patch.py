@@ -4,6 +4,7 @@ import json
 import operator
 from dataclasses import dataclass, field
 from pathlib import Path
+import traceback
 
 from pylattice.examples.midi import MIDI
 from pylattice.fields.types import CombinedField, ConstantField, ScalarField, average, divide
@@ -102,6 +103,8 @@ class Patch:
                 try:
                     slots[f"{effect_name}.{slot_name}"] = encode_field(slot.field, field_names)
                 except ValueError:
+                    traceback.print_exc()
+                    #print(f"Error: ")
                     pass
 
         # get_ccs hands back the controls themselves; a preset only wants

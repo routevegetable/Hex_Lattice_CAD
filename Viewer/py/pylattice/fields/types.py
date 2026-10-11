@@ -113,13 +113,13 @@ def average(a: float, b: float) -> float:
     return (a + b) / 2
 
 
-def as_field(x: "ScalarField | float") -> ScalarField | None:
+def as_field(x: "ScalarField | float") -> ScalarField:
     """A field as itself, a number as a ConstantField, anything else as None."""
     if hasattr(x, "get"):
         return x
     if isinstance(x, (int, float)) and not isinstance(x, bool):
         return ConstantField(x)
-    return None
+    return ConstantField(0)
 
 
 def _combine(op, a: "ScalarField | float", b: "ScalarField | float") -> ScalarField:
@@ -129,11 +129,6 @@ def _combine(op, a: "ScalarField | float", b: "ScalarField | float") -> ScalarFi
     if a is None or b is None:
         return NotImplemented
     return CombinedField(op, a, b)
-
-
-class UnconnectedSlot(RuntimeError):
-    """An effect read a slot that nothing has been plugged into."""
-
 
 class Slot(ScalarField):
     """A mutable cell an effect owns, holding whatever field drives it.
@@ -151,11 +146,9 @@ class Slot(ScalarField):
     like one. Being mutable, what drives a slot can be changed while running.
     """
 
-    def __init__(self, name: str = "", field: "ScalarField | float | None" = None):
+    def __init__(self, name: str = ""):
         self.name = name
-        self._field: ScalarField | None = None
-        if field is not None:
-            self.set(field)
+        self._field: ScalarField = ConstantField(0)
 
     def set(self, field: "ScalarField | float") -> ScalarField:
         """Plug a field (or a constant) in, replacing whatever was there."""
@@ -169,20 +162,18 @@ class Slot(ScalarField):
 
     def clear(self):
         """Unplug whatever is in here, back to how it started."""
-        self._field = None
+        self._field = ConstantField(0)
 
     @property
-    def field(self) -> ScalarField | None:
-        """What is plugged in, if anything."""
+    def field(self) -> ScalarField:
+        """What is plugged in"""
         return self._field
 
     @property
     def connected(self) -> bool:
-        return self._field is not None
+        return True
 
     def get(self, now: Event, end: EndRef) -> float:
-        if self._field is None:
-            raise UnconnectedSlot(f"slot {self.name!r} has nothing plugged into it")
         return self._field.get(now, end)
 
     def __repr__(self) -> str:

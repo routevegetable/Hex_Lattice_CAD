@@ -154,8 +154,8 @@ class LFO:
 
 
 class EventLatch(Generic[TData]):
-    def __init__(self):
-        self.ev: Event[TData] | None = None
+    def __init__(self, data=None):
+        self.ev: Event[TData] | None = ZERO.with_data(data) if data else None
 
     def periodic(self, now: Event, period: int) -> Event:
         if now.after(self.ev.delay(period)):

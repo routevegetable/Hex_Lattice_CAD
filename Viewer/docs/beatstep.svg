@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1200" viewBox="0 0 1500 1200" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1220" viewBox="0 0 1500 1220" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
 <rect width="1500" height="1200" fill="#101317"/>
 <text x="40" y="44" font-size="22" fill="#e8ecf1" font-weight="bold" text-anchor="start">Arturia BeatStep Pro — controller mode</text>
 <text x="40" y="68" font-size="12.5" fill="#8d96a3" font-weight="normal" text-anchor="start">what every control does, and to which field in FIELDS · pylattice/instrument/__main__.py</text>
@@ -45,21 +45,21 @@
 <circle cx="930" cy="186" r="24" fill="none" stroke="#d9a84a" stroke-width="2" stroke-opacity="0.85"/>
 <line x1="930" y1="186" x2="917" y2="168" stroke="#d9a84a" stroke-width="3"/>
 <text x="930" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KA5  ·  CC 77</text>
-<text x="930" y="256" font-size="12.5" fill="#d9a84a" font-weight="bold" text-anchor="middle">rotary</text>
+<text x="930" y="256" font-size="12.5" fill="#d9a84a" font-weight="bold" text-anchor="middle">rotary ×2</text>
 <text x="930" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">rotation period</text>
 <text x="930" y="286" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">0.5s → 16s</text>
 <circle cx="1079" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
 <circle cx="1079" cy="186" r="24" fill="none" stroke="#d9a84a" stroke-width="2" stroke-opacity="0.85"/>
 <line x1="1079" y1="186" x2="1066" y2="168" stroke="#d9a84a" stroke-width="3"/>
 <text x="1079" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KA6  ·  CC 93</text>
-<text x="1079" y="256" font-size="12.5" fill="#d9a84a" font-weight="bold" text-anchor="middle">rotary</text>
+<text x="1079" y="256" font-size="12.5" fill="#d9a84a" font-weight="bold" text-anchor="middle">rotary ×2</text>
 <text x="1079" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">parts — read, but</text>
 <text x="1079" y="286" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">unused in get()</text>
 <circle cx="1228" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
 <circle cx="1228" cy="186" r="24" fill="none" stroke="#d9a84a" stroke-width="2" stroke-opacity="0.85"/>
 <line x1="1228" y1="186" x2="1216" y2="168" stroke="#d9a84a" stroke-width="3"/>
 <text x="1228" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KA7  ·  CC 73</text>
-<text x="1228" y="256" font-size="12.5" fill="#d9a84a" font-weight="bold" text-anchor="middle">rotary</text>
+<text x="1228" y="256" font-size="12.5" fill="#d9a84a" font-weight="bold" text-anchor="middle">rotary ×2</text>
 <text x="1228" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">shape — read, but</text>
 <text x="1228" y="286" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">unused in get()</text>
 <circle cx="1377" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
@@ -116,14 +116,14 @@
 <circle cx="1228" cy="382" r="24" fill="none" stroke="#4ab8c4" stroke-width="2" stroke-opacity="0.85"/>
 <line x1="1228" y1="382" x2="1216" y2="364" stroke="#4ab8c4" stroke-width="3"/>
 <text x="1228" y="436" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KB7  ·  CC 79</text>
-<text x="1228" y="452" font-size="12.5" fill="#4ab8c4" font-weight="bold" text-anchor="middle">scope</text>
+<text x="1228" y="452" font-size="12.5" fill="#4ab8c4" font-weight="bold" text-anchor="middle">scope ×4</text>
 <text x="1228" y="469" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">lap time</text>
 <text x="1228" y="482" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">4s → 30ms</text>
 <circle cx="1377" cy="382" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
 <circle cx="1377" cy="382" r="24" fill="none" stroke="#4ab8c4" stroke-width="2" stroke-opacity="0.85"/>
 <line x1="1377" y1="382" x2="1365" y2="364" stroke="#4ab8c4" stroke-width="3"/>
 <text x="1377" y="436" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">KB8  ·  CC 72</text>
-<text x="1377" y="452" font-size="12.5" fill="#4ab8c4" font-weight="bold" text-anchor="middle">scope</text>
+<text x="1377" y="452" font-size="12.5" fill="#4ab8c4" font-weight="bold" text-anchor="middle">scope ×4</text>
 <text x="1377" y="469" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">pattern</text>
 <text x="1377" y="482" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 0 / 1 / 2 and up</text>
 <text x="258" y="522" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="start">STEP BUTTONS</text>
@@ -252,11 +252,12 @@
 <text x="1079" y="968" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PB6  ·  note 41</text>
 <text x="1079" y="984" font-size="12.5" fill="#d06aa8" font-weight="bold" text-anchor="middle">random</text>
 <text x="1079" y="1001" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">re-roll every edge</text>
-<rect x="1184" y="874" width="88" height="72" fill="#272d36" stroke="#474d56" stroke-width="2"/>
-<rect x="1192" y="882" width="72" height="56" fill="none" stroke="#474d56" stroke-opacity="0.35"/>
+<rect x="1184" y="874" width="88" height="72" fill="#272d36" stroke="#e2503c" stroke-width="2"/>
+<rect x="1192" y="882" width="72" height="56" fill="none" stroke="#e2503c" stroke-opacity="0.35"/>
 <text x="1228" y="968" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PB7  ·  note 42</text>
-<text x="1228" y="984" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">—</text>
-<text x="1228" y="1001" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">free</text>
+<text x="1228" y="984" font-size="12.5" fill="#e2503c" font-weight="bold" text-anchor="middle">fire</text>
+<text x="1228" y="1001" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">velocity sets the rate</text>
+<text x="1228" y="1014" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">aftertouch adjusts it</text>
 <rect x="1333" y="874" width="88" height="72" fill="#272d36" stroke="#474d56" stroke-width="2"/>
 <rect x="1341" y="882" width="72" height="56" fill="none" stroke="#474d56" stroke-opacity="0.35"/>
 <text x="1377" y="968" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">PB8  ·  note 43</text>
@@ -267,4 +268,6 @@
 <text x="330" y="1110" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="start">16 fields, Art-Net universes 0–3 on UDP 6454, one pixel per vertex</text>
 <text x="40" y="1132" font-size="12" fill="#6a8fd0" font-weight="bold" text-anchor="start">v_edges · h_edges · d1_edges · d2_edges</text>
 <text x="330" y="1132" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="start">static masks — 1 on the edge classes they name, 0 elsewhere</text>
+<text x="40" y="1154" font-size="12" fill="#d9a84a" font-weight="bold" text-anchor="start">rotary180 · scope120 · scope180 · scope240</text>
+<text x="330" y="1154" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="start">phase-shifted copies, sharing the knobs their ×N cells name</text>
 </svg>
