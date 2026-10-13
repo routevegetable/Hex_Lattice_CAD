@@ -136,16 +136,19 @@ class EFFECTS:
         value=FIELDS.fader_a,
         flow=0
     )
+    
     bg_waves2 = BgWaves(
         hue=FIELDS.param_a,
         value=FIELDS.fader_a,
         flow=0
     )
+    
     net = WobbleNet(
         amp=FIELDS.ripple2,
         hue=FIELDS.param_b,
         value=FIELDS.fader_b
     )
+    
     sunrise = Sunrise( 
         value=FIELDS.param_a,
     )
@@ -156,21 +159,35 @@ class EFFECTS:
     prob_zaps = ProbZaps(
         prob=FIELDS.ripple2
     )
+    
     map_fiber = MapFiber(
         value=0,
         hue=0,
         saturation=0
     )
+    
     map_fiber2 = MapFiber(
         value=0,
         hue=0,
         saturation=0
     )
+    
     map_fiber3 = MapFiber(
         value=0,
         hue=0,
         saturation=0
     )
+    #map_tiles = MapTiles(
+    #    a_hue=0,
+    #    a_sat=0,
+    #    a_value=0,
+    #    b_hue=0,
+    #    b_sat=0,
+    #    b_value=0,
+    #    c_hue=0,
+    #    c_sat=0,
+    #    c_value=0,
+    #)
 
 
 # Everything declared in EFFECTS, in the order written - so a preset patches
