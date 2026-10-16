@@ -108,6 +108,8 @@
       "op": "sub",
       "a": 1.0,
       "b": "scope"
-    }
+    },
+    "hex_bloom.value": "fader_b",
+    "hex_bloom.hue": "param_b"
   }
 }

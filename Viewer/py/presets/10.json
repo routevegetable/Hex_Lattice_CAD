@@ -110,6 +110,8 @@
       "op": "sub",
       "a": 1.0,
       "b": "wipe1"
-    }
+    },
+    "hex_bloom.value": "fader_b",
+    "hex_bloom.hue": "param_b"
   }
 }

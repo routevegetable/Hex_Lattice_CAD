@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lattice v3</title>
+<link rel="stylesheet" href="/static/v3.css">
+
+<header>
+  <span id="fps">…</span>
+  <div id="presets" class="presets"></div>
+  <button id="save" disabled title="write the playing preset to its file">save</button>
+  <button id="revert" disabled title="drop edits, read the file back">revert</button>
+</header>
+<p class="hint">click: switch to a preset &middot; shift-click: copy what is playing into it &middot; hover: what it holds</p>
+
+<div class="cols">
+  <main id="effects"></main>
+  <aside id="map"></aside>
+</div>
+
+<div id="peek" class="peek" hidden></div>
+
+<script src="/static/akai.js"></script>
+<script src="/static/v3.js"></script>

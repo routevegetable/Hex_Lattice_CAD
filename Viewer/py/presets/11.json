@@ -39,6 +39,8 @@
     "net.amp": "ripple2",
     "net.hue": "param_b",
     "net.value": "fader_b",
-    "prob_zaps.prob": "ripple2"
+    "prob_zaps.prob": "ripple2",
+    "hex_bloom.value": "fader_b",
+    "hex_bloom.hue": "param_b"
   }
 }

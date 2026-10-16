@@ -1,4 +1,5 @@
 """What an effect is: something with slots, that draws."""
+
 import inspect
 from typing import Protocol, Self, runtime_checkable
 
@@ -28,6 +29,10 @@ class Effect(Protocol):
         pluck.bind(a_amp=note_wipe)
     """
 
+    # Whether the render loop draws this effect. Off keeps every slot as it is,
+    # so turning it back on picks up exactly where it was patched.
+    enabled: bool = True
+
     def __init__(self, **fields: ScalarField | float):
         for name in self.declared_slots():
             setattr(self, name, Slot(name))
@@ -44,7 +49,7 @@ class Effect(Protocol):
                 # and this doesn't fall through to a base class's.
                 annotations = inspect.get_annotations(klass)
             except Exception:
-                continue                    # annotations that won't evaluate
+                continue  # annotations that won't evaluate
             for name, annotation in annotations.items():
                 if (annotation is Slot or annotation == "Slot") and name not in names:
                     names.append(name)
@@ -55,7 +60,9 @@ class Effect(Protocol):
     def get_slots(self) -> dict[str, Slot]:
         """The slots this effect owns, by name - and each Slot knows its own
         name too, so it can say which one it is at runtime."""
-        return {name: value for name, value in vars(self).items() if isinstance(value, Slot)}
+        return {
+            name: value for name, value in vars(self).items() if isinstance(value, Slot)
+        }
 
     def bind(self, **fields: ScalarField | float) -> Self:
         """Attach fields to slots by name, and hand the effect back:
@@ -70,7 +77,8 @@ class Effect(Protocol):
             raise AttributeError(
                 f"{type(self).__name__} has no slot "
                 f"{', '.join(repr(u) for u in sorted(unknown))}"
-                f" - its slots are {', '.join(sorted(slots)) or 'none'}")
+                f" - its slots are {', '.join(sorted(slots)) or 'none'}"
+            )
 
         for name, field in fields.items():
             slots[name].set(field)
@@ -79,4 +87,4 @@ class Effect(Protocol):
 
 
 class PersistentEffect(Effect, Protocol):
-    fader: Slot # Persistent Effects have a fader
+    fader: Slot  # Persistent Effects have a fader

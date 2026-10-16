@@ -6,6 +6,7 @@ Everything structured is a dataclass - FastAPI serialises those directly, so
 there are no dictionaries crossing the wire by hand. The page itself lives in
 static/, read per request, so editing it only needs a browser reload.
 """
+
 import threading
 from pathlib import Path
 
@@ -13,11 +14,16 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from pylattice.instrument.console import Console, Knob, Rig, Stats
 from pylattice.instrument.patch import Patch
 
 STATIC = Path(__file__).parent / "static"
+
+
+class Enabled(BaseModel):
+    enabled: bool
 
 
 def make_app(console: Console) -> FastAPI:
@@ -32,6 +38,29 @@ def make_app(console: Console) -> FastAPI:
     def mobile() -> str:
         """The touch layout - same API, built for a small landscape screen."""
         return (STATIC / "mobile.html").read_text()
+
+    @app.get("/v3", response_class=HTMLResponse)
+    def v3() -> str:
+        """The third layout - presets first, with per-effect switches."""
+        return (STATIC / "v3.html").read_text()
+
+    @app.post("/effects/{name}/enabled")
+    def set_enabled(name: str, body: Enabled) -> Patch:
+        """Switch an effect on or off. Part of the patch, so it dirties it."""
+        try:
+            console.set_effect_enabled(name, body.enabled)
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from None
+        return console.read_settings()
+
+    @app.post("/effects/{name}/reset")
+    def reset_effect(name: str) -> Patch:
+        """Set every slot of an effect to 0."""
+        try:
+            console.reset_effect(name)
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from None
+        return console.read_settings()
 
     @app.get("/stats")
     def stats() -> Stats:
@@ -126,9 +155,13 @@ def make_app(console: Console) -> FastAPI:
     return app
 
 
-def serve(console: Console, host: str = "127.0.0.1", port: int = 8800) -> threading.Thread:
+def serve(
+    console: Console, host: str = "127.0.0.1", port: int = 8800
+) -> threading.Thread:
     """Run the API on its own daemon thread, so the render loop keeps the main one."""
-    config = uvicorn.Config(make_app(console), host=host, port=port, log_level="warning")
+    config = uvicorn.Config(
+        make_app(console), host=host, port=port, log_level="warning"
+    )
     server = uvicorn.Server(config)
 
     thread = threading.Thread(target=server.run, name="lattice-api", daemon=True)

@@ -70,6 +70,8 @@
     },
     "map_fiber.value": "trace",
     "map_fiber.hue": 0.45,
-    "map_fiber.saturation": 0.95
+    "map_fiber.saturation": 0.95,
+    "hex_bloom.value": "fader_b",
+    "hex_bloom.hue": "param_b"
   }
 }

@@ -197,15 +197,16 @@ class EFFECTS:
     # dumb = DumbEffect(
     #    value = FIELDS.param_a
     # )
-    sunrise = Sunrise(
-        value=FIELDS.param_a,
-    )
-    bisexual = BisexualSpin(value=FIELDS.param_a, speed=FIELDS.param_b)
+
     prob_zaps = ProbZaps(prob=FIELDS.ripple2)  # We're always zappin
     map_fiber = MapFiber(value=0, hue=0, saturation=0)  # We're always zappin
     map_fiber2 = MapFiber(value=0, hue=0, saturation=0)
     map_fiber3 = MapFiber(value=0, hue=0, saturation=0)
     hex_bloom = HexBloom(value=FIELDS.fader_b, hue=FIELDS.param_b)
+    sunrise = Sunrise(
+        value=FIELDS.param_a,
+    )
+    bisexual = BisexualSpin(value=FIELDS.param_a, speed=FIELDS.param_b)
     # map_tiles = MapTiles(
     #    a_hue=0,
     #    a_sat=0,
@@ -311,7 +312,8 @@ while True:
         check_program()
 
         for effect in effects:
-            effect.render(now, lattice, graph)
+            if effect.enabled:
+                effect.render(now, lattice, graph)
         lattice.show()
 
     frames += 1

@@ -85,6 +85,8 @@
         "b": 0.5
       }
     },
-    "map_fiber3.saturation": 0.88
+    "map_fiber3.saturation": 0.88,
+    "hex_bloom.value": "fader_b",
+    "hex_bloom.hue": "param_b"
   }
 }

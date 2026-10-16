@@ -77,6 +77,8 @@
       "b": 1.0
     },
     "map_fiber.value": 0.0,
-    "map_fiber.hue": 0.0
+    "map_fiber.hue": 0.0,
+    "hex_bloom.value": "fader_b",
+    "hex_bloom.hue": "param_b"
   }
 }
