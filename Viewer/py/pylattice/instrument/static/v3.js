@@ -105,6 +105,21 @@ function hueControl(key, hue) {
   const readout = el('span');
   row.append(el('span', null, 'driven by'), pick, readout);
 
+  // A fixed hue is a constant, so it can be typed as well as dragged.
+  let hueBox = null;
+  if (field === null) {
+    hueBox = el('input', 'num');
+    hueBox.type = 'text'; hueBox.inputMode = 'decimal'; hueBox.spellcheck = false;
+    hueBox.title = 'type a hue (0-2)';
+    hueBox.onchange = () => {
+      const v = parseFloat(hueBox.value);
+      if (Number.isFinite(v)) { a.value = String(clampAxis(v)); show(); commit(); } else show();
+    };
+    hueBox.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); hueBox.blur(); } };
+    hueBox.onfocus = () => hueBox.select();
+    row.append(hueBox);
+  }
+
   const bar = el('div', 'hue-bar');
   bar.append(el('div', 'wheel'));
   const band = el('div', 'band');
@@ -118,15 +133,17 @@ function hueControl(key, hue) {
     return r;
   };
   const a = mk('start', start), b = mk('end', start + width);
-  b.disabled = field === null;          // a fixed hue has no range to set
+  // A fixed hue has no range, so it gets one handle. Hiding the end handle (not
+  // just disabling it) matters: it sits exactly on the start handle, on top of
+  // it, and a disabled one still swallows the drag.
+  if (field === null) { b.disabled = true; b.style.display = 'none'; }
   bar.append(a, b);
 
   const show = () => {
     const s = parseFloat(a.value), e = parseFloat(b.value);
     paintBand(band, s, field === null ? s : e);
-    readout.textContent = field === null
-      ? `hue ${fmt(s)}`
-      : `${fmt(s)} ${e >= s ? '→' : '←'} ${fmt(e)}`;
+    readout.textContent = field === null ? '' : `${fmt(s)} ${e >= s ? '→' : '←'} ${fmt(e)}`;
+    if (hueBox && document.activeElement !== hueBox) hueBox.value = fmt(s);
   };
   show();
 
@@ -225,19 +242,60 @@ function makeFieldPicker(placeholder, cls = '') {
   btn.onclick = () => {
     if (box.classList.contains('open')) return close();
     list.replaceChildren();
+
+    const head = el('div', 'fpick-head');
+    const search = el('input', 'fpick-search');
+    search.type = 'search'; search.placeholder = 'search fields, pads, controls…';
     const legend = el('div', 'fpick-legend');
     legend.append(el('span', 'chip akai live', 'Akai'), el('span', 'chip beatstep live', 'BeatStep'));
-    list.append(legend);
-    if (placeholder) list.append(item('', placeholder));
-    for (const group of GROUPS) {
-      const mine = sortedFields().filter(f => f.group === group);
-      if (!mine.length) continue;
-      list.append(el('div', 'fpick-group', group));
-      for (const f of mine) list.append(item(f.name, f.name));
-    }
+    head.append(search, legend);
+    const body = el('div', 'fpick-body');
+    list.append(head, body);
+
+    // What a search looks at: the name, the group, and what plays it on each
+    // controller - so "wipe", "pad 8", "F3" and "artnet" all find something.
+    const text = (f) => [f.name, f.group, ...Object.values(rig.controls?.[f.name] ?? {})]
+      .join(' ').toLowerCase();
+    let cursor = 0;
+
+    const render = () => {
+      const terms = search.value.toLowerCase().split(/\s+/).filter(Boolean);
+      const hit = (hay) => terms.every(t => hay.includes(t));
+      body.replaceChildren();
+      if (placeholder && hit(placeholder.toLowerCase())) body.append(item('', placeholder));
+      for (const group of GROUPS) {
+        const mine = sortedFields().filter(f => f.group === group && hit(text(f)));
+        if (!mine.length) continue;
+        body.append(el('div', 'fpick-group', group));
+        for (const f of mine) body.append(item(f.name, f.name));
+      }
+      const rows = [...body.querySelectorAll('.fpick-item')];
+      if (!rows.length) body.append(el('div', 'fpick-none', 'nothing matches'));
+      cursor = Math.min(cursor, Math.max(rows.length - 1, 0));
+      const mark = () => rows.forEach((r, i) => r.classList.toggle('hi', i === cursor));
+      mark();
+      render.rows = rows; render.mark = mark;
+    };
+
+    search.oninput = () => { cursor = 0; render(); };
+    search.onkeydown = (ev) => {
+      const rows = render.rows ?? [];
+      if (ev.key === 'ArrowDown') { cursor = Math.min(cursor + 1, rows.length - 1); }
+      else if (ev.key === 'ArrowUp') { cursor = Math.max(cursor - 1, 0); }
+      else if (ev.key === 'Enter') { rows[cursor]?.click(); return; }
+      else if (ev.key === 'Escape') { close(); return; }
+      else return;
+      ev.preventDefault();
+      render.mark(); rows[cursor]?.scrollIntoView({block: 'nearest'});
+    };
+
+    render();
     box.classList.add('open');
     box.append(list);
-    list.querySelector('.on')?.scrollIntoView({block: 'nearest'});
+    // Start on the current choice, if there is one, and type to narrow.
+    const current = body.querySelector('.on');
+    if (current) { cursor = [...body.querySelectorAll('.fpick-item')].indexOf(current); render.mark(); current.scrollIntoView({block: 'nearest'}); }
+    search.focus({preventScroll: true});
     document.addEventListener('pointerdown', away, true);
   };
 
@@ -246,6 +304,39 @@ function makeFieldPicker(placeholder, cls = '') {
   box.append(btn);
   show();
   return box;
+}
+
+// A constant: a slider to drag and a box to type in, kept in step. The slider's
+// range stretches to hold whatever is typed (a constant can be 1.4 or -0.3), and
+// nothing is sent until you let go of the slider or leave the box.
+function constantControl(value, commit, cls = '') {
+  const wrap = el('div', 'const' + (cls ? ` ${cls}` : ''));
+  const slider = el('input');
+  slider.type = 'range'; slider.step = '0.01';
+  const box = el('input', 'num');
+  box.type = 'text'; box.inputMode = 'decimal'; box.spellcheck = false;
+  box.title = 'type a value';
+
+  const fit = (v) => {
+    slider.min = String(Math.min(0, Math.floor(v)));
+    slider.max = String(Math.max(1, Math.ceil(v)));
+    slider.value = String(v);
+  };
+  fit(value);
+  box.value = fmt(value);
+
+  slider.oninput = () => { box.value = fmt(parseFloat(slider.value)); };
+  slider.onchange = () => commit(parseFloat(slider.value));
+  const typed = () => {
+    const v = parseFloat(box.value);
+    if (!Number.isFinite(v)) { box.value = fmt(parseFloat(slider.value)); return; }
+    fit(v); box.value = fmt(v); commit(v);
+  };
+  box.onchange = typed;
+  box.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); typed(); box.blur(); } };
+  box.onfocus = () => box.select();
+  wrap.append(slider, box);
+  return wrap;
 }
 
 function leafEditor(key, tree, path) {
@@ -265,10 +356,7 @@ function leafEditor(key, tree, path) {
   row.append(pick, math);
 
   if (typeof node === 'number') {
-    const n = el('input', 'num on');
-    n.type = 'number'; n.step = '0.01'; n.value = String(node);
-    n.onchange = () => { if (n.value !== '') redrawSlot(key, replace(tree, path, parseFloat(n.value))); };
-    row.append(n);
+    row.append(constantControl(node, (v) => redrawSlot(key, replace(tree, path, v)), 'on'));
   } else {
     const c = el('button', null, '#');
     c.title = 'a constant';
@@ -327,14 +415,7 @@ function slotRow(key) {
     pick.onchange = () => write(key, pick.value);
     row.append(pick);
   } else if (typeof tree === 'number') {
-    const wrap = el('div', 'quick');
-    const s = el('input');
-    s.type = 'range'; s.min = '0'; s.max = '1'; s.step = '0.01'; s.value = String(Math.min(tree, 1));
-    const n = el('span', 'expr', fmt(tree));
-    s.oninput = () => { n.textContent = fmt(parseFloat(s.value)); };
-    s.onchange = () => write(key, parseFloat(s.value));
-    wrap.append(s, n);
-    row.append(wrap);
+    row.append(constantControl(tree, (v) => write(key, v), 'quick'));
   } else {
     row.append(el('span', 'expr', tree === null ? 'nothing' : describe(tree)));
   }

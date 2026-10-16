@@ -212,7 +212,7 @@ svg.env { width: 100%; height: auto; touch-action: none; user-select: none; }
 .fpick-caret { margin-left: auto; color: var(--dim); font-size: 11px; }
 .fpick-name { white-space: nowrap; }
 .fpick-list { position: absolute; z-index: 40; top: 100%; left: 0; min-width: 100%; width: max-content;
-              max-height: 320px; overflow: auto; background: var(--panel); border: 1px solid var(--line);
+              background: var(--panel); border: 1px solid var(--line);
               border-radius: 6px; padding: 4px; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
 .fpick-legend { display: flex; gap: 6px; padding: 2px 6px 6px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
 .fpick-group { padding: 6px 8px 2px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
@@ -227,3 +227,15 @@ svg.env { width: 100%; height: auto; touch-action: none; user-select: none; }
 .ctl-toggle { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .ctl-toggle .chip { background: transparent; cursor: pointer; padding: 1px 8px; font-size: 11px; }
 .effects-bar { flex-wrap: wrap; }
+
+.fpick-head { position: sticky; top: 0; background: var(--panel); padding-bottom: 2px; z-index: 1; }
+.fpick-search { width: 100%; box-sizing: border-box; margin-bottom: 4px; }
+.fpick-item.hi { background: rgba(106, 143, 208, .22); }
+.fpick-none { padding: 8px; color: var(--dim); font-size: 12px; }
+.fpick-body { max-height: 260px; overflow: auto; }
+
+.const { display: flex; align-items: center; gap: 8px; }
+.const input[type=range] { flex: 1; min-width: 70px; }
+.const .num, .hue-row .num { width: 58px; background: var(--panel); color: var(--text);
+  border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; font: inherit; }
+.const.on .num { border-color: var(--accent); }
