@@ -40,9 +40,11 @@ CONTROLLERS = {
         #   KA1-KA4 are faders F1-F4 (cc 12-15); the knobs send cc 22 up, not yet used.
         "KA": (12, 13, 14, 15, 77, 93, 73, 75),
         "KB": (114, 18, 19, 16, 17, 91, 79, 72),
-        #   PA1-PA3 are pads 13-15; PB1-PB7 are pads 9-12 and 5-7.
-        "PA": (81, 83, 84, 47, 48, 49, 50, 51),
-        "PB": (74, 76, 77, 79, 67, 69, 71, 43),
+        #   PA1-PA3 are pads 13-15, PB1-PB7 are pads 9-12 and 5-7. PA4 (pad 16, 86) and
+        #   PB8 (pad 8, 72) are inferred from the C-major run the other pads follow,
+        #   not yet heard.
+        "PA": (81, 83, 84, 86, 48, 49, 50, 51),
+        "PB": (74, 76, 77, 79, 67, 69, 71, 72),
         "STEPS": list(range(20, 56)),
     },
 }

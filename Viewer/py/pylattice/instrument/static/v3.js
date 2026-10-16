@@ -419,6 +419,7 @@ function controlCell(kind, id, ctl, uses, off, detail) {
   if (detail) cell.append(el('span', 'dim', detail));
   for (const {key, tree} of used) cell.append(useButton(key, tree, field, off));
   if (!used.length) cell.append(el('span', 'dim', 'not patched'));
+  if (rig.tunable?.[field]) cell.append(tuneButton(field));
   return cell;
 }
 
@@ -481,6 +482,122 @@ function reveal(key) {
   row.scrollIntoView({block: 'center', behavior: 'smooth'});
   row.classList.add('flash');
   setTimeout(() => row.classList.remove('flash'), 1200);
+}
+
+// ---- tunable fields: a bloom's envelope, dragged out ----------------------------
+
+const SPAN = 10000;     // ms across the editor - the longest a bloom can take
+
+function tuneButton(field) {
+  const b = el('button', 'tune', 'envelope');
+  b.title = `shape ${field}: how it comes on, holds and fades`;
+  b.onclick = (ev) => { ev.stopPropagation(); openEnvelope(field); };
+  return b;
+}
+
+function openEnvelope(field) {
+  document.getElementById('env-modal')?.remove();
+  const cur = {...rig.tunable[field], ...(patch.params?.[field] ?? {})};
+  const W = 520, H = 190, PAD = 14;
+  const X = (ms) => PAD + (ms / SPAN) * (W - 2 * PAD);
+  const MS = (x) => Math.round(Math.min(Math.max((x - PAD) / (W - 2 * PAD), 0), 1) * SPAN);
+  const Y1 = PAD, Y0 = H - PAD - 16;      // top (level 1) and bottom (level 0)
+
+  const overlay = el('div', 'modal-overlay');
+  overlay.id = 'env-modal';
+  const box = el('div', 'modal');
+  box.append(el('h4', null, `${field} · envelope`));
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.classList.add('env');
+  const area = document.createElementNS(svgNS, 'path'); area.setAttribute('class', 'env-area');
+  const line = document.createElementNS(svgNS, 'path'); line.setAttribute('class', 'env-line');
+  svg.append(area, line);
+  // The hold handle is smaller and drawn last, so a short hold still leaves
+  // the attack handle's rim to grab.
+  const mkHandle = (r = 9) => {
+    const c = document.createElementNS(svgNS, 'circle');
+    c.setAttribute('r', String(r)); c.setAttribute('class', 'env-handle'); svg.append(c); return c;
+  };
+  const hAttack = mkHandle(), hDecay = mkHandle(), hHold = mkHandle(5);
+  for (let s2 = 0; s2 <= SPAN; s2 += 1000) {
+    const t = document.createElementNS(svgNS, 'text');
+    t.setAttribute('x', X(s2)); t.setAttribute('y', H - 2); t.setAttribute('class', 'env-tick');
+    t.setAttribute('text-anchor', s2 === 0 ? 'start' : s2 === SPAN ? 'end' : 'middle');
+    t.textContent = `${s2 / 1000}s`; svg.append(t);
+  }
+
+  const ease = (x) => x * x * (3 - 2 * x);     // the same curve the rig uses
+  const draw = () => {
+    const a = cur.attack, h = cur.hold, d = cur.decay;
+    const pts = [];
+    for (let i = 0; i <= 24; i++) pts.push([a * i / 24, ease(i / 24)]);
+    pts.push([a + h, 1]);
+    for (let i = 1; i <= 24; i++) pts.push([a + h + d * i / 24, ease(1 - i / 24)]);
+    const path = pts.map(([t, v], i) => `${i ? 'L' : 'M'}${X(t)},${Y0 - v * (Y0 - Y1)}`).join(' ');
+    line.setAttribute('d', path);
+    area.setAttribute('d', `${path} L${X(a + h + d)},${Y0} L${X(0)},${Y0} Z`);
+    for (const [c, t, v] of [[hAttack, a, 1], [hHold, a + h, 1], [hDecay, a + h + d, 0]]) {
+      c.setAttribute('cx', X(t)); c.setAttribute('cy', Y0 - v * (Y0 - Y1));
+    }
+    readout.textContent = `attack ${(a / 1000).toFixed(2)}s · hold ${(h / 1000).toFixed(2)}s · ` +
+                          `decay ${(d / 1000).toFixed(2)}s`;
+    dens.textContent = `${Math.round(cur.density * 100)}% of edges per press`;
+  };
+
+  // Each handle sets one time: where the attack ends, where the hold ends,
+  // where the decay ends. The others keep their own lengths.
+  const drag = (handle, set) => {
+    handle.onpointerdown = (ev) => {
+      handle.setPointerCapture(ev.pointerId);
+      const move = (e) => {
+        const r = svg.getBoundingClientRect();
+        set(MS((e.clientX - r.left) * (W / r.width)));
+        draw();
+      };
+      const up = async () => {
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', up);
+        await commit();
+      };
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', up);
+    };
+  };
+  const MIN = 20;
+  drag(hAttack, (t) => { cur.attack = Math.max(t, MIN); });
+  drag(hHold, (t) => { cur.hold = Math.max(t - cur.attack, 0); });
+  drag(hDecay, (t) => { cur.decay = Math.max(t - cur.attack - cur.hold, MIN); });
+
+  const readout = el('div', 'env-readout');
+  const dens = el('span', 'dim');
+  const density = el('input'); density.type = 'range';
+  density.min = '1'; density.max = '100'; density.step = '1';
+  density.value = String(Math.round(cur.density * 100));
+  density.oninput = () => { cur.density = density.value / 100; draw(); };
+  density.onchange = () => commit();
+  const densRow = el('div', 'env-density');
+  densRow.append(el('span', null, 'how many'), density, dens);
+
+  const commit = async () => {
+    if (await post('/current', {ccs: {}, slots: {}, params: {[field]: {...cur}}})) await refresh();
+  };
+
+  const note = el('p', 'dim', 'Drag the dots: where the attack ends, where the hold ends, where the decay ends. ' +
+                              'Pad presses and sequenced notes both bloom with this shape.');
+  const reset = el('button', null, 'defaults');
+  reset.onclick = async () => { Object.assign(cur, rig.tunable[field]); density.value = String(Math.round(cur.density * 100)); draw(); await commit(); };
+  const close = el('button', null, 'close');
+  close.onclick = () => overlay.remove();
+  const foot = el('div', 'env-foot'); foot.append(reset, close);
+
+  box.append(svg, readout, densRow, note, foot);
+  overlay.append(box);
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  document.body.append(overlay);
+  draw();
 }
 
 function drawAll() { drawEffects(); drawMap(); }

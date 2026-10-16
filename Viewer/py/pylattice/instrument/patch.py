@@ -89,6 +89,7 @@ def _differs(a: "Patch", b: "Patch") -> bool:
         any(a.ccs[k] != b.ccs[k] for k in shared)
         or a.slots != b.slots
         or a.off != b.off
+        or a.params != b.params
     )
 
 
@@ -118,6 +119,11 @@ class Patch:
     # Effects switched off, sorted. Their slots stay wired; they just do not
     # draw. A file with no such key means everything is on.
     off: list[str] = field(default_factory=list)
+
+    # field -> its tunable settings (a bloom's envelope, say), for the fields
+    # that have any. Only what differs from the field's defaults is kept, so a
+    # preset written before a field had settings reads as untouched.
+    params: dict[str, dict[str, float]] = field(default_factory=dict)
 
     # Whether this has drifted from what is on disk. The bank fills it in when
     # it hands a preset out; `compare=False` keeps it out of equality, which is
@@ -151,6 +157,15 @@ class Patch:
         # where each one is sitting - and only for controls the instrument
         # actually watches. Anything else that turned up on the wire (a bank
         # select, an all-notes-off) is not a setting of ours.
+        params = {}
+        for name, f in named(fields, ScalarField).items():
+            defaults = getattr(f, "DEFAULTS", None)
+            if defaults is None or not hasattr(f, "params"):
+                continue
+            changed = {k: v for k, v in f.params.items() if v != defaults.get(k)}
+            if changed:
+                params[name] = changed
+
         return cls(
             ccs={
                 control: state.value
@@ -163,6 +178,7 @@ class Patch:
                 for name, effect in named(effects, Effect).items()
                 if not effect.enabled
             ),
+            params=params,
         )
 
     def apply(self, midi: MIDI, fields: type, effects: type, whole: bool = True):
@@ -207,6 +223,16 @@ class Patch:
 
             wanted.setdefault(effect_name, {})[slot_name] = field
 
+        # Tunable fields: a whole patch puts back every one it does not name.
+        for name, f in by_name.items():
+            if not hasattr(f, "set_params"):
+                continue
+            if name in self.params:
+                f.set_params({**getattr(f, "DEFAULTS", {}), **self.params[name]}
+                             if whole else self.params[name])
+            elif whole:
+                f.set_params(getattr(f, "DEFAULTS", {}))
+
         for effect_name, effect in by_effect.items():
             mine = wanted.get(effect_name, {})
 
@@ -226,13 +252,18 @@ class Patch:
         """An independent copy. The slot refs nest, so they go deep - two
         patches must never share a dict, or editing one edits the other."""
         return Patch(
-            ccs=dict(self.ccs), slots=copy.deepcopy(self.slots), off=list(self.off)
+            ccs=dict(self.ccs),
+            slots=copy.deepcopy(self.slots),
+            off=list(self.off),
+            params=copy.deepcopy(self.params),
         )
 
     def save(self, path: str):
         saved = {"ccs": self.ccs, "slots": self.slots}
         if self.off:  # leave the key out when nothing is off
             saved["off"] = self.off
+        if self.params:
+            saved["params"] = self.params
         Path(path).write_text(json.dumps(saved, indent=2))
 
     @classmethod
@@ -243,6 +274,7 @@ class Patch:
             ccs={int(cc): v for cc, v in saved["ccs"].items()},
             slots=saved["slots"],
             off=sorted(saved.get("off", [])),
+            params=saved.get("params", {}),
         )
 
 

@@ -164,3 +164,20 @@ aside h3 { margin: 0 0 6px; font-size: 13px; color: var(--dim); font-weight: 600
 
 .effects-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .effects-bar .all-off { width: auto; padding: 4px 12px; }
+
+.ctl .tune { width: auto; padding: 1px 8px; font-size: 11px; margin-top: 4px; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex;
+                 align-items: center; justify-content: center; z-index: 50; }
+.modal { background: var(--panel, #1b1e24); border: 1px solid var(--line, #333); border-radius: 8px;
+         padding: 16px; width: min(560px, 94vw); }
+.modal h4 { margin: 0 0 8px; }
+svg.env { width: 100%; height: auto; touch-action: none; user-select: none; }
+.env-area { fill: var(--accent); opacity: .18; }
+.env-line { fill: none; stroke: var(--accent); stroke-width: 2; }
+.env-handle { fill: var(--accent); stroke: #fff; stroke-width: 1.5; cursor: ew-resize; }
+.env-tick { fill: var(--dim, #888); font-size: 9px; }
+.env-readout { margin: 6px 0; font-variant-numeric: tabular-nums; }
+.env-density { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.env-density input { flex: 1; }
+.env-foot { display: flex; gap: 8px; justify-content: flex-end; }
+.env-foot button { width: auto; padding: 4px 14px; }

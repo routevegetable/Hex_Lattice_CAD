@@ -17,11 +17,11 @@ const AKAI = {
   // As they sit on the unit: pad 13 is top left, pad 1 bottom left.
   pads: [
     [{n: 13, field: 'strobe0', note: 81}, {n: 14, field: 'strobe1', note: 83},
-     {n: 15, field: 'strobe2', note: 84}, {n: 16}],
+     {n: 15, field: 'strobe2', note: 84}, {n: 16, field: 'burst', note: 86}],
     [{n: 9, field: 'ripple', note: 74}, {n: 10, field: 'ripple2', note: 76},
      {n: 11, field: 'wipe1', note: 77}, {n: 12, field: 'wipe2', note: 79}],
     [{n: 5, field: 'trace', note: 67}, {n: 6, field: 'random', note: 69},
-     {n: 7, field: 'fire', note: 71}, {n: 8}],
+     {n: 7, field: 'fire', note: 71}, {n: 8, field: 'bloom', note: 72}],
     [{n: 1}, {n: 2}, {n: 3}, {n: 4}],
   ],
 };

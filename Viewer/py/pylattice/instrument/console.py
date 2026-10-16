@@ -61,6 +61,8 @@ class Rig:
     dirty: list[int] = field(default_factory=list)  # edited since saving
     selected: int | None = None
     size: int = 16
+    # field -> default settings, for fields that can be tuned from the UI
+    tunable: dict[str, dict[str, float]] = field(default_factory=dict)
 
 
 class Console:
@@ -253,4 +255,9 @@ class Console:
                 dirty=self._bank.dirty_presets(),
                 selected=self._selected,
                 size=self._bank.size,
+                tunable={
+                    name: dict(f.DEFAULTS)
+                    for name, f in named(self._fields, ScalarField).items()
+                    if hasattr(f, "DEFAULTS") and hasattr(f, "set_params")
+                },
             )

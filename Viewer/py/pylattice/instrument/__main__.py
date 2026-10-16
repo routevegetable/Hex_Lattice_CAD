@@ -36,54 +36,10 @@ from pylattice.instrument.console import Console
 from pylattice.instrument.patch import Patch, PresetBank, named
 from pylattice.instrument.types import Effect
 
-# BSP control mode. Knobs KA1-KB8 are CCs, pads PA1-PB8 are notes; row A is
-# the top/upper one.
-KA1, KA2, KA3, KA4, KA5, KA6, KA7, KA8 = 10, 74, 71, 76, 77, 93, 73, 75
-KB1, KB2, KB3, KB4, KB5, KB6, KB7, KB8 = 114, 18, 19, 16, 17, 91, 79, 72
-
-PA1, PA2, PA3, PA4, PA5, PA6, PA7, PA8 = 44, 45, 46, 47, 48, 49, 50, 51
-PB1, PB2, PB3, PB4, PB5, PB6, PB7, PB8 = 36, 37, 38, 39, 40, 41, 42, 43
-
-# The step buttons, one preset each. They send CCs, and a press arrives as 127.
-STEPS = list(range(20, 56))
-
-
-ARTNET = artnet_universes(graph, count=4)
-
-
-class FIELDS:
-
-    # CC fields
-    fader_a = CCField(midi, value=KA1)
-    fader_b = CCField(midi, value=KA2)
-    param_a = CCField(midi, value=KA3)
-    param_b = CCField(midi, value=KA4)
-
-    # Ripples
-    ripple = NoteRippleField(graph, midi, note=PB1, speed=KB1)
-    ripple2 = NoteRippleField(graph, midi, note=PB2, speed=KB2)
-
-    # Every edge jumps to a new random number
-    random = NoteRandomField(midi, note=PB6, period=KA8)
-
-    # Wipes
-    wipe1 = NoteWipeField(midi, note=PB3, speed=KB3)
-    wipe2 = NoteWipeField(midi, note=PB4, speed=KB4)
-
-    # A particle tracing a path of its own from wherever it spawned
-    trace = RandomTraceField(graph, midi, note=PB5, speed=KB5, aim=KB6)
-
-    # A spot going round and round one flat line of the lattice
-    scope = ScopeFieldBetter(graph, midi, speed=KB7, pattern=KB8)
-
-    # Rotary
-    rotary = RotaryField(graph, midi, period=KA5, parts=KA6, shape=KA7)
-
-    # Art-Net pixels, per universe: red, green, blue, and their average
-    artnet0_r, artnet0_g, artnet0_b, artnet0_v = ARTNET[0]
-    artnet1_r, artnet1_g, artnet1_b, artnet1_v = ARTNET[1]
-    artnet2_r, artnet2_g, artnet2_b, artnet2_v = ARTNET[2]
-    artnet3_r, artnet3_g, artnet3_b, artnet3_v = ARTNET[3]
+# The fields, and which controller number each one listens to, come from
+# fields.py and the controller profile in hardware.py - one menu for the
+# rig and for the web UI.
+from pylattice.instrument.fields import FIELDS
 
 
 from pylattice.examples.sunrise import color_transitions, sunrise
