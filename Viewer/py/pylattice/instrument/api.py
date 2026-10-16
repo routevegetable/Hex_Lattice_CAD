@@ -26,6 +26,11 @@ class Enabled(BaseModel):
     enabled: bool
 
 
+class EnabledMany(BaseModel):
+    enabled: bool
+    names: list[str] | None = None  # every effect when left out
+
+
 def make_app(console: Console) -> FastAPI:
     app = FastAPI(title="lattice")
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
@@ -43,6 +48,15 @@ def make_app(console: Console) -> FastAPI:
     def v3() -> str:
         """The third layout - presets first, with per-effect switches."""
         return (STATIC / "v3.html").read_text()
+
+    @app.post("/effects/enabled")
+    def set_all_enabled(body: EnabledMany) -> Patch:
+        """Switch several effects (default: all) on or off in one go."""
+        try:
+            console.set_effects_enabled(body.enabled, body.names)
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from None
+        return console.read_settings()
 
     @app.post("/effects/{name}/enabled")
     def set_enabled(name: str, body: Enabled) -> Patch:

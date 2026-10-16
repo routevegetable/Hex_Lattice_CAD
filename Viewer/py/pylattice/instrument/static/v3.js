@@ -290,11 +290,40 @@ const expanded = store.get();           // effects are collapsed unless opened
 
 function expand(name) { expanded.add(name); store.put(expanded); }
 
+// Effects that are on float to the top. The order is only recomputed when the
+// set of off effects changes (a toggle or a preset load), so a card does not
+// jump away from under the pointer on every poll.
+let orderFor = null, order = [];
+let stashedOn = [];     // what "all off" switched off, so it can put them back
+
+function effectOrder(off) {
+  const key = JSON.stringify([...off].sort());
+  if (key !== orderFor) {
+    orderFor = key;
+    const names = [...new Set(rig.slots.map(effectOf))];
+    order = [...names.filter(n => !off.has(n)), ...names.filter(n => off.has(n))];
+  }
+  return order;
+}
+
 function drawEffects() {
   const main = document.getElementById('effects');
   main.innerHTML = '';
   const off = new Set(patch.off ?? []);
-  const names = [...new Set(rig.slots.map(effectOf))];
+  const names = effectOrder(off);
+
+  const bar = el('div', 'effects-bar');
+  const anyOn = names.some(n => !off.has(n));
+  const allBtn = el('button', 'all-off', anyOn ? 'all off' : (stashedOn.length ? 'restore' : 'all on'));
+  allBtn.title = anyOn ? 'switch every effect off' : 'switch the effects back on';
+  allBtn.onclick = async () => {
+    if (anyOn) stashedOn = names.filter(n => !off.has(n));
+    const back = stashedOn.length ? stashedOn : null;
+    const body = anyOn ? {enabled: false} : {enabled: true, names: back};
+    if (await post('/effects/enabled', body)) { if (!anyOn) stashedOn = []; await refresh(); }
+  };
+  bar.append(allBtn, el('span', 'dim', `${names.filter(n => !off.has(n)).length}/${names.length} on`));
+  main.append(bar);
 
   for (const name of names) {
     const keys = rig.slots.filter(k => effectOf(k) === name);

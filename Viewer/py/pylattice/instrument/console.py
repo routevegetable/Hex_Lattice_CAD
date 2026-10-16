@@ -185,6 +185,13 @@ class Console:
         with self.lock:
             self._effect(name).enabled = enabled
 
+    def set_effects_enabled(self, enabled: bool, names: list[str] | None = None):
+        """Switch several effects at once - every one when names is None."""
+        with self.lock:
+            effects = named(self._effects, Effect)
+            for name in effects if names is None else names:
+                self._effect(name).enabled = enabled
+
     def reset_effect(self, name: str):
         """Empty every slot of an effect to 0. Revert brings them back."""
         with self.lock:

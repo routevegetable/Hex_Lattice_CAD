@@ -161,3 +161,6 @@ aside h3 { margin: 0 0 6px; font-size: 13px; color: var(--dim); font-weight: 600
   header { flex-wrap: wrap; }
   .presets { grid-template-columns: repeat(8, 34px); }
 }
+
+.effects-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.effects-bar .all-off { width: auto; padding: 4px 12px; }
