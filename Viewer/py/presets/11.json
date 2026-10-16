@@ -1,9 +1,9 @@
 {
   "ccs": {
-    "10": 0,
-    "74": 127,
-    "71": 0,
-    "76": 87,
+    "12": 120,
+    "13": 0,
+    "14": 0,
+    "15": 0,
     "114": 0,
     "18": 85,
     "75": 0,
@@ -37,10 +37,41 @@
     "bg_waves.hue": "param_a",
     "bg_waves.value": "fader_a",
     "net.amp": "ripple2",
-    "net.hue": "param_b",
-    "net.value": "fader_b",
+    "net.hue": 0.53,
+    "net.value": 0.5,
+    "net.sat": 0.0,
     "prob_zaps.prob": "ripple2",
+    "map_fiber.value": "trace",
+    "map_fiber.hue": {
+      "gradient": "fire",
+      "of": "trace_progress",
+      "ch": "h"
+    },
+    "map_fiber.saturation": {
+      "gradient": "fire",
+      "of": "trace_progress",
+      "ch": "s"
+    },
+    "map_fiber2.value": "bloom",
+    "map_fiber2.hue": 0.0,
+    "map_fiber2.saturation": 1.0,
     "hex_bloom.value": "fader_b",
     "hex_bloom.hue": "param_b"
+  },
+  "off": [
+    "bg_waves",
+    "bg_waves2",
+    "bisexual",
+    "hex_bloom",
+    "map_fiber3",
+    "pluck",
+    "prob_zaps",
+    "sunrise"
+  ],
+  "params": {
+    "bloom": {
+      "attack": 20.0,
+      "density": 0.01
+    }
   }
 }
