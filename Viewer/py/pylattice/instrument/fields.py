@@ -13,7 +13,7 @@ from pylattice.fields.random import NoteRandomField
 from pylattice.fields.ripple import NoteRippleField
 from pylattice.fields.rotary import RotaryField
 from pylattice.fields.scope import ScopeFieldBetter
-from pylattice.fields.trace import RandomTraceField
+from pylattice.fields.trace import RandomTraceField, TraceProgressField
 from pylattice.fields.wipe import NoteWipeField
 from pylattice.graph import EdgeClass
 from pylattice.instrument.maps import ShapedEnvelope
@@ -85,6 +85,10 @@ class FIELDS:
         aim=KB6
     )
     
+    # How far along its path each lit end of a trace is, 0 to 1 - the driver for
+    # a gradient, so that one whole trace is one whole gradient
+    trace_progress = TraceProgressField(trace)
+
     # A spot going round and round one flat line of the lattice
     scope = ScopeFieldBetter(
         graph, midi.for_("scope"),
