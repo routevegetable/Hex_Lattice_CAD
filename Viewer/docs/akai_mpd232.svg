@@ -157,11 +157,11 @@
 <text x="930" y="776" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 15</text>
 <text x="930" y="792" font-size="12.5" fill="#e0d04a" font-weight="bold" text-anchor="middle">strobe2</text>
 <text x="930" y="809" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">note 84, ch 1</text>
-<rect x="1133" y="670" width="190" height="84" fill="#272d36" stroke="#474d56" stroke-width="2"/>
-<rect x="1141" y="678" width="174" height="68" fill="none" stroke="#474d56" stroke-opacity="0.35"/>
+<rect x="1133" y="670" width="190" height="84" fill="#272d36" stroke="#e07a4a" stroke-width="2"/>
+<rect x="1141" y="678" width="174" height="68" fill="none" stroke="#e07a4a" stroke-opacity="0.35"/>
 <text x="1228" y="776" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 16</text>
-<text x="1228" y="792" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
-<text x="1228" y="809" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">velocity + aftertouch</text>
+<text x="1228" y="792" font-size="12.5" fill="#e07a4a" font-weight="bold" text-anchor="middle">burst</text>
+<text x="1228" y="809" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">note 86, ch 1 · unverified</text>
 <rect x="238" y="874" width="190" height="84" fill="#272d36" stroke="#e07a4a" stroke-width="2"/>
 <rect x="246" y="882" width="174" height="68" fill="none" stroke="#e07a4a" stroke-opacity="0.35"/>
 <text x="333" y="980" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 9</text>
@@ -197,11 +197,11 @@
 <text x="930" y="1184" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 7</text>
 <text x="930" y="1200" font-size="12.5" fill="#e2503c" font-weight="bold" text-anchor="middle">fire</text>
 <text x="930" y="1217" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">note 71, ch 1</text>
-<rect x="1133" y="1078" width="190" height="84" fill="#272d36" stroke="#474d56" stroke-width="2"/>
-<rect x="1141" y="1086" width="174" height="68" fill="none" stroke="#474d56" stroke-opacity="0.35"/>
+<rect x="1133" y="1078" width="190" height="84" fill="#272d36" stroke="#e07a4a" stroke-width="2"/>
+<rect x="1141" y="1086" width="174" height="68" fill="none" stroke="#e07a4a" stroke-opacity="0.35"/>
 <text x="1228" y="1184" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 8</text>
-<text x="1228" y="1200" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
-<text x="1228" y="1217" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">velocity + aftertouch</text>
+<text x="1228" y="1200" font-size="12.5" fill="#e07a4a" font-weight="bold" text-anchor="middle">bloom</text>
+<text x="1228" y="1217" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">note 72, ch 1</text>
 <rect x="238" y="1282" width="190" height="84" fill="#272d36" stroke="#474d56" stroke-width="2"/>
 <rect x="246" y="1290" width="174" height="68" fill="none" stroke="#474d56" stroke-opacity="0.35"/>
 <text x="333" y="1388" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 1</text>
@@ -224,5 +224,5 @@
 <text x="1228" y="1421" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">velocity + aftertouch</text>
 <text x="40" y="1447" font-size="13" fill="#e8ecf1" font-weight="bold" text-anchor="start">not drawn / not yet mapped</text>
 <text x="40" y="1471" font-size="12" fill="#8d96a3" font-weight="normal" text-anchor="start">Q-Link banks 2-3, pad banks B-D — same controls, different banks, untouched so far</text>
-<text x="40" y="1493" font-size="12" fill="#8d96a3" font-weight="normal" text-anchor="start">pads 1,2,3,4,8,16 and all 8 knobs/buttons — still deciding which fields go on knobs vs the remaining faders</text>
+<text x="40" y="1493" font-size="12" fill="#8d96a3" font-weight="normal" text-anchor="start">pads 1-4 and all 8 knobs/buttons — still deciding which fields go on knobs vs the remaining faders</text>
 </svg>
