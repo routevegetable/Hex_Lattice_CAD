@@ -4,6 +4,7 @@ A field is a value per end. This is the whole menu the web UI offers and a
 preset can name - docs/beatstep.svg has the same thing as a control layout.
 """
 from pylattice.fields.artnet import artnet_universes
+from pylattice.fields.burst import BurstField
 from pylattice.fields.controls import CCField, StrobeField
 from pylattice.fields.fire import FireField
 from pylattice.fields.mask import EdgeMaskField
@@ -15,7 +16,7 @@ from pylattice.fields.trace import RandomTraceField
 from pylattice.fields.wipe import NoteWipeField
 from pylattice.graph import EdgeClass
 from pylattice.instrument.hardware import (
-    KA1, KA2, KA3, KA4, KA5, KA6, KA7, KA8, KB1, KB2, KB3, KB4, KB5, KB6, KB7, KB8, PA1, PA2, PA3, PB1, PB2, PB3, PB4, PB5, PB6, PB7, graph, midi,
+    KA1, KA2, KA3, KA4, KA5, KA6, KA7, KA8, KB1, KB2, KB3, KB4, KB5, KB6, KB7, KB8, PA1, PA2, PA3, PB1, PB2, PB3, PB4, PB5, PB6, PB7, PB8, graph, midi,
 )
 
 
@@ -144,3 +145,5 @@ class FIELDS:
     strobe0 = StrobeField(midi.for_("strobe0"), strobe=PA1)
     strobe1 = StrobeField(midi.for_("strobe1"), strobe=PA2)
     strobe2 = StrobeField(midi.for_("strobe2"), strobe=PA3)
+
+    burst = BurstField(graph, midi.for_("burst"), note=PB8, decay=KA7)

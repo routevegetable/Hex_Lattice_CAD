@@ -3,7 +3,9 @@ from collections.abc import Iterable
 import gc
 import math
 import time
+import traceback
 from typing import Callable
+from pylattice.effects.map_tiles import MapTiles
 from pylattice.effects.pluck import Pluck, WobbleNet
 from pylattice.effects.boom_zaps import (
     ProbZaps,
@@ -191,6 +193,7 @@ class EFFECTS:
         period=FIELDS.param_b,
         value=FIELDS.fader_b,
     )
+    bg_waves2 = BgWaves(hue=FIELDS.param_a, value=FIELDS.fader_a, flow=0)
     net = WobbleNet(amp=FIELDS.ripple2, hue=FIELDS.param_b, value=FIELDS.fader_b)
     # dumb = DumbEffect(
     #    value = FIELDS.param_a
@@ -201,7 +204,20 @@ class EFFECTS:
     bisexual = BisexualSpin(value=FIELDS.param_a, speed=FIELDS.param_b)
     prob_zaps = ProbZaps(prob=FIELDS.ripple2)  # We're always zappin
     map_fiber = MapFiber(value=0, hue=0, saturation=0)  # We're always zappin
+    map_fiber2 = MapFiber(value=0, hue=0, saturation=0)
+    map_fiber3 = MapFiber(value=0, hue=0, saturation=0)
     hex_bloom = HexBloom(value=1, hue=0.05)  # or FIELDS.fader_b, to put it on a knob
+    # map_tiles = MapTiles(
+    #    a_hue=0,
+    #    a_sat=0,
+    #    a_value=0,
+    #    b_hue=0,
+    #    b_sat=0,
+    #    b_value=0,
+    #    c_hue=0,
+    #    c_sat=0,
+    #    c_value=0,
+    # )
 
 
 # Everything declared in EFFECTS, in the order written - so a preset patches
