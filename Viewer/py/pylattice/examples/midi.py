@@ -1,5 +1,6 @@
 import os
 import sys
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Callable
 import mido
@@ -56,14 +57,18 @@ class NoteState:
 
 
 class MIDI:
-    def __init__(self, port: str = 'IAC Driver Bus 1'):
+    def __init__(self, port: str | Iterable[str] = "IAC Driver Bus 1"):
         # mido reaches for python-rtmidi by default, which cannot build on
         # PyPy. portmidi talks to CoreMIDI through ctypes instead, so it needs
         # nothing compiled. An explicit MIDO_BACKEND still wins.
-        if sys.implementation.name == 'pypy' and not os.environ.get('MIDO_BACKEND'):
-            mido.set_backend('mido.backends.portmidi')
+        if sys.implementation.name == "pypy" and not os.environ.get("MIDO_BACKEND"):
+            mido.set_backend("mido.backends.portmidi")
 
-        self._m = mido.open_input(port)
+        # More than one port lets a hardware controller and a DAW's virtual
+        # bus both drive the same instrument - live playing from the former,
+        # recorded or sequenced playback from the latter.
+        ports = [port] if isinstance(port, str) else list(port)
+        self._ports = [mido.open_input(p) for p in ports]
         self._notes: dict[int, NoteState] = {}
         self._ccs: dict[int, CCState] = {}
         # One program per channel, not one per number, so a single state does.
@@ -77,35 +82,36 @@ class MIDI:
         moved: dict[int, int] = {}
         # Likewise the program, if one was selected this tick.
         chosen: int | None = None
-        # Consume any pending MIDI messages
-        while msg := self._m.poll():
-            match msg.type:
-                case "note_on":
-                    print(msg)
-                    note = self._notes.get(msg.note)
-                    if note is not None:
-                        if msg.velocity == 0:
-                            note.off.put(0)             # a note-off in disguise
-                        else:
-                            note.off.clear()            # this press is not over
-                            note.on.put(msg.velocity)
-                            # How hard it was hit is where the pressure
-                            # starts; polytouch takes it from there.
-                            note.pressure = msg.velocity
-                case "note_off":
-                    note = self._notes.get(msg.note)
-                    if note is not None:
-                        note.off.put(msg.velocity)
-                case "control_change":
-                    print(msg)
-                    moved[msg.control] = msg.value
-                case "polytouch":
-                    note = self._notes.get(msg.note)
-                    if note is not None:
-                        note.pressure = msg.value
-                case "program_change":
-                    print(msg)
-                    chosen = msg.program
+        # Consume any pending MIDI messages, from every port in turn
+        for port in self._ports:
+            while msg := port.poll():
+                match msg.type:
+                    case "note_on":
+                        print(msg)
+                        note = self._notes.get(msg.note)
+                        if note is not None:
+                            if msg.velocity == 0:
+                                note.off.put(0)  # a note-off in disguise
+                            else:
+                                note.off.clear()  # this press is not over
+                                note.on.put(msg.velocity)
+                                # How hard it was hit is where the pressure
+                                # starts; polytouch takes it from there.
+                                note.pressure = msg.velocity
+                    case "note_off":
+                        note = self._notes.get(msg.note)
+                        if note is not None:
+                            note.off.put(msg.velocity)
+                    case "control_change":
+                        print(msg)
+                        moved[msg.control] = msg.value
+                    case "polytouch":
+                        note = self._notes.get(msg.note)
+                        if note is not None:
+                            note.pressure = msg.value
+                    case "program_change":
+                        print(msg)
+                        chosen = msg.program
 
         for control, value in moved.items():
             self._cc_state(control).event.put(value)
@@ -122,8 +128,9 @@ class MIDI:
         """
         return MIDIFor(prefix, self)
 
-    def cc(self, id: int, comment: str | None = None,
-           hidden: bool = False) -> Callable[[], Event[int]]:
+    def cc(
+        self, id: int, comment: str | None = None, hidden: bool = False
+    ) -> Callable[[], Event[int]]:
         """
         Watch a control. Returns a getter for the latest event - its `data` is
         the 0-127 value, its `when` is when the control last moved.
@@ -160,8 +167,13 @@ class MIDI:
         change like any other, so anything watching `when` sees it move."""
         self._cc_state(id).event.put(value)
 
-    def _cc_state(self, id: int, comment: str | None = None,
-                  hidden: bool = False, watched: bool = False) -> CCState:
+    def _cc_state(
+        self,
+        id: int,
+        comment: str | None = None,
+        hidden: bool = False,
+        watched: bool = False,
+    ) -> CCState:
         """The state of a control, made on demand - by watching it or by it
         moving. Either way there is one store, so a control that moved before
         anyone watched it keeps its value. Knob positions across runs are a
@@ -203,7 +215,9 @@ class MIDI:
         state = self._note_state(id, comment)
         return lambda: state.pressure
 
-    def note(self, id: int, comment: str | None = None) -> Callable[[], tuple[Event[int], Event[int] | None] | None]:
+    def note(
+        self, id: int, comment: str | None = None
+    ) -> Callable[[], tuple[Event[int], Event[int] | None] | None]:
         """
         Watch a note. Returns a getter for the press and its release:
 
@@ -240,8 +254,9 @@ class MIDIFor:
     def cc(self, id: int, comment: str = "cc") -> Callable[[], Event[int]]:
         return self.midi.cc(id, f"{self.current_prefix}.{comment}")
 
-    def note(self, id: int, comment: str = "note") -> Callable[
-            [], tuple[Event[int], Event[int] | None] | None]:
+    def note(
+        self, id: int, comment: str = "note"
+    ) -> Callable[[], tuple[Event[int], Event[int] | None] | None]:
         return self.midi.note(id, f"{self.current_prefix}.{comment}")
 
     def polytouch(self, id: int, comment: str = "polytouch") -> Callable[[], int]:

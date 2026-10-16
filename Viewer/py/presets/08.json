@@ -41,6 +41,9 @@
       "b": 0.5
     },
     "bg_waves.flow": 0.39,
+    "bg_waves2.hue": 0.98,
+    "bg_waves2.value": "wipe1",
+    "bg_waves2.flow": 0.14,
     "net.amp": "wipe1",
     "net.hue": 0.4,
     "net.value": 0.0,
@@ -64,6 +67,24 @@
       "b": "strobe1"
     },
     "map_fiber.hue": 0.66,
-    "map_fiber.saturation": 0.72
+    "map_fiber.saturation": 0.72,
+    "map_fiber2.value": {
+      "op": "mul",
+      "a": "strobe2",
+      "b": "scope180"
+    },
+    "map_fiber2.hue": 0.0,
+    "map_fiber2.saturation": 0.07,
+    "map_fiber3.value": 0.0,
+    "map_fiber3.hue": {
+      "op": "mul",
+      "a": "rotary180",
+      "b": {
+        "op": "add",
+        "a": 0.1,
+        "b": 0.5
+      }
+    },
+    "map_fiber3.saturation": 0.88
   }
 }

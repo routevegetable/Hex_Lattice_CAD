@@ -198,9 +198,18 @@ class EventLatch(Generic[TData]):
 
     def put(self, data: TData | None = None) -> Event[TData]:
         """
-        Latch a new event now
+        Latch a new event now.
+
+        Bumped past whatever is already latched, so two puts falling in the
+        same millisecond - a burst of drained MIDI messages, say - still
+        count as separate events instead of the second being dropped as not
+        after the first.
         """
-        x = self.latch(Event.for_now(data))
+        now = Event.for_now(data)
+        if self.ev is not None and now.when <= self.ev.when:
+            now = Event(self.ev.when + 1, data)
+
+        x = self.latch(now)
         assert x is not None
         return x
 
