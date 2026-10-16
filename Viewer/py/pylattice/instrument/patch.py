@@ -12,6 +12,7 @@ from pylattice.fields.types import (
     CombinedField,
     ConstantField,
     ScalarField,
+    Unplugged,
     average,
     divide,
 )
@@ -77,6 +78,20 @@ def decode_field(ref: FieldRef, by_name: dict[str, ScalarField]) -> ScalarField:
     raise ValueError(f"cannot read a field from {ref!r}")
 
 
+def _differs(a: "Patch", b: "Patch") -> bool:
+    """Whether two patches disagree about anything a person would call an edit.
+
+    A control one side has never heard of can not have been moved, so ccs are
+    only compared where both have them.
+    """
+    shared = a.ccs.keys() & b.ccs.keys()
+    return (
+        any(a.ccs[k] != b.ccs[k] for k in shared)
+        or a.slots != b.slots
+        or a.off != b.off
+    )
+
+
 def named(namespace: type, kind: type) -> dict[str, object]:
     """The `kind` things declared in a class body, in the order written."""
     return {
@@ -119,7 +134,7 @@ class Patch:
         slots = {}
         for effect_name, effect in named(effects, Effect).items():
             for slot_name, slot in effect.get_slots().items():
-                if slot.field is None:
+                if slot.field is None or isinstance(slot.field, Unplugged):
                     continue  # nothing plugged in
                 # A combination or a constant is written out as how to rebuild
                 # it; anything else unnamed cannot be, and is left out.
@@ -320,7 +335,7 @@ class PresetBank:
     def dirty(self, number: int) -> bool:
         """Whether a preset has drifted from its file."""
         self.check(number)
-        return self._cache[number] != self._stored[number]
+        return _differs(self._cache[number], self._stored[number])
 
     def dirty_presets(self) -> list[int]:
         return [number for number in sorted(self._cache) if self.dirty(number)]
