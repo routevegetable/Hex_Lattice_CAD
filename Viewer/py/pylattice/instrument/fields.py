@@ -7,6 +7,7 @@ from pylattice.fields.artnet import artnet_universes
 from pylattice.fields.burst import BurstField
 from pylattice.fields.controls import CCField, StrobeField
 from pylattice.fields.fire import FireField
+from pylattice.fields.gradient import VGradientField
 from pylattice.fields.mask import EdgeMaskField
 from pylattice.fields.random import NoteRandomField
 from pylattice.fields.ripple import NoteRippleField
@@ -145,5 +146,8 @@ class FIELDS:
     strobe0 = StrobeField(midi.for_("strobe0"), strobe=PA1)
     strobe1 = StrobeField(midi.for_("strobe1"), strobe=PA2)
     strobe2 = StrobeField(midi.for_("strobe2"), strobe=PA3)
+    
+    v_gradient = VGradientField(midi.for_("v_gradient"), origin=KA6)
 
     burst = BurstField(graph, midi.for_("burst"), note=PB8, decay=KA7)
+

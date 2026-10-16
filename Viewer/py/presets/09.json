@@ -1,24 +1,21 @@
 {
   "ccs": {
-    "10": 48,
-    "74": 115,
+    "10": 64,
+    "74": 127,
     "71": 75,
-    "76": 60,
+    "76": 0,
     "114": 20,
     "18": 127,
     "75": 24,
-    "19": 127,
+    "19": 108,
     "16": 127,
     "17": 62,
     "91": 127,
     "79": 0,
-    "72": 3,
-    "77": 3,
+    "72": 5,
+    "77": 51,
     "93": 0,
-    "73": 0,
-    "54": 0,
-    "123": 0,
-    "51": 0,
+    "73": 96,
     "21": 0,
     "20": 0,
     "22": 0,
@@ -29,16 +26,12 @@
     "27": 0,
     "28": 0,
     "29": 0,
-    "55": 0,
     "30": 0,
     "31": 0,
     "32": 0,
     "33": 0,
     "34": 0,
-    "35": 0,
-    "52": 0,
-    "53": 0,
-    "50": 0
+    "35": 0
   },
   "slots": {
     "bg_waves.hue": {
@@ -58,13 +51,31 @@
         "b": 0.0
       }
     },
-    "bg_waves.value": 0.41,
+    "bg_waves.value": {
+      "op": "mul",
+      "a": "rotary",
+      "b": 0.0
+    },
     "bg_waves.flow": "ripple",
-    "pluck.a_amp": "wipe2",
-    "pluck.b_amp": "wipe1",
-    "pluck.c_amp": "wipe1",
-    "pluck.period": "param_b",
-    "pluck.value": 0.0,
+    "bg_waves2.hue": 0.68,
+    "bg_waves2.value": {
+      "op": "mul",
+      "a": 0.16,
+      "b": {
+        "op": "add",
+        "a": "wipe1",
+        "b": 0.76
+      }
+    },
+    "bg_waves2.flow": {
+      "op": "mul",
+      "a": {
+        "op": "div",
+        "a": "burst",
+        "b": 0.81
+      },
+      "b": "h_edges"
+    },
     "net.amp": "wipe1",
     "net.hue": 0.4,
     "net.value": {
@@ -81,9 +92,11 @@
     },
     "prob_zaps.prob": {
       "op": "mul",
-      "a": 0.18,
+      "a": 0.62,
       "b": "ripple"
     },
+    "prob_zaps.hue": 0.34,
+    "prob_zaps.value": 0.28,
     "map_fiber.value": {
       "op": "sub",
       "a": "scope",
@@ -102,6 +115,12 @@
       "op": "sub",
       "a": 1.0,
       "b": "wipe1"
-    }
+    },
+    "map_fiber2.value": 0.0,
+    "map_fiber2.hue": 0.0,
+    "map_fiber2.saturation": 0.0,
+    "map_fiber3.value": 0.0,
+    "map_fiber3.hue": 0.0,
+    "map_fiber3.saturation": 0.0
   }
 }
