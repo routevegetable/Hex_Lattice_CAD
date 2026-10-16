@@ -16,7 +16,7 @@ from pylattice.effects.boom_zaps import (
 from pylattice.effects.waves import BgWaves, bg_waves
 from pylattice.effects.hex_bloom_stateless import HexBloom
 from pylattice.examples.colors import hsv, vary
-from pylattice.fields.types import ConstantField, ScalarField, Slot, UnconnectedSlot
+from pylattice.fields.types import ConstantField, ScalarField, Slot
 from pylattice.fields.artnet import artnet_universes
 from pylattice.fields.controls import CCField, PolyTouchField
 from pylattice.fields.random import NoteRandomField
@@ -31,7 +31,6 @@ from pylattice.graph import EdgeClass, EndRef, Graph
 from pylattice.lattice_writer import LatticeWriter
 from pathlib import Path
 from pylattice.instrument.api import serve
-from pylattice.instrument.fields import FIELDS
 from pylattice.instrument.hardware import STEPS, graph, lattice, midi
 from pylattice.instrument.console import Console
 from pylattice.instrument.patch import Patch, PresetBank, named
@@ -134,9 +133,9 @@ class BisexualSpin(Effect):
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
 
         for base in [
-            graph.TILE[0, 0].bottom_end(EdgeClass.D),
-            graph.TILE[1, 1].bottom_end(EdgeClass.D),
-            graph.TILE[2, 0].bottom_end(EdgeClass.B),
+            graph.TILE[0, 0].bottom_end(EdgeClass.B),
+            # graph.TILE[1, 1].bottom_end(EdgeClass.D),
+            # graph.TILE[2, 0].bottom_end(EdgeClass.B),
         ]:
             self.draw_hex(base, lattice)
 
@@ -206,7 +205,7 @@ class EFFECTS:
     map_fiber = MapFiber(value=0, hue=0, saturation=0)  # We're always zappin
     map_fiber2 = MapFiber(value=0, hue=0, saturation=0)
     map_fiber3 = MapFiber(value=0, hue=0, saturation=0)
-    hex_bloom = HexBloom(value=1, hue=0.05)  # or FIELDS.fader_b, to put it on a knob
+    hex_bloom = HexBloom(value=FIELDS.fader_b, hue=FIELDS.param_b)
     # map_tiles = MapTiles(
     #    a_hue=0,
     #    a_sat=0,
@@ -223,7 +222,6 @@ class EFFECTS:
 # Everything declared in EFFECTS, in the order written - so a preset patches
 # the same objects that render.
 effects: list[Effect] = list(named(EFFECTS, Effect).values())
-effects = [EFFECTS.hex_bloom]  # TEMP: only the blooms
 
 
 init_boom_zaps(graph, lattice)
@@ -313,10 +311,7 @@ while True:
         check_program()
 
         for effect in effects:
-            try:
-                effect.render(now, lattice, graph)
-            except UnconnectedSlot:
-                pass  # nothing plugged into it - it just does not draw
+            effect.render(now, lattice, graph)
         lattice.show()
 
     frames += 1
