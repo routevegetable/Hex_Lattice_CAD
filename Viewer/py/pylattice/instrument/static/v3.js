@@ -13,6 +13,7 @@ const post = async (p, body) => {
 let rig = null;         // vocabulary, selection, dirty
 let patch = null;       // what is playing
 let all = {};           // every preset, for the hover view
+let gradients = {};      // name -> stops: colour paths a hue+saturation pair can walk
 let busy = false;       // a pointer is down in the effects - don't redraw under it
 
 const effectOf = (key) => key.split('.')[0];
@@ -28,10 +29,13 @@ function el(tag, cls, text) {
   return e;
 }
 
+const isGradient = (n) => n !== null && typeof n === 'object' && n.gradient !== undefined;
+
 function describe(node) {
   if (node === null || node === undefined) return 'nothing';
   if (typeof node === 'number') return fmt(node);
   if (typeof node === 'string') return node;
+  if (isGradient(node)) return `gradient ${node.gradient}(${describe(node.of)}).${node.ch ?? 'h'}`;
   return `(${describe(node.a)} ${OPS[node.op]} ${describe(node.b)})`;
 }
 
@@ -154,7 +158,7 @@ let editing = {};                       // "effect.slot" -> partial tree
 const opened = new Set();               // slots showing the full editor
 
 const at = (tree, path) => path.reduce((n, step) => n[step], tree);
-const isLeaf = (n) => n === null || typeof n === 'string' || typeof n === 'number';
+const isLeaf = (n) => n === null || typeof n === 'string' || typeof n === 'number' || isGradient(n);
 const complete = (n) => n === null ? false : isLeaf(n) ? true : complete(n.a) && complete(n.b);
 const treeOf = (key) => key in editing ? editing[key] : (patch.slots[key] ?? null);
 
@@ -207,6 +211,11 @@ function leafEditor(key, tree, path) {
 
 function nodeEditor(key, tree, path) {
   const node = at(tree, path);
+  if (isGradient(node)) {      // made by the gradient picker, changed there
+    const row = el('div', 'leaf');
+    row.append(el('span', 'dim', describe(node)));
+    return row;
+  }
   if (isLeaf(node)) return leafEditor(key, tree, path);
 
   const box = el('div', 'node');
@@ -358,7 +367,10 @@ function drawEffects() {
 
     head.append(title, sw, reset);
     card.append(head);
-    if (open) for (const key of keys) card.append(slotRow(key));
+    if (open) {
+      for (const pair of gradientPairs(keys)) card.append(gradientPicker(pair));
+      for (const key of keys) card.append(slotRow(key));
+    }
     main.append(card);
   }
 }
@@ -367,6 +379,7 @@ function drawEffects() {
 
 function collect(node, out) {
   if (typeof node === 'string') out.add(node);
+  else if (isGradient(node)) collect(node.of, out);
   else if (node && typeof node === 'object') { collect(node.a, out); collect(node.b, out); }
 }
 
@@ -376,7 +389,9 @@ function formula(node, hl, top = true) {
   if (node === null || node === undefined) s.textContent = 'nothing';
   else if (typeof node === 'number') s.textContent = fmt(node);
   else if (typeof node === 'string') { s.textContent = node; if (node === hl) s.className = 'f hl'; }
-  else {
+  else if (isGradient(node)) {
+    s.append(`gradient ${node.gradient}(`, formula(node.of, hl, true), `).${node.ch ?? 'h'}`);
+  } else {
     if (!top) s.append('(');
     s.append(formula(node.a, hl, false), ` ${OPS[node.op]} `, formula(node.b, hl, false));
     if (!top) s.append(')');
@@ -600,6 +615,208 @@ function openEnvelope(field) {
   draw();
 }
 
+// ---- colour gradients ---------------------------------------------------------
+// An effect that takes both a hue and a saturation can follow a gradient instead:
+// pick one and a field to walk it, and both slots are written together.
+
+function gradientPairs(keys) {
+  const pairs = [];
+  for (const hue of keys) {
+    const name = slotOf(hue);
+    if (!name.endsWith('hue')) continue;
+    const prefix = name.slice(0, -3);
+    const sat = [`${prefix}saturation`, `${prefix}sat`]
+      .map(n => keys.find(k => slotOf(k) === n)).find(Boolean);
+    if (sat) pairs.push({hue, sat, label: prefix.replace(/_$/, '') || 'colour'});
+  }
+  return pairs;
+}
+
+function gradientPicker({hue, sat, label}) {
+  const cur = patch.slots[hue];
+  const now = isGradient(cur) ? cur : null;
+  const row = el('div', 'gradient-row');
+  row.append(el('span', 'name', `${label} gradient`));
+
+  const pick = el('select');
+  pick.append(new Option('none', ''));
+  for (const name of Object.keys(gradients).sort()) pick.append(new Option(name, name));
+  pick.value = now && gradients[now.gradient] ? now.gradient : '';
+
+  const driver = el('select');
+  driver.title = 'the field that says where along the gradient to be';
+  for (const name of fieldNames()) driver.append(new Option(name, name));
+  const driverName = now && typeof now.of === 'string' ? now.of : null;
+  if (driverName) driver.value = driverName;
+  driver.disabled = !now;
+
+  const apply = async (gradient, of) => {
+    const slots = gradient
+      ? {[hue]: {gradient, of, ch: 'h'}, [sat]: {gradient, of, ch: 's'}}
+      : {[hue]: of, [sat]: 1};           // back to a plain hue, fully saturated
+    if (await post('/current', {ccs: {}, slots})) await refresh();
+  };
+  pick.onchange = () => apply(pick.value || null, driver.value || fieldNames()[0]);
+  driver.onchange = () => apply(pick.value, driver.value);
+
+  const edit = el('button', null, pick.value ? 'edit' : 'new');
+  edit.onclick = () => openGradient(pick.value || null);
+  row.append(pick, el('span', 'dim', 'moved by'), driver, edit);
+  if (now && driverName === null) row.append(el('span', 'dim', describe(now.of)));
+  return row;
+}
+
+const hsv2rgb = (h, s, v) => {
+  h = ((h % 1) + 1) % 1;
+  const i = Math.floor(h * 6), f = h * 6 - i;
+  const p = v * (1 - s), q = v * (1 - f * s), u = v * (1 - (1 - f) * s);
+  return [[v, u, p], [q, v, p], [p, v, u], [p, q, v], [u, p, v], [v, p, q]][i % 6]
+    .map(c => Math.round(c * 255));
+};
+const css = (h, s, v) => `rgb(${hsv2rgb(h, s, v).join(',')})`;
+
+// The same walk the rig does: hue the short way round, the rest in a straight line.
+function colourAt(stops, p) {
+  if (p <= stops[0].at) return stops[0];
+  for (let i = 1; i < stops.length; i++) {
+    const a = stops[i - 1], b = stops[i];
+    if (p <= b.at) {
+      const t = b.at === a.at ? 0 : (p - a.at) / (b.at - a.at);
+      const dh = (((b.h - a.h + 0.5) % 1) + 1) % 1 - 0.5;
+      return {h: (((a.h + dh * t) % 1) + 1) % 1, s: a.s + (b.s - a.s) * t, v: a.v + (b.v - a.v) * t};
+    }
+  }
+  return stops[stops.length - 1];
+}
+
+function openGradient(existing) {
+  document.getElementById('gradient-modal')?.remove();
+  let name = existing ?? '';
+  const stops = (existing ? gradients[existing] : [
+    {at: 0, h: 0.08, s: 1, v: 1}, {at: 1, h: 0.75, s: 1, v: 1}]).map(x => ({...x}));
+  let sel = 0;
+
+  const overlay = el('div', 'modal-overlay');
+  overlay.id = 'gradient-modal';
+  const box = el('div', 'modal');
+  box.append(el('h4', null, existing ? `gradient · ${existing}` : 'new gradient'));
+
+  const nameIn = el('input'); nameIn.placeholder = 'name (letters, digits, - _)';
+  nameIn.value = name; nameIn.disabled = !!existing;
+  box.append(nameIn);
+
+  // the path itself: a gradient with a handle per stop
+  const bar = el('div', 'jbar');
+  const handles = el('div', 'jhandles');
+  const sorted = () => [...stops].sort((a, b) => a.at - b.at);
+  const drawBar = () => {
+    const ss = sorted();
+    const steps = 40, colours = [];
+    for (let i = 0; i <= steps; i++) {
+      const c = colourAt(ss, i / steps);
+      colours.push(`${css(c.h, c.s, c.v)} ${i / steps * 100}%`);
+    }
+    bar.style.background = `linear-gradient(90deg, ${colours.join(',')})`;
+    handles.innerHTML = '';
+    stops.forEach((st, i) => {
+      const h = el('div', 'jstop' + (i === sel ? ' on' : ''));
+      h.style.left = `${st.at * 100}%`;
+      h.style.background = css(st.h, st.s, st.v);
+      h.onpointerdown = (ev) => {
+        ev.stopPropagation(); sel = i; h.setPointerCapture(ev.pointerId);
+        const move = (e) => {
+          const r = bar.getBoundingClientRect();
+          st.at = Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1);
+          drawAll2();
+        };
+        const up = () => { h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); };
+        h.addEventListener('pointermove', move); h.addEventListener('pointerup', up);
+        drawAll2();
+      };
+      handles.append(h);
+    });
+  };
+  bar.onpointerdown = (ev) => {              // click the path to add a stop there
+    const r = bar.getBoundingClientRect();
+    const at = Math.min(Math.max((ev.clientX - r.left) / r.width, 0), 1);
+    const c = colourAt(sorted(), at);
+    stops.push({at, h: c.h, s: c.s, v: c.v});
+    sel = stops.length - 1; drawAll2();
+  };
+  bar.append(handles);
+
+  // the wheel: angle is hue, distance from the middle is saturation
+  const SZ = 170, wheel = el('canvas', 'jwheel');
+  wheel.width = wheel.height = SZ;
+  const drawWheel = () => {
+    const ctx = wheel.getContext('2d'), img = ctx.createImageData(SZ, SZ), r0 = SZ / 2;
+    const v = stops[sel].v;
+    for (let y = 0; y < SZ; y++) for (let x = 0; x < SZ; x++) {
+      const dx = x - r0 + 0.5, dy = y - r0 + 0.5, d = Math.hypot(dx, dy) / r0;
+      const i = (y * SZ + x) * 4;
+      if (d > 1) { img.data[i + 3] = 0; continue; }
+      const [R, G, B] = hsv2rgb(Math.atan2(dy, dx) / (2 * Math.PI), d, v);
+      img.data.set([R, G, B, 255], i);
+    }
+    ctx.putImageData(img, 0, 0);
+    const st = stops[sel], a = st.h * 2 * Math.PI, rr = st.s * r0;
+    ctx.beginPath(); ctx.arc(r0 + Math.cos(a) * rr, r0 + Math.sin(a) * rr, 7, 0, 7);
+    ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+  };
+  const pickColour = (ev) => {
+    const r = wheel.getBoundingClientRect(), k = SZ / r.width, r0 = SZ / 2;
+    const dx = (ev.clientX - r.left) * k - r0, dy = (ev.clientY - r.top) * k - r0;
+    stops[sel].h = (((Math.atan2(dy, dx) / (2 * Math.PI)) % 1) + 1) % 1;
+    stops[sel].s = Math.min(Math.hypot(dx, dy) / r0, 1);
+    drawAll2();
+  };
+  wheel.onpointerdown = (ev) => {
+    wheel.setPointerCapture(ev.pointerId); pickColour(ev);
+    wheel.onpointermove = pickColour;
+    wheel.onpointerup = () => { wheel.onpointermove = null; wheel.onpointerup = null; };
+  };
+
+  const value = el('input'); value.type = 'range'; value.min = '0'; value.max = '1'; value.step = '0.01';
+  value.oninput = () => { stops[sel].v = parseFloat(value.value); drawAll2(); };
+  const at = el('input'); at.type = 'number'; at.min = '0'; at.max = '100'; at.step = '1';
+  at.onchange = () => {
+    stops[sel].at = Math.min(Math.max(parseFloat(at.value) / 100, 0), 1); drawAll2();
+  };
+  const del = el('button', null, 'remove stop');
+  del.onclick = () => { if (stops.length > 1) { stops.splice(sel, 1); sel = 0; drawAll2(); } };
+
+  const side = el('div', 'jside');
+  const field = (label, input) => { const r = el('label', 'jfield'); r.append(el('span', null, label), input); return r; };
+  side.append(field('stop at %', at), field('brightness', value), del,
+              el('p', 'dim', 'Click the path to add a stop, drag one to move it, click the wheel to colour it. ' +
+                             'Hue goes the short way round between stops.'));
+  const body = el('div', 'jbody'); body.append(wheel, side);
+
+  const drawAll2 = () => {
+    drawBar(); drawWheel();
+    value.value = String(stops[sel].v); at.value = String(Math.round(stops[sel].at * 100));
+  };
+
+  const save = el('button', null, 'save gradient');
+  save.onclick = async () => {
+    const n = nameIn.value.trim();
+    if (!n) { alert('give the gradient a name'); return; }
+    const r = await fetch(`/gradients/${encodeURIComponent(n)}`, {
+      method: 'PUT', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({stops: sorted()})});
+    if (!r.ok) { alert((await r.json()).detail); return; }
+    overlay.remove(); await refresh();
+  };
+  const close = el('button', null, 'close'); close.onclick = () => overlay.remove();
+  const foot = el('div', 'env-foot'); foot.append(close, save);
+
+  box.append(bar, body, foot);
+  overlay.append(box);
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  document.body.append(overlay);
+  drawAll2();
+}
+
 function drawAll() { drawEffects(); drawMap(); }
 
 // ---- presets -----------------------------------------------------------------
@@ -679,7 +896,8 @@ function hidePeek() { document.getElementById('peek').hidden = true; }
 // ---- page --------------------------------------------------------------------
 
 async function refresh() {
-  [rig, patch, all] = await Promise.all([get('/rig'), get('/current'), get('/presets')]);
+  [rig, patch, all, gradients] = await Promise.all(
+    [get('/rig'), get('/current'), get('/presets'), get('/gradients')]);
   drawPresets();
   drawAll();
 }

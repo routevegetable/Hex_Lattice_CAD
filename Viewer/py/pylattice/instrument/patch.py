@@ -8,6 +8,7 @@ from pathlib import Path
 import traceback
 
 from pylattice.examples.midi import MIDI
+from pylattice.fields.gradient import GRADIENTS, GradientField
 from pylattice.fields.types import (
     CombinedField,
     ConstantField,
@@ -25,6 +26,9 @@ from pylattice.instrument.types import Effect
 #   "rotary"                                  a field declared in FIELDS
 #   0.25                                      a constant
 #   {"op": "mul", "a": "ripple", "b": 0.5}    a combination, nested freely
+#   {"gradient": "sunset", "of": "rotary", "ch": "h"}
+#                                             one channel of a colour gradient,
+#                                             walked by the field in "of"
 FieldRef = str | float | dict
 
 OPS = {
@@ -46,6 +50,13 @@ def encode_field(field: ScalarField, names: dict[int, str]) -> FieldRef:
     if isinstance(field, ConstantField):
         return field.value
 
+    if isinstance(field, GradientField):
+        return {
+            "gradient": field.gradient.name,
+            "of": encode_field(field.driver, names),
+            "ch": field.channel,
+        }
+
     if isinstance(field, CombinedField) and field.op in OP_NAMES:
         return {
             "op": OP_NAMES[field.op],
@@ -65,6 +76,13 @@ def decode_field(ref: FieldRef, by_name: dict[str, ScalarField]) -> ScalarField:
 
     if isinstance(ref, (int, float)):
         return ConstantField(ref)
+
+    if isinstance(ref, dict) and "gradient" in ref:
+        return GradientField(
+            GRADIENTS.get(ref["gradient"]),
+            decode_field(ref["of"], by_name),
+            ref.get("ch", "h"),
+        )
 
     if isinstance(ref, dict):
         if ref.get("op") not in OPS:

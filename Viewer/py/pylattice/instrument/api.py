@@ -16,6 +16,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from pylattice.fields.gradient import GRADIENTS
 from pylattice.instrument.console import Console, Knob, Rig, Stats
 from pylattice.instrument.patch import Patch
 
@@ -24,6 +25,10 @@ STATIC = Path(__file__).parent / "static"
 
 class Enabled(BaseModel):
     enabled: bool
+
+
+class GradientBody(BaseModel):
+    stops: list[dict[str, float]]
 
 
 class EnabledMany(BaseModel):
@@ -48,6 +53,20 @@ def make_app(console: Console) -> FastAPI:
     def v3() -> str:
         """The third layout - presets first, with per-effect switches."""
         return (STATIC / "v3.html").read_text()
+
+    @app.get("/gradients")
+    def gradients() -> dict[str, list[dict[str, float]]]:
+        """Every colour gradient, name -> stops (at, h, s, v)."""
+        return GRADIENTS.all()
+
+    @app.put("/gradients/{name}")
+    def put_gradient(name: str, body: GradientBody) -> dict[str, list[dict[str, float]]]:
+        """Make a gradient, or change one. Written to gradients.json."""
+        try:
+            GRADIENTS.put(name, body.stops)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from None
+        return GRADIENTS.all()
 
     @app.post("/effects/enabled")
     def set_all_enabled(body: EnabledMany) -> Patch:
