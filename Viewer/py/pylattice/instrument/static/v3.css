@@ -204,3 +204,26 @@ svg.env { width: 100%; height: auto; touch-action: none; user-select: none; }
 .jside { min-width: 200px; }
 .jfield input { min-width: 0; }
 .jfield input[type=number] { width: 64px; }
+
+/* field dropdown: name, then what plays it on each controller */
+.fpick { position: relative; display: inline-block; min-width: 0; }
+.fpick-btn { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; }
+.fpick-btn:disabled { opacity: .5; }
+.fpick-caret { margin-left: auto; color: var(--dim); font-size: 11px; }
+.fpick-name { white-space: nowrap; }
+.fpick-list { position: absolute; z-index: 40; top: 100%; left: 0; min-width: 100%; width: max-content;
+              max-height: 320px; overflow: auto; background: var(--panel); border: 1px solid var(--line);
+              border-radius: 6px; padding: 4px; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.fpick-legend { display: flex; gap: 6px; padding: 2px 6px 6px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.fpick-group { padding: 6px 8px 2px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.fpick-item { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 4px; cursor: pointer; }
+.fpick-item:hover, .fpick-item.on { background: rgba(106, 143, 208, .22); }
+.chip { font-size: 10px; padding: 0 6px; border-radius: 9px; border: 1px solid; white-space: nowrap; }
+.chip.akai { color: #4fb3a9; border-color: #4fb3a9; }
+.chip.beatstep { color: #b08cf0; border-color: #b08cf0; }
+.chip.live.akai { background: #4fb3a9; color: #0f1b1a; }
+.chip.live.beatstep { background: #b08cf0; color: #1a1426; }
+
+.ctl-toggle { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.ctl-toggle .chip { background: transparent; cursor: pointer; padding: 1px 8px; font-size: 11px; }
+.effects-bar { flex-wrap: wrap; }

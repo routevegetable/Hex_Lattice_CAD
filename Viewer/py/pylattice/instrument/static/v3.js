@@ -100,10 +100,7 @@ function hueControl(key, hue) {
   const {field, start, width} = hue;
 
   const row = el('div', 'hue-row');
-  const pick = el('select');
-  pick.append(new Option('fixed', ''));
-  for (const f of [...rig.fields].sort((a, b) => a.name.localeCompare(b.name)))
-    pick.append(new Option(f.name, f.name));
+  const pick = makeFieldPicker('fixed');
   pick.value = field ?? '';
   const readout = el('span');
   row.append(el('span', null, 'driven by'), pick, readout);
@@ -174,16 +171,89 @@ function redrawSlot(key, tree) {
   else drawAll();
 }
 
-const fieldNames = () => [...rig.fields].map(f => f.name).sort((a, b) => a.localeCompare(b));
+const GROUPS = ['fields', 'faders', 'pads', 'artnet'];       // the order dropdowns list them in
+const fieldNames = () => sortedFields().map(f => f.name);
+function sortedFields() {
+  const rank = (f) => { const i = GROUPS.indexOf(f.group); return i < 0 ? GROUPS.length : i; };
+  return [...rig.fields].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+}
+
+// Which controller's labels are drawn solid. Starts as the one the rig found at
+// startup; the toggle in the effects bar overrides it, remembered per browser.
+// It is only what the page highlights - the rig keeps the mapping it started with.
+const CONTROLLERS = {akai: 'Akai', beatstep: 'BeatStep'};
+const viewController = () => {
+  let pref = null;
+  try { pref = localStorage.getItem('v3.controller'); } catch {}
+  return pref in CONTROLLERS ? pref : rig.controller;
+};
+
+// A field dropdown. Native selects cannot colour part of an option, and these
+// show what plays each field on each controller - Akai in teal, BeatStep in
+// violet, the one plugged in drawn solid. It stands in for a <select>: `value`
+// reads and writes the field name ('' for the placeholder), `onchange` fires
+// when one is picked, and `disabled` works.
+function makeFieldPicker(placeholder, cls = '') {
+  const box = el('div', 'fpick' + (cls ? ` ${cls}` : ''));
+  const btn = el('button', 'fpick-btn');
+  btn.type = 'button';
+  let value = '', disabled = false;
+
+  const chips = (name) => {
+    const out = [];
+    for (const [c, label] of Object.entries(rig.controls?.[name] ?? {}))
+      out.push(el('span', `chip ${c}` + (c === viewController() ? ' live' : ''), label));
+    return out;
+  };
+  const show = () => {
+    btn.replaceChildren(el('span', 'fpick-name', value || placeholder || '…'), ...(value ? chips(value) : []),
+                        el('span', 'fpick-caret', '▾'));
+    btn.disabled = disabled;
+  };
+
+  const list = el('div', 'fpick-list');
+  const close = () => { box.classList.remove('open'); list.remove(); document.removeEventListener('pointerdown', away, true); };
+  const away = (ev) => { if (!box.contains(ev.target)) close(); };
+  const choose = (name) => { value = name; show(); close(); box.onchange?.(); };
+
+  const item = (name, label) => {
+    const row = el('div', 'fpick-item' + (name === value ? ' on' : ''));
+    row.append(el('span', 'fpick-name', label), ...chips(name));
+    row.onclick = () => choose(name);
+    return row;
+  };
+  btn.onclick = () => {
+    if (box.classList.contains('open')) return close();
+    list.replaceChildren();
+    const legend = el('div', 'fpick-legend');
+    legend.append(el('span', 'chip akai live', 'Akai'), el('span', 'chip beatstep live', 'BeatStep'));
+    list.append(legend);
+    if (placeholder) list.append(item('', placeholder));
+    for (const group of GROUPS) {
+      const mine = sortedFields().filter(f => f.group === group);
+      if (!mine.length) continue;
+      list.append(el('div', 'fpick-group', group));
+      for (const f of mine) list.append(item(f.name, f.name));
+    }
+    box.classList.add('open');
+    box.append(list);
+    list.querySelector('.on')?.scrollIntoView({block: 'nearest'});
+    document.addEventListener('pointerdown', away, true);
+  };
+
+  Object.defineProperty(box, 'value', {get: () => value, set: (v) => { value = v ?? ''; show(); }});
+  Object.defineProperty(box, 'disabled', {get: () => disabled, set: (v) => { disabled = !!v; show(); }});
+  box.append(btn);
+  show();
+  return box;
+}
 
 function leafEditor(key, tree, path) {
   const node = at(tree, path);
   const row = el('div', 'leaf');
 
-  const pick = el('select', typeof node === 'string' ? 'on' : '');
+  const pick = makeFieldPicker('field…', typeof node === 'string' ? 'on' : '');
   pick.title = 'a field';
-  pick.append(new Option('field…', ''));
-  for (const name of fieldNames()) pick.append(new Option(name, name));
   pick.value = typeof node === 'string' ? node : '';
   pick.onchange = () => { if (pick.value) redrawSlot(key, replace(tree, path, pick.value)); };
 
@@ -252,8 +322,7 @@ function slotRow(key) {
   if (hue) {
     row.append(hueControl(key, hue));
   } else if (typeof tree === 'string') {
-    const pick = el('select');
-    for (const name of fieldNames()) pick.append(new Option(name, name));
+    const pick = makeFieldPicker(null);
     pick.value = tree;
     pick.onchange = () => write(key, pick.value);
     row.append(pick);
@@ -332,6 +401,19 @@ function drawEffects() {
     if (await post('/effects/enabled', body)) { if (!anyOn) stashedOn = []; await refresh(); }
   };
   bar.append(allBtn, el('span', 'dim', `${names.filter(n => !off.has(n)).length}/${names.length} on`));
+
+  const which = el('div', 'ctl-toggle');
+  which.title = rig.controller
+    ? `which controller's labels are lit in the field menus (the rig found: ${CONTROLLERS[rig.controller] ?? rig.controller})`
+    : 'which controller\'s labels are lit in the field menus';
+  which.append(el('span', 'dim', 'controller'));
+  for (const [id, name] of Object.entries(CONTROLLERS)) {
+    const b = el('button', `chip ${id}` + (viewController() === id ? ' live' : ''), name);
+    b.onclick = () => { try { localStorage.setItem('v3.controller', id); } catch {} drawAll(); };
+    which.append(b);
+  }
+  if (rig.controller) which.append(el('span', 'dim', `found ${CONTROLLERS[rig.controller] ?? rig.controller}`));
+  bar.append(which);
   main.append(bar);
 
   for (const name of names) {
@@ -643,9 +725,8 @@ function gradientPicker({hue, sat, label}) {
   for (const name of Object.keys(gradients).sort()) pick.append(new Option(name, name));
   pick.value = now && gradients[now.gradient] ? now.gradient : '';
 
-  const driver = el('select');
+  const driver = makeFieldPicker(null);
   driver.title = 'the field that says where along the gradient to be';
-  for (const name of fieldNames()) driver.append(new Option(name, name));
   const driverName = now && typeof now.of === 'string' ? now.of : null;
   if (driverName) driver.value = driverName;
   driver.disabled = !now;
@@ -918,5 +999,6 @@ setInterval(() => {
   // never redraw under a drag, an open menu, or a half-built formula.
   const focused = effectsEl.contains(document.activeElement) &&
                   document.activeElement.matches('select, input');
-  if (!busy && !focused && Object.keys(editing).length === 0 && rig !== null) refresh();
+  const menuOpen = document.querySelector('.fpick.open') !== null;
+  if (!busy && !focused && !menuOpen && Object.keys(editing).length === 0 && rig !== null) refresh();
 }, 1000);

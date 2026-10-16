@@ -50,6 +50,22 @@ CONTROLLERS = {
 }
 
 
+# What each control is called on the unit, for the web UI's dropdowns. The keys
+# are the KA1..PB8 names above. The BeatStep's are just its own rows; the
+# Akai's follow docs/akai_mpd232.svg (None = nothing mapped to it there yet).
+LABELS = {
+    "beatstep": {
+        **{f"K{r}{n}": f"knob {r}{n}" for r in "AB" for n in range(1, 9)},
+        **{f"P{r}{n}": f"pad {r}{n}" for r in "AB" for n in range(1, 9)},
+    },
+    "akai": {
+        **{f"KA{n}": f"F{n}" for n in range(1, 5)},
+        **{f"PA{n}": f"pad {12 + n}" for n in range(1, 5)},
+        **{f"PB{n}": f"pad {p}" for n, p in enumerate((9, 10, 11, 12, 5, 6, 7, 8), 1)},
+    },
+}
+
+
 def _pick_controller() -> str:
     """LATTICE_CONTROLLER wins outright; otherwise whichever profile's ports
     are actually present, else the original default."""

@@ -19,6 +19,7 @@ from pylattice.graph import EdgeClass
 from pylattice.instrument.maps import ShapedEnvelope
 from pylattice.instrument.hardware import (
     KA1, KA2, KA3, KA4, KA5, KA6, KA7, KA8, KB1, KB2, KB3, KB4, KB5, KB6, KB7, KB8, PA1, PA2, PA3, PA4, PB1, PB2, PB3, PB4, PB5, PB6, PB7, PB8, graph, midi,
+    CONTROLLER, LABELS,
 )
 
 
@@ -153,3 +154,21 @@ class FIELDS:
     # A press (or a sequenced note) blooms a few random edges, slowly. Its
     # attack/hold/decay and how many edges are set from the web UI, per preset.
     bloom = BloomField(midi.for_("bloom"), note=PB8, envelope=ShapedEnvelope())
+
+
+# The control that plays each field, by its KA1..PB8 name - what the web UI
+# shows beside the field in a dropdown, for each controller. Only fields with
+# one obvious control are listed (a rotary has three knobs, none of them it).
+_PLAYED_BY = {
+    "fader_a": "KA1", "fader_b": "KA2", "param_a": "KA3", "param_b": "KA4",
+    "ripple": "PB1", "ripple2": "PB2", "wipe1": "PB3", "wipe2": "PB4",
+    "trace": "PB5", "random": "PB6", "fire": "PB7", "bloom": "PB8",
+    "strobe0": "PA1", "strobe1": "PA2", "strobe2": "PA3", "burst": "PA4",
+}
+assert all(hasattr(FIELDS, name) for name in _PLAYED_BY), "a field was renamed"
+
+FIELDS.CONTROLS = {
+    name: {c: labels[ctl] for c, labels in LABELS.items() if ctl in labels}
+    for name, ctl in _PLAYED_BY.items()
+}
+FIELDS.CONTROLLER = CONTROLLER  # which one is plugged in

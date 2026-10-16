@@ -24,12 +24,26 @@ class Stats:
     gc_ms: float = 0.0
 
 
+def field_group(name: str, f) -> str:
+    """Where a field sits in a dropdown: the rest - rotary, scope, masks - then
+    faders (a CC read straight off a control), then pads (anything a note or a
+    pad's pressure drives), and artnet last. The page sets the order."""
+    if name.startswith("artnet"):
+        return "artnet"
+    if type(f).__name__ in ("CCField", "FaderField", "PolyTouchField"):
+        return "faders"
+    if hasattr(f, "_note") or type(f).__name__ == "FireField":
+        return "pads"
+    return "fields"
+
+
 @dataclass
 class FieldInfo:
     """A field a slot can be pointed at, and what kind it is."""
 
     name: str
     kind: str
+    group: str = "fields"  # for the UI's dropdowns: faders, fields, pads or artnet
 
 
 @dataclass
@@ -63,6 +77,10 @@ class Rig:
     size: int = 16
     # field -> default settings, for fields that can be tuned from the UI
     tunable: dict[str, dict[str, float]] = field(default_factory=dict)
+    # field -> {controller: what the control is called there}, and which
+    # controller is plugged in (empty when the fields don't say)
+    controls: dict[str, dict[str, str]] = field(default_factory=dict)
+    controller: str = ""
 
 
 class Console:
@@ -247,7 +265,7 @@ class Console:
 
             return Rig(
                 fields=[
-                    FieldInfo(name, type(f).__name__)
+                    FieldInfo(name, type(f).__name__, field_group(name, f))
                     for name, f in named(self._fields, ScalarField).items()
                 ],
                 slots=slots,
@@ -255,6 +273,8 @@ class Console:
                 dirty=self._bank.dirty_presets(),
                 selected=self._selected,
                 size=self._bank.size,
+                controls=dict(getattr(self._fields, "CONTROLS", {})),
+                controller=getattr(self._fields, "CONTROLLER", ""),
                 tunable={
                     name: dict(f.DEFAULTS)
                     for name, f in named(self._fields, ScalarField).items()
