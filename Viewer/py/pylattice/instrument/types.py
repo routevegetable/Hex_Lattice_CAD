@@ -21,18 +21,18 @@ class Effect(Protocol):
             def render(self, now, lattice, graph):
                 self.a_amp.get(now, vertex)
 
-    Fields go in through bind, at wiring time or later - the cells are mutable,
-    so a running effect can be re-patched:
+    Building one takes no arguments: every slot starts on a constant 0, which
+    is a perfectly good field and draws nothing much. What goes in them is a
+    patch's business, and the cells are mutable, so a running effect can be
+    re-patched at any point:
 
-        pluck = Pluck().bind(a_amp=rotary, period=param)
-        pluck.bind(a_amp=note_wipe)
+        pluck = Pluck()
+        pluck.bind(a_amp=rotary, period=param)
     """
 
-    def __init__(self, **fields: ScalarField | float):
+    def __init__(self):
         for name in self.declared_slots():
             setattr(self, name, Slot(name))
-        if fields:
-            self.bind(**fields)
 
     @classmethod
     def declared_slots(cls) -> list[str]:

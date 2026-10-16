@@ -1,6 +1,7 @@
 """Saving and restoring a patch: where the knobs are, and what drives what."""
 import copy
 import json
+from collections.abc import Callable
 import operator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -83,10 +84,6 @@ class Patch:
     # effect.slot -> what drives it
     slots: dict[str, FieldRef]
 
-    # Whether this has drifted from what is on disk. The bank fills it in when
-    # it hands a preset out; `compare=False` keeps it out of equality, which is
-    # what the bank works dirtiness out with in the first place.
-    dirty: bool = field(default=False, compare=False)
 
     @classmethod
     def capture(cls, midi: MIDI, fields: type, effects: type) -> "Patch":
@@ -96,8 +93,6 @@ class Patch:
         slots = {}
         for effect_name, effect in named(effects, Effect).items():
             for slot_name, slot in effect.get_slots().items():
-                if slot.field is None:
-                    continue                # nothing plugged in
                 # A combination or a constant is written out as how to rebuild
                 # it; anything else unnamed cannot be, and is left out.
                 try:
@@ -115,17 +110,14 @@ class Patch:
                         for control, state in midi.get_ccs().items() if state.watched},
                    slots=slots)
 
-    def apply(self, midi: MIDI, fields: type, effects: type, whole: bool = True):
+    def apply(self, midi: MIDI, fields: type, effects: type):
         """Put the knobs back and re-patch the slots.
 
-        With `whole`, the patch is the entire picture: a slot it does not
-        mention ends up with nothing in it, rather than keeping whatever the
-        patch before left there. That is what makes an empty patch mean
-        something - it is a blank rig, and reverting to one clears it.
-
-        Without it, the patch is a set of changes and everything it says
-        nothing about is left alone - which is what editing one slot from the
-        UI wants, since it sends only the slot it touched.
+        A patch is the entire picture: a slot it does not mention ends up with
+        nothing in it, rather than keeping whatever the patch before left
+        there. That is what makes an empty patch mean something - it is a
+        blank rig, and reverting to one clears it. Everything that applies a
+        patch sends all of it, the UI included.
         """
         for control, value in self.ccs.items():
             midi.set_cc(control, value)
@@ -160,10 +152,9 @@ class Patch:
         for effect_name, effect in by_effect.items():
             mine = wanted.get(effect_name, {})
 
-            if whole:
-                for slot_name, slot in effect.get_slots().items():
-                    if slot_name not in mine:
-                        slot.clear()
+            for slot_name, slot in effect.get_slots().items():
+                if slot_name not in mine:
+                    slot.clear()
 
             if mine:
                 effect.bind(**mine)
@@ -206,7 +197,20 @@ class PresetBank:
         # never the same object, so comparing them means something.
         self._cache: dict[int, Patch] = {}
         self._stored: dict[int, Patch] = {}
+
+        # Which preset is playing, and where the knobs are right now. Knobs
+        # move without anyone telling the bank, so it folds them into that
+        # preset's copy whenever it hands one out - otherwise what it says is
+        # behind the rig the moment anybody touches anything.
+        self.current: int | None = None
+        self.live_ccs: Callable[[], dict[int, int]] = dict
+
         self.reload()
+
+    def _fold(self):
+        """Put the knobs as they are into the preset that is playing."""
+        if self.current is not None:
+            self._cache[self.current].ccs.update(self.live_ccs())
 
     # -- the files --------------------------------------------------------
 
@@ -250,19 +254,20 @@ class PresetBank:
 
     def get_all(self) -> dict[int, Patch]:
         """Every preset the bank holds, copied - reading cannot disturb what
-        the instrument is rendering - and each one told whether it is dirty."""
-        return {number: self._handed_out(number) for number in self._cache}
-
-    def _handed_out(self, number: int) -> Patch:
-        """A copy of a cached preset, carrying its dirty flag."""
-        patch = self._cache[number].copy()
-        patch.dirty = self.dirty(number)
-        return patch
+        the instrument is rendering."""
+        self._fold()
+        return {number: patch.copy() for number, patch in self._cache.items()}
 
     def read(self, number: int) -> Patch:
         """A preset as it stands, edits included."""
         self.check(number)
-        return self._handed_out(number)
+        self._fold()
+        return self._cache[number].copy()
+
+    def stored(self, number: int) -> Patch:
+        """A preset as its file has it, edits left out."""
+        self.check(number)
+        return self._stored[number].copy()
 
     def put(self, number: int, patch: Patch):
         """Hold a patch as a preset's current state. Dirty from here if it
@@ -273,6 +278,7 @@ class PresetBank:
     def dirty(self, number: int) -> bool:
         """Whether a preset has drifted from its file."""
         self.check(number)
+        self._fold()
         return self._cache[number] != self._stored[number]
 
     def dirty_presets(self) -> list[int]:
@@ -281,6 +287,7 @@ class PresetBank:
     def save(self, number: int):
         """Write a preset's cached patch out. It stops being dirty."""
         self.check(number)
+        self._fold()
         patch = self._cache[number]
 
         patch.save(self.path(number))
@@ -295,7 +302,7 @@ class PresetBank:
         self._stored[number] = stored
         self._cache[number] = stored.copy()
 
-        return self._handed_out(number)
+        return self._cache[number].copy()
 
     def write(self, number: int, preset: Patch):
         """Put a patch in and save it in one go."""

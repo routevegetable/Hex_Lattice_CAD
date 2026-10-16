@@ -130,64 +130,22 @@ class MapFiber(Effect):
 
 # This is the living field-slot data structure
 class EFFECTS:
+    """The effects that draw, in the order they draw in.
 
-    bg_waves = BgWaves(
-        hue=FIELDS.param_a,
-        value=FIELDS.fader_a,
-        flow=0
-    )
-    
-    bg_waves2 = BgWaves(
-        hue=FIELDS.param_a,
-        value=FIELDS.fader_a,
-        flow=0
-    )
-    
-    net = WobbleNet(
-        amp=FIELDS.ripple2,
-        hue=FIELDS.param_b,
-        value=FIELDS.fader_b
-    )
-    
-    sunrise = Sunrise( 
-        value=FIELDS.param_a,
-    )
-    bisexual = BisexualSpin(
-        value = FIELDS.param_a,
-        speed = FIELDS.param_b
-    )
-    prob_zaps = ProbZaps(
-        prob=FIELDS.ripple2
-    )
-    
-    map_fiber = MapFiber(
-        value=0,
-        hue=0,
-        saturation=0
-    )
-    
-    map_fiber2 = MapFiber(
-        value=0,
-        hue=0,
-        saturation=0
-    )
-    
-    map_fiber3 = MapFiber(
-        value=0,
-        hue=0,
-        saturation=0
-    )
-    #map_tiles = MapTiles(
-    #    a_hue=0,
-    #    a_sat=0,
-    #    a_value=0,
-    #    b_hue=0,
-    #    b_sat=0,
-    #    b_value=0,
-    #    c_hue=0,
-    #    c_sat=0,
-    #    c_value=0,
-    #)
+    Nothing is wired here - every slot starts on a constant 0 and the preset
+    loaded at startup says what actually drives what.
+    """
+
+    bg_waves = BgWaves()
+    bg_waves2 = BgWaves()
+    net = WobbleNet()
+    sunrise = Sunrise()
+    bisexual = BisexualSpin()
+    prob_zaps = ProbZaps()
+    map_fiber = MapFiber()
+    map_fiber2 = MapFiber()
+    map_fiber3 = MapFiber()
+    #map_tiles = MapTiles()
 
 
 # Everything declared in EFFECTS, in the order written - so a preset patches

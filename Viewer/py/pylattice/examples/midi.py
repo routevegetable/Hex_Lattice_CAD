@@ -155,6 +155,10 @@ class MIDI:
         """Every control someone has watched or that has moved, by CC number."""
         return dict(self._ccs)
 
+    def get_notes(self) -> dict[int, NoteState]:
+        """Every note someone has watched, by note number."""
+        return dict(self._notes)
+
     def set_cc(self, id: int, value: int):
         """Move a control from code - a preset being loaded, say. It lands as a
         change like any other, so anything watching `when` sees it move."""

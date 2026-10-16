@@ -18,6 +18,15 @@ header { flex: none; display: flex; align-items: stretch; justify-content: space
          border-bottom: 1px solid #333; }
 header #fps { flex: 1; display: flex; align-items: center; padding: 0 .7rem; }
 
+/* the tab bar: which of the three pages is showing */
+header .tabs { flex: none; display: flex; align-items: stretch; }
+header .tabs button { min-height: 32px; padding: 0 .75rem; border: 0;
+                      border-right: 1px solid #333; background: transparent;
+                      color: #8d96a3; font: inherit; font-size: .8rem;
+                      white-space: nowrap; }
+header .tabs button.on { background: #24334d; color: #fff;
+                         box-shadow: inset 0 -2px 0 #6a8fd0; }
+
 #preset-chip { min-height: 32px; padding: 0 .9rem; border: 0; border-left: 1px solid #333;
                background: #1c1c1c; color: #ddd; font: inherit;
                font-variant-numeric: tabular-nums; }
@@ -43,22 +52,35 @@ header #fps { flex: 1; display: flex; align-items: center; padding: 0 .7rem; }
                line-height: 1; }
 #revert-chip:disabled { color: #3c434d; }
 
-/* effects: one segment each, divided by lines, scrolls sideways */
-.effects { flex: none; display: flex; overflow-x: auto; background: #1a1a1a;
+/* the sub bar: one segment each, divided by lines, scrolls sideways.
+   What is in it depends on the tab - effects, fields, or the parts of
+   the setup. */
+.subbar { flex: none; display: flex; overflow-x: auto; background: #1a1a1a;
            border-bottom: 1px solid #333; scrollbar-width: none; }
-.effects::-webkit-scrollbar { display: none; }
-.effects button { flex: none; min-height: 38px; padding: .15rem .8rem;
+.subbar::-webkit-scrollbar { display: none; }
+.subbar button { flex: none; min-height: 38px; padding: .15rem .8rem;
                   border: 0; border-right: 1px solid #333;
                   background: transparent; color: #bbb; font: inherit; }
-.effects button:last-child { border-right: 0; }
-.effects button.on { background: #24334d; color: #fff;
+.subbar button:last-child { border-right: 0; }
+.subbar button.on { background: #24334d; color: #fff;
                      box-shadow: inset 0 -3px 0 #6a8fd0; }
-.effects button small { display: block; font-size: .65rem; color: #888; }
-.effects button.on small { color: #cfe; }
+.subbar button small { display: block; font-size: .65rem; color: #888; }
+.subbar button.on small { color: #cfe; }
+
+/* an effect entry is two things in one cell: the name, and a switch for
+   turning it off. The divider between them is the usual 1px line. */
+.subbar .subcell { flex: none; display: flex; align-items: stretch;
+                   border-right: 1px solid #333; }
+.subbar .subcell:last-child { border-right: 0; }
+.subbar .subcell button { border-right: 0; }
+.subbar .subcell.on { background: #24334d; box-shadow: inset 0 -3px 0 #6a8fd0; }
+.subbar .subcell.on .pick { color: #fff; }
+.subbar .kill { padding: 0 .5rem; color: #6d7681; font-size: .8rem; }
+.subbar .add { color: #6d7681; font-size: 1.1rem; padding: 0 1rem; }
 
 /* the slot list, and the modal that covers exactly it */
 main { flex: 1; position: relative; overflow: hidden; }
-.slots { position: absolute; inset: 0; overflow-y: auto; }
+.page { position: absolute; inset: 0; overflow-y: auto; }
 
 .slot { border-bottom: 1px solid #2a2a2a; background: #161616; }
 .slot > .row { display: flex; align-items: center; gap: .4rem;

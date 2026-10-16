@@ -7,13 +7,17 @@ const post = (p, body) => fetch(p, {method: 'POST', headers: {'Content-Type': 'a
 
 // The two things the page holds: what can be patched, and what is patched.
 let rig = null;
-let patch = null;
+let patch = null;           // what is playing
+let stored = null;          // the same preset as its file has it, for diffing
 let active = null;              // effect whose tab is open
 let open = new Set();           // "effect.slot" of expanded tiles
 let edits = {};                 // "effect.slot" -> tree mid-edit
 
 const effectOf = (key) => key.split('.')[0];
 const slotOf = (key) => key.split('.').slice(1).join('.');
+// A Patch names a slot `effect.slot`; the rig keeps the two halves apart.
+const slotKeys = (name) =>
+    (rig.effects[name]?.slots ?? []).map(slot => `${name}.${slot}`);
 const driverOf = (key) => key in edits ? edits[key] : (patch.slots[key] ?? null);
 
 // ---- the expression tree -------------------------------------------------
@@ -118,9 +122,15 @@ function tile(key) {
   return el;
 }
 
-// Send a Patch carrying just this slot - no ccs, so live knobs are untouched.
+// Send every slot, not just the one that changed: a Patch is the whole
+// picture to whoever applies it. No ccs, so live knobs are untouched.
 async function send(key, tree) {
-  const r = await post('/current', {ccs: {}, slots: {[key]: tree}});
+  const slots = {...patch.slots};
+
+  if (tree === null) delete slots[key];
+  else slots[key] = tree;
+
+  const r = await post('/current', {ccs: {}, slots});
   if (!r.ok) alert((await r.json()).detail);
   delete edits[key];
   draw();
@@ -129,15 +139,17 @@ async function send(key, tree) {
 // ---- page ----------------------------------------------------------------
 
 async function draw() {
-  [rig, patch] = await Promise.all([get('/rig'), get('/current')]);
+  let view;
+  [rig, view] = await Promise.all([get('/rig'), get('/current')]);
+  ({live: patch, stored} = view);
 
-  const effects = [...new Set(rig.slots.map(effectOf))];
+  const effects = Object.keys(rig.effects);
   if (!effects.includes(active)) active = effects[0] ?? null;
 
   const tabs = document.getElementById('tabs');
   tabs.innerHTML = '';
   for (const name of effects) {
-    const slots = rig.slots.filter(k => effectOf(k) === name);
+    const slots = slotKeys(name);
     const unset = slots.filter(k => driverOf(k) === null).length;
     const b = document.createElement('button');
     b.className = 'tab' + (name === active ? ' on' : '');
@@ -165,7 +177,7 @@ async function draw() {
 
   const tiles = document.getElementById('tiles');
   tiles.innerHTML = '';
-  for (const key of rig.slots.filter(k => effectOf(k) === active)) tiles.append(tile(key));
+  for (const key of slotKeys(active)) tiles.append(tile(key));
 
   drawControls();
 }
@@ -195,7 +207,7 @@ async function drawStats() {
 // which would pull the tree out from under the edit.
 async function poll() {
   drawStats();
-  if (open.size === 0) { patch = await get('/current'); drawControls(); }
+  if (open.size === 0) { ({live: patch, stored} = await get('/current')); drawControls(); }
 }
 
 draw(); drawStats();

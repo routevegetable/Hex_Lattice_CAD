@@ -11,10 +11,11 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from pylattice.instrument.console import Console, Knob, Rig, Stats
+from pylattice.instrument.console import (Console, ControlInfo, Knob, PresetView,
+                                          Rig, Stats)
 from pylattice.instrument.patch import Patch
 
 STATIC = Path(__file__).parent / "static"
@@ -37,6 +38,11 @@ def make_app(console: Console) -> FastAPI:
     def stats() -> Stats:
         return console.get_stats()
 
+    @app.get("/controls")
+    def controls() -> list[ControlInfo]:
+        """Every knob and pad the instrument watches, and what it drives."""
+        return console.controls()
+
     @app.get("/knobinfo")
     def knob() -> Knob | None:
         """The control that moved last. Null until one does."""
@@ -48,21 +54,27 @@ def make_app(console: Console) -> FastAPI:
         return console.describe()
 
     @app.get("/current")
-    def current() -> Patch:
-        return console.read_settings()
+    def current():
+        """Whichever preset is playing. There is nothing else to it - the bank
+        keeps that preset up with the knobs, so this is just its number."""
+        number = console.selected()
+
+        if number is None:
+            raise HTTPException(status_code=404, detail="no preset is selected")
+
+        return RedirectResponse(f"/presets/{number}")
 
     @app.post("/current")
-    def write_current(patch: Patch) -> Patch:
-        """Change what the patch mentions. Slots it leaves out are left alone -
-        the UI posts one slot at a time."""
+    def write_current(patch: Patch) -> PresetView:
+        """Apply a patch. The UI posts the whole thing, every time."""
         try:
-            console.write_settings(patch, whole=False)
+            console.write_settings(patch)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from None
-        return console.read_settings()
+        return console.read_preset(console.selected())
 
     @app.get("/presets/{number}")
-    def read_preset(number: int) -> Patch:
+    def read_preset(number: int) -> PresetView:
         try:
             return console.read_preset(number)
         except FileNotFoundError as e:
@@ -71,12 +83,12 @@ def make_app(console: Console) -> FastAPI:
             raise HTTPException(status_code=400, detail=str(e)) from None
 
     @app.get("/presets")
-    def all_presets() -> dict[int, Patch]:
+    def all_presets() -> dict[int, PresetView]:
         """Every preset the bank holds, each flagged dirty or not."""
         return console.all_presets()
 
     @app.post("/presets/{number}/duplicate")
-    def duplicate_preset(number: int) -> Patch:
+    def duplicate_preset(number: int) -> PresetView:
         """Copy what is playing into a preset and move there, unsaved."""
         try:
             console.duplicate_current_to(number)
@@ -85,7 +97,7 @@ def make_app(console: Console) -> FastAPI:
         return console.read_preset(number)
 
     @app.post("/presets/{number}/save")
-    def save_preset(number: int) -> Patch:
+    def save_preset(number: int) -> PresetView:
         """Write a preset's edits out."""
         try:
             console.save_preset(number)
@@ -96,17 +108,18 @@ def make_app(console: Console) -> FastAPI:
         return console.read_preset(number)
 
     @app.post("/presets/{number}/revert")
-    def revert_preset(number: int) -> Patch:
+    def revert_preset(number: int) -> PresetView:
         """Throw a preset's edits away and read its file back."""
         try:
-            return console.revert_preset(number)
+            console.revert_preset(number)
+            return console.read_preset(number)
         except FileNotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e)) from None
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from None
 
     @app.post("/presets/{number}/store")
-    def store_preset(number: int) -> Patch:
+    def store_preset(number: int) -> PresetView:
         try:
             console.store_current_to(number)
         except ValueError as e:
@@ -114,14 +127,14 @@ def make_app(console: Console) -> FastAPI:
         return console.read_preset(number)
 
     @app.post("/presets/{number}/load")
-    def load_preset(number: int) -> Patch:
+    def load_preset(number: int) -> PresetView:
         try:
             console.load_current_from(number)
         except FileNotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e)) from None
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from None
-        return console.read_settings()
+        return console.read_preset(number)
 
     return app
 

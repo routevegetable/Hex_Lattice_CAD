@@ -7,16 +7,18 @@
 
 <div class="app">
   <header>
+    <nav class="tabs" id="tabs"></nav>
     <span id="fps">…</span>
     <button id="preset-chip">preset —</button>
     <button id="save-chip" disabled>💾</button>
     <button id="revert-chip" disabled>↺</button>
   </header>
 
-  <nav class="effects" id="effects"></nav>
+  <!-- what the sub bar holds depends on the tab -->
+  <nav class="subbar" id="subbar"></nav>
 
   <main id="main">
-    <div class="slots" id="slots"></div>
+    <div class="page" id="page"></div>
 
     <!-- covers the slots, never the effects bar -->
     <!-- the knob that moved last, over everything, for two seconds -->

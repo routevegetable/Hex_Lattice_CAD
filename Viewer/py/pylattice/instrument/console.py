@@ -30,6 +30,32 @@ class FieldInfo:
 
 
 @dataclass
+class ControlInfo:
+    """A control on the box, and what the instrument uses it for.
+
+    `comments` is what asked for it, as `field.role` - the same thing the
+    knob readout shows. One control can have several.
+    """
+    kind: str                                           # "cc" or "note"
+    number: int
+    value: int                                          # or pressure, for a note
+    comments: list[str] = field(default_factory=list)
+    hidden: bool = False
+
+
+@dataclass
+class PresetView:
+    """A preset twice over: as it stands, and as its file has it.
+
+    Both copies rather than a flag, so a UI can work out exactly what has been
+    changed rather than only that something has.
+    """
+    live: Patch
+    stored: Patch
+    dirty: bool = False
+
+
+@dataclass
 class Knob:
     """The control that moved most recently, for a UI to show as it happens.
 
@@ -43,15 +69,23 @@ class Knob:
 
 
 @dataclass
+class EffectInfo:
+    """An effect, and the slots it has to plug fields into."""
+    slots: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Rig:
     """What can be patched - the names a Patch refers to, and the bank.
 
     Everything about what is *set* lives in the Patch itself; this is only the
     vocabulary, so a UI knows which fields it may choose and which slots exist
-    at all, including the ones nothing is plugged into.
+    at all, including the ones nothing is plugged into. A slot is named
+    `effect.slot` wherever a Patch refers to one; here the two halves are kept
+    apart, since the effect is what a UI groups by.
     """
     fields: list[FieldInfo] = field(default_factory=list)
-    slots: list[str] = field(default_factory=list)      # "effect.slot"
+    effects: dict[str, EffectInfo] = field(default_factory=dict)
     presets: list[int] = field(default_factory=list)
     dirty: list[int] = field(default_factory=list)      # edited since saving
     selected: int | None = None
@@ -67,11 +101,28 @@ class Console:
         self._fields = fields
         self._effects = effects
         self._bank = bank
+        bank.live_ccs = self._live_ccs      # so the bank can keep up with the knobs
         self._stats = Stats()
         self._selected: int | None = None
         # When a patch was last applied. Controls it moved are not news - the
         # display is for knobs someone turned, not knobs a preset put back.
         self._applied = 0
+
+    def controls(self) -> list[ControlInfo]:
+        """Every control the instrument watches, and what for.
+
+        Strays that merely turned up on the wire are left out - the same test
+        a preset uses to decide what is a setting of ours.
+        """
+        with self.lock:
+            out = [ControlInfo("cc", number, state.value,
+                               list(state.comments), state.hidden)
+                   for number, state in self._midi.get_ccs().items() if state.watched]
+
+            out += [ControlInfo("note", number, state.pressure, list(state.comments))
+                    for number, state in self._midi.get_notes().items()]
+
+            return sorted(out, key=lambda c: (c.kind, c.number))
 
     def last_cc(self) -> Knob | None:
         """Whichever control moved last, or None if none ever has.
@@ -105,52 +156,66 @@ class Console:
 
     # -- settings ---------------------------------------------------------
 
+    def _live_ccs(self) -> dict[int, int]:
+        """Where every watched knob is sitting now."""
+        return {number: state.value
+                for number, state in self._midi.get_ccs().items() if state.watched}
+
+    def _select(self, number: int | None):
+        """Say which preset is playing. The bank needs to know too, so it can
+        fold the knobs into the right one."""
+        self._selected = number
+        self._bank.current = number
+
     def read_settings(self) -> Patch:
         """The patch as it stands.
 
-        Also hands it to the bank as the selected preset's current state - a
-        knob moving is what makes that preset dirty, and this is where the
-        bank finds out about it.
+        A plain read of the rig - nothing is banked. What a preset is holding
+        is the bank's business: slots get there through write_settings, and
+        knob positions through the bank's own fold.
         """
         with self.lock:
-            patch = Patch.capture(self._midi, self._fields, self._effects)
+            return Patch.capture(self._midi, self._fields, self._effects)
 
+    def write_settings(self, patch: Patch):
+        """Apply a patch. Knobs it does not mention are left alone, but slots
+        it does not mention are emptied - a patch is the whole picture."""
+        with self.lock:
+            patch.apply(self._midi, self._fields, self._effects)
+            self._applied = Event.for_now().when
+
+            # What is playing is what this preset now holds. The knobs come
+            # back round through the fold, so a patch with no ccs in it - what
+            # the UI posts - does not lose them.
             if self._selected is not None:
                 self._bank.put(self._selected, patch)
 
-            return patch
-
-    def write_settings(self, patch: Patch, whole: bool = True):
-        """Apply a patch. Knobs it does not mention are left alone.
-
-        `whole` says the patch is the rig - slots it leaves out are emptied,
-        which is what loading or reverting a preset means. An edit of one slot
-        from the UI passes it off, or it would unplug everything else.
-        """
-        with self.lock:
-            patch.apply(self._midi, self._fields, self._effects, whole)
-            self._applied = Event.for_now().when
-
     # -- presets ----------------------------------------------------------
 
-    def read_preset(self, number: int) -> Patch:
+    def read_preset(self, number: int) -> PresetView:
         with self.lock:
-            return self._bank.read(number)
+            return self._view(number)
+
+    def _view(self, number: int) -> PresetView:
+        """A preset against its file. The lock is already held."""
+        return PresetView(live=self._bank.read(number),
+                          stored=self._bank.stored(number),
+                          dirty=self._bank.dirty(number))
 
     def store_current_to(self, number: int):
         with self.lock:
             self._bank.write(number, self.read_settings())
-            self._selected = number
+            self._select(number)
 
     def load_current_from(self, number: int):
         with self.lock:
-            self.write_settings(self._bank.read(number))
-            self._selected = number
+            patch = self._bank.read(number)
+            self._select(number)            # before applying, so it banks here
+            self.write_settings(patch)
 
     def save_preset(self, number: int):
         """Write a preset's edits out to its file."""
         with self.lock:
-            self.read_settings()        # catch up on anything just moved
             self._bank.save(number)
 
     def revert_preset(self, number: int) -> Patch:
@@ -172,15 +237,15 @@ class Console:
         its own edits, since reading the settings banks them first.
         """
         with self.lock:
-            patch = self.read_settings()
+            patch = self._bank.read(self._selected) if self._selected is not None \
+                else self.read_settings()
             self._bank.put(number, patch)
-            self._selected = number
+            self._select(number)
 
-    def all_presets(self) -> dict[int, Patch]:
-        """Every preset the bank holds, each saying whether it is dirty."""
+    def all_presets(self) -> dict[int, PresetView]:
+        """Every preset the bank holds, each against its file."""
         with self.lock:
-            self.read_settings()        # so the selected one is up to date
-            return self._bank.get_all()
+            return {number: self._view(number) for number in range(self._bank.size)}
 
     def selected(self) -> int | None:
         with self.lock:
@@ -200,16 +265,13 @@ class Console:
 
     def describe(self) -> Rig:
         with self.lock:
-            self.read_settings()        # so `dirty` reflects the knobs now
-
-            slots = [f"{name}.{slot}"
-                     for name, effect in named(self._effects, Effect).items()
-                     for slot in effect.get_slots()]
+            effects = {name: EffectInfo(list(effect.get_slots()))
+                       for name, effect in named(self._effects, Effect).items()}
 
             return Rig(
                 fields=[FieldInfo(name, type(f).__name__)
                         for name, f in named(self._fields, ScalarField).items()],
-                slots=slots,
+                effects=effects,
                 presets=self._bank.saved(),
                 dirty=self._bank.dirty_presets(),
                 selected=self._selected,

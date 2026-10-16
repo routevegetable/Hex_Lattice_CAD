@@ -6,8 +6,17 @@ const get = (p) => fetch(p).then(r => r.json());
 const post = (p, body) => fetch(p, {method: 'POST', headers: {'Content-Type': 'application/json'},
                                     body: body === undefined ? null : JSON.stringify(body)});
 
+// Three tabs up top; the bar under them is whatever that tab needs.
+const TABS = [['controls', 'Controls'], ['effects', 'Effects'], ['config', 'Configuration']];
+const SECTIONS = [['stats', 'Stats'], ['midi', 'MIDI'], ['presets', 'Presets']];
+
 let rig = null;
-let patch = null;
+let patch = null;           // what is playing
+let stored = null;          // the same preset as its file has it, for diffing
+let controls = [];          // every knob and pad the instrument watches
+let tab = 'effects';        // which tab is showing
+let chosen = null;          // field showing its details, on Controls
+let section = 'stats';      // which part of Configuration
 let active = null;          // effect showing its slots
 let open = null;            // "effect.slot" of the expanded slot, one at a time
 let picking = null;         // {key, path} while the field picker is up
@@ -15,6 +24,9 @@ let presetsUp = false;      // the preset list uses the same modal
 let editing = {};           // slot edits, held until every operand is filled
 
 const effectOf = (key) => key.split('.')[0];
+// A Patch names a slot `effect.slot`; the rig keeps the two halves apart.
+const slotKeys = (name) =>
+    (rig.effects[name]?.slots ?? []).map(slot => `${name}.${slot}`);
 const slotOf = (key) => key.split('.').slice(1).join('.');
 const isLeaf = (n) => n === null || typeof n === 'string' || typeof n === 'number';
 
@@ -35,8 +47,16 @@ function replace(tree, path, value) {
   return {...tree, [step]: replace(tree[step], rest, value)};
 }
 
+// Send every slot, not just the one that changed: a Patch is the whole
+// picture to whoever applies it. No ccs - the UI never moves a knob, and
+// echoing back a copy up to a second old would fight the hardware.
 async function write(key, tree) {
-  const r = await post('/current', {ccs: {}, slots: {[key]: tree}});
+  const slots = {...patch.slots};
+
+  if (tree === null) delete slots[key];
+  else slots[key] = tree;
+
+  const r = await post('/current', {ccs: {}, slots});
   if (!r.ok) alert((await r.json()).detail);
   await load();
 }
@@ -171,9 +191,9 @@ function redrawSlot(key, tree) {
 }
 
 function drawSlots() {
-  const box = document.getElementById('slots');
+  const box = document.getElementById('page');
   box.innerHTML = '';
-  for (const key of rig.slots.filter(k => effectOf(k) === active)) {
+  for (const key of slotKeys(active)) {
     const tree = key in editing ? editing[key] : (patch.slots[key] ?? null);
 
     const el = document.createElement('div');
@@ -291,29 +311,173 @@ function choose(value) {
 // ---- page ----------------------------------------------------------------
 
 async function load() {
-  [rig, patch] = await Promise.all([get('/rig'), get('/current')]);
-  const effects = [...new Set(rig.slots.map(effectOf))];
-  if (!effects.includes(active)) active = effects[0] ?? null;
+  let view;
+  [rig, view, controls] = await Promise.all([get('/rig'), get('/current'), get('/controls')]);
+  ({live: patch, stored} = view);
 
-  const bar = document.getElementById('effects');
-  bar.innerHTML = '';
-  for (const name of effects) {
-    const slots = rig.slots.filter(k => effectOf(k) === name);
-    const unset = slots.filter(k => (patch.slots[k] ?? null) === null).length;
-    const b = document.createElement('button');
-    b.className = name === active ? 'on' : '';
-    b.innerHTML = `${name}<small>${slots.length} slots${unset ? ` · ${unset} free` : ''}</small>`;
-    b.dataset.effect = name;
-    b.onclick = () => { active = name; open = null; closePicker(); drawSlots(); redrawTabs(); };
-    bar.append(b);
-  }
+  const effects = Object.keys(rig.effects);
+  if (!effects.includes(active)) active = effects[0] ?? null;
+  if (!rig.fields.some(f => f.name === chosen)) chosen = null;
+
+  drawTabs();
+  drawSubBar();
+  drawPage();
   drawChip();
-  drawSlots();
 }
 
-function redrawTabs() {
-  for (const b of document.getElementById('effects').children)
-    b.className = b.dataset.effect === active ? 'on' : '';
+function drawTabs() {
+  const bar = document.getElementById('tabs');
+  bar.innerHTML = '';
+
+  for (const [key, label] of TABS) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.className = key === tab ? 'on' : '';
+    b.onclick = () => {
+      if (tab === key) return;
+      tab = key;
+      open = null;
+      closePicker();
+      drawTabs(); drawSubBar(); drawPage();
+    };
+    bar.append(b);
+  }
+}
+
+// The sub bar is whatever the tab indexes: effects, fields, or the parts of
+// the setup worth looking at.
+function drawSubBar() {
+  const bar = document.getElementById('subbar');
+  bar.innerHTML = '';
+
+  const cell = (label, hint, on, pick) => {
+    const b = document.createElement('button');
+    b.innerHTML = hint ? `${label}<small>${hint}</small>` : label;
+    b.className = on ? 'on' : '';
+    b.onclick = pick;
+    bar.append(b);
+  };
+
+  if (tab === 'effects') {
+    // An effect entry is its name and a switch to turn it off. Neither the
+    // switch nor the + at the end is wired up to anything yet.
+    for (const name of Object.keys(rig.effects)) {
+      const box = document.createElement('div');
+      box.className = 'subcell' + (name === active ? ' on' : '');
+
+      const pick = document.createElement('button');
+      pick.className = 'pick';
+      pick.textContent = name;
+      pick.onclick = () => {
+        active = name; open = null; closePicker(); drawSubBar(); drawPage();
+      };
+
+      const kill = document.createElement('button');
+      kill.className = 'kill';
+      kill.textContent = '\u2715';
+      kill.title = `turn ${name} off`;
+
+      box.append(pick, kill);
+      bar.append(box);
+    }
+
+    const add = document.createElement('button');
+    add.className = 'add';
+    add.textContent = '+';
+    add.title = 'add an effect';
+    bar.append(add);
+  } else if (tab === 'controls') {
+    for (const f of [...rig.fields].sort((x, y) => x.name.localeCompare(y.name))) {
+      const used = usedBy(f.name).length;
+      cell(f.name, used ? `${used} in use` : 'spare', f.name === chosen,
+           () => { chosen = f.name; drawSubBar(); drawPage(); });
+    }
+  } else {
+    for (const [key, label] of SECTIONS)
+      cell(label, '', key === section,
+           () => { section = key; drawSubBar(); drawPage(); });
+  }
+}
+
+function drawPage() {
+  if (tab === 'effects') return drawSlots();
+  if (tab === 'controls') return drawFieldPage();
+  return drawConfigPage();
+}
+
+// Every slot whose expression names a field, however deep in it.
+function usedBy(name) {
+  const mentions = (n) => n === name ||
+      (n !== null && typeof n === 'object' && (mentions(n.a) || mentions(n.b)));
+  return Object.keys(patch.slots).filter(k => mentions(patch.slots[k]));
+}
+
+function infoRow(name, value) {
+  const el = document.createElement('div');
+  el.className = 'slot';
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.innerHTML = `<span class="name">${name}</span><span class="value">${value}</span>`;
+  el.append(row);
+  return el;
+}
+
+// ---- Controls: what a field is, what drives it, and who listens ----------
+
+function drawFieldPage() {
+  const box = document.getElementById('page');
+  box.innerHTML = '';
+
+  if (chosen === null) {
+    box.innerHTML = '<p class="hint">Pick a field above.</p>';
+    return;
+  }
+
+  const info = rig.fields.find(f => f.name === chosen);
+  box.append(infoRow('kind', info ? info.kind : '?'));
+
+  // A control says what it is for as `field.role`, so its own name is the
+  // prefix to look for.
+  const mine = controls.filter(c => c.comments.some(t => t.startsWith(chosen + '.')));
+
+  for (const c of mine) {
+    const role = c.comments.filter(t => t.startsWith(chosen + '.'))
+                           .map(t => t.slice(chosen.length + 1)).join(', ');
+    box.append(infoRow(`${c.kind} ${c.number}`, `${role} \u00b7 ${c.value}`));
+  }
+
+  if (!mine.length) box.append(infoRow('driven by', 'nothing on the box'));
+
+  const used = usedBy(chosen);
+  box.append(infoRow('used by', used.join(', ') || 'nothing'));
+}
+
+// ---- Configuration -------------------------------------------------------
+
+async function drawConfigPage() {
+  const box = document.getElementById('page');
+  box.innerHTML = '';
+
+  if (section === 'stats') {
+    const s = await get('/stats');
+    box.append(infoRow('frame rate', `${s.fps.toFixed(1)} fps`));
+    box.append(infoRow('render', `${s.render_ms.toFixed(2)} ms`));
+    box.append(infoRow('gc', `${s.gc_ms.toFixed(2)} ms`));
+    box.append(infoRow('fields', rig.fields.length));
+    box.append(infoRow('effects', Object.keys(rig.effects).length));
+    box.append(infoRow('slots', Object.values(rig.effects)
+                                      .reduce((n, e) => n + e.slots.length, 0)));
+  } else if (section === 'midi') {
+    for (const c of controls) {
+      const what = (c.comments.join(' \u00b7 ') || 'unnamed') + (c.hidden ? ' \u00b7 hidden' : '');
+      box.append(infoRow(`${c.kind} ${c.number}`, `${what} \u2014 ${c.value}`));
+    }
+  } else {
+    box.append(infoRow('bank size', rig.size));
+    box.append(infoRow('playing', rig.selected === null ? '\u2014' : `preset ${rig.selected}`));
+    box.append(infoRow('written', rig.presets.join(', ') || 'none'));
+    box.append(infoRow('unsaved edits', rig.dirty.join(', ') || 'none'));
+  }
 }
 
 async function drawStats() {
@@ -365,8 +529,9 @@ setInterval(async () => {
   }
 
   if (open === null && picking === null && !presetsUp) {
-    patch = await get('/current');
-    drawSlots();
+    ({live: patch, stored} = await get('/current'));
+    if (tab !== 'effects') controls = await get('/controls');
+    drawPage();
   }
 }, 1000);
 
