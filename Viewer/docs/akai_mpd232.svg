@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1560" viewBox="0 0 1500 1560" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="1500" height="1560" fill="#101317"/>
+<text x="40" y="44" font-size="22" fill="#e8ecf1" font-weight="bold" text-anchor="start">Akai MPD232 — controller mode (LiveLite preset)</text>
+<text x="40" y="68" font-size="12.5" fill="#8d96a3" font-weight="normal" text-anchor="start">Q-Link bank 1 and pad bank A · mapped live against the hardware, control-by-control · pylattice/instrument/hardware.py CONTROLLERS['akai']</text>
+<rect x="40" y="88" width="1420" height="1424" fill="#1b1f25" stroke="#3a424e"/>
+<rect x="64" y="112" width="166" height="1400" fill="#272d36" stroke="#3a424e"/>
+<text x="147" y="150" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">transport,</text>
+<text x="147" y="170" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">bank A-D, Q-Link</text>
+<text x="147" y="190" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">bank 1-3, and</text>
+<text x="147" y="210" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">program buttons</text>
+<text x="147" y="240" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">switching a bank</text>
+<text x="147" y="260" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">changes which</text>
+<text x="147" y="280" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">notes/CCs the</text>
+<text x="147" y="300" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">controls below</text>
+<text x="147" y="320" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">send — this sheet</text>
+<text x="147" y="340" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">is bank A / Q-Link</text>
+<text x="147" y="360" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">bank 1, the unit's</text>
+<text x="147" y="380" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">LiveLite power-on</text>
+<text x="147" y="400" font-size="11.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">default</text>
+<text x="258" y="130" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="start">Q-LINK BANK 1 — KNOBS</text>
+<circle cx="333" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="333" cy="186" r="24" fill="none" stroke="#474d56" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="333" y1="186" x2="320" y2="168" stroke="#474d56" stroke-width="3"/>
+<text x="333" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">K1</text>
+<text x="333" y="256" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
+<text x="333" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">not yet mapped —</text>
+<text x="333" y="286" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">deciding fader vs knob</text>
+<circle cx="482" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="482" cy="186" r="24" fill="none" stroke="#474d56" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="482" y1="186" x2="469" y2="168" stroke="#474d56" stroke-width="3"/>
+<text x="482" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">K2</text>
+<text x="482" y="256" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
+<text x="482" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">not yet mapped —</text>
+<text x="482" y="286" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">deciding fader vs knob</text>
+<circle cx="631" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="631" cy="186" r="24" fill="none" stroke="#474d56" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="631" y1="186" x2="618" y2="168" stroke="#474d56" stroke-width="3"/>
+<text x="631" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">K3</text>
+<text x="631" y="256" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
+<text x="631" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">not yet mapped —</text>
+<text x="631" y="286" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">deciding fader vs knob</text>
+<circle cx="780" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="780" cy="186" r="24" fill="none" stroke="#474d56" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="780" y1="186" x2="767" y2="168" stroke="#474d56" stroke-width="3"/>
+<text x="780" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">K4</text>
+<text x="780" y="256" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
+<text x="780" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">not yet mapped —</text>
+<text x="780" y="286" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">deciding fader vs knob</text>
+<circle cx="930" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="930" cy="186" r="24" fill="none" stroke="#474d56" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="930" y1="186" x2="917" y2="168" stroke="#474d56" stroke-width="3"/>
+<text x="930" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">K5</text>
+<text x="930" y="256" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
+<text x="930" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">not yet mapped —</text>
+<text x="930" y="286" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">deciding fader vs knob</text>
+<circle cx="1079" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="1079" cy="186" r="24" fill="none" stroke="#474d56" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="1079" y1="186" x2="1066" y2="168" stroke="#474d56" stroke-width="3"/>
+<text x="1079" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">K6</text>
+<text x="1079" y="256" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
+<text x="1079" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">not yet mapped —</text>
+<text x="1079" y="286" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">deciding fader vs knob</text>
+<circle cx="1228" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="1228" cy="186" r="24" fill="none" stroke="#474d56" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="1228" y1="186" x2="1215" y2="168" stroke="#474d56" stroke-width="3"/>
+<text x="1228" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">K7</text>
+<text x="1228" y="256" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
+<text x="1228" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">not yet mapped —</text>
+<text x="1228" y="286" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">deciding fader vs knob</text>
+<circle cx="1377" cy="186" r="31" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<circle cx="1377" cy="186" r="24" fill="none" stroke="#474d56" stroke-width="2" stroke-opacity="0.85"/>
+<line x1="1377" y1="186" x2="1364" y2="168" stroke="#474d56" stroke-width="3"/>
+<text x="1377" y="240" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">K8</text>
+<text x="1377" y="256" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
+<text x="1377" y="273" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">not yet mapped —</text>
+<text x="1377" y="286" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">deciding fader vs knob</text>
+<text x="258" y="326" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="start">Q-LINK BANK 1 — FADERS</text>
+<rect x="320" y="337" width="26" height="90" rx="6" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<rect x="317" y="392" width="32" height="10" rx="3" fill="#6a8fd0" stroke="#6a8fd0"/>
+<text x="333" y="457" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">F1</text>
+<text x="333" y="473" font-size="12.5" fill="#6a8fd0" font-weight="bold" text-anchor="middle">fader_a</text>
+<text x="333" y="490" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 12, ch 0</text>
+<rect x="469" y="337" width="26" height="90" rx="6" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<rect x="466" y="392" width="32" height="10" rx="3" fill="#6a8fd0" stroke="#6a8fd0"/>
+<text x="482" y="457" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">F2</text>
+<text x="482" y="473" font-size="12.5" fill="#6a8fd0" font-weight="bold" text-anchor="middle">fader_b</text>
+<text x="482" y="490" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 13, ch 0</text>
+<rect x="618" y="337" width="26" height="90" rx="6" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<rect x="615" y="392" width="32" height="10" rx="3" fill="#6a8fd0" stroke="#6a8fd0"/>
+<text x="631" y="457" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">F3</text>
+<text x="631" y="473" font-size="12.5" fill="#6a8fd0" font-weight="bold" text-anchor="middle">param_a</text>
+<text x="631" y="490" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 14, ch 0</text>
+<rect x="767" y="337" width="26" height="90" rx="6" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<rect x="764" y="392" width="32" height="10" rx="3" fill="#6a8fd0" stroke="#6a8fd0"/>
+<text x="780" y="457" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">F4</text>
+<text x="780" y="473" font-size="12.5" fill="#6a8fd0" font-weight="bold" text-anchor="middle">param_b</text>
+<text x="780" y="490" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">cc 15, ch 0</text>
+<rect x="917" y="337" width="26" height="90" rx="6" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<rect x="914" y="392" width="32" height="10" rx="3" fill="#474d56" stroke="#474d56"/>
+<text x="930" y="457" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">F5</text>
+<text x="930" y="473" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
+<text x="930" y="490" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">not yet mapped</text>
+<rect x="1066" y="337" width="26" height="90" rx="6" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<rect x="1063" y="392" width="32" height="10" rx="3" fill="#474d56" stroke="#474d56"/>
+<text x="1079" y="457" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">F6</text>
+<text x="1079" y="473" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
+<text x="1079" y="490" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">not yet mapped</text>
+<rect x="1215" y="337" width="26" height="90" rx="6" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<rect x="1212" y="392" width="32" height="10" rx="3" fill="#474d56" stroke="#474d56"/>
+<text x="1228" y="457" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">F7</text>
+<text x="1228" y="473" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
+<text x="1228" y="490" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">not yet mapped</text>
+<rect x="1364" y="337" width="26" height="90" rx="6" fill="#272d36" stroke="#3a424e" stroke-width="2"/>
+<rect x="1361" y="392" width="32" height="10" rx="3" fill="#474d56" stroke="#474d56"/>
+<text x="1377" y="457" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">F8</text>
+<text x="1377" y="473" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
+<text x="1377" y="490" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">not yet mapped</text>
+<text x="258" y="522" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="start">Q-LINK BANK 1 — BUTTONS</text>
+<rect x="278" y="534" width="110" height="36" fill="#272d36" stroke="#474d56"/>
+<text x="333" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">B1</text>
+<text x="333" y="588" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">unmapped</text>
+<rect x="427" y="534" width="110" height="36" fill="#272d36" stroke="#474d56"/>
+<text x="482" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">B2</text>
+<text x="482" y="588" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">unmapped</text>
+<rect x="576" y="534" width="110" height="36" fill="#272d36" stroke="#474d56"/>
+<text x="631" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">B3</text>
+<text x="631" y="588" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">unmapped</text>
+<rect x="725" y="534" width="110" height="36" fill="#272d36" stroke="#474d56"/>
+<text x="780" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">B4</text>
+<text x="780" y="588" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">unmapped</text>
+<rect x="875" y="534" width="110" height="36" fill="#272d36" stroke="#474d56"/>
+<text x="930" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">B5</text>
+<text x="930" y="588" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">unmapped</text>
+<rect x="1024" y="534" width="110" height="36" fill="#272d36" stroke="#474d56"/>
+<text x="1079" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">B6</text>
+<text x="1079" y="588" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">unmapped</text>
+<rect x="1173" y="534" width="110" height="36" fill="#272d36" stroke="#474d56"/>
+<text x="1228" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">B7</text>
+<text x="1228" y="588" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">unmapped</text>
+<rect x="1322" y="534" width="110" height="36" fill="#272d36" stroke="#474d56"/>
+<text x="1377" y="557" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="middle">B8</text>
+<text x="1377" y="588" font-size="9.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">unmapped</text>
+<text x="258" y="646" font-size="12" fill="#e8ecf1" font-weight="bold" text-anchor="start">PADS — BANK A (4×4, one of four banks)</text>
+<rect x="238" y="670" width="190" height="84" fill="#272d36" stroke="#e0d04a" stroke-width="2"/>
+<rect x="246" y="678" width="174" height="68" fill="none" stroke="#e0d04a" stroke-opacity="0.35"/>
+<text x="333" y="776" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 13</text>
+<text x="333" y="792" font-size="12.5" fill="#e0d04a" font-weight="bold" text-anchor="middle">strobe0</text>
+<text x="333" y="809" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">note 81, ch 1</text>
+<rect x="536" y="670" width="190" height="84" fill="#272d36" stroke="#e0d04a" stroke-width="2"/>
+<rect x="544" y="678" width="174" height="68" fill="none" stroke="#e0d04a" stroke-opacity="0.35"/>
+<text x="631" y="776" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 14</text>
+<text x="631" y="792" font-size="12.5" fill="#e0d04a" font-weight="bold" text-anchor="middle">strobe1</text>
+<text x="631" y="809" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">note 83, ch 1</text>
+<rect x="835" y="670" width="190" height="84" fill="#272d36" stroke="#e0d04a" stroke-width="2"/>
+<rect x="843" y="678" width="174" height="68" fill="none" stroke="#e0d04a" stroke-opacity="0.35"/>
+<text x="930" y="776" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 15</text>
+<text x="930" y="792" font-size="12.5" fill="#e0d04a" font-weight="bold" text-anchor="middle">strobe2</text>
+<text x="930" y="809" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">note 84, ch 1</text>
+<rect x="1133" y="670" width="190" height="84" fill="#272d36" stroke="#e07a4a" stroke-width="2"/>
+<rect x="1141" y="678" width="174" height="68" fill="none" stroke="#e07a4a" stroke-opacity="0.35"/>
+<text x="1228" y="776" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 16</text>
+<text x="1228" y="792" font-size="12.5" fill="#e07a4a" font-weight="bold" text-anchor="middle">burst</text>
+<text x="1228" y="809" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">note 86, ch 1 · unverified</text>
+<rect x="238" y="874" width="190" height="84" fill="#272d36" stroke="#e07a4a" stroke-width="2"/>
+<rect x="246" y="882" width="174" height="68" fill="none" stroke="#e07a4a" stroke-opacity="0.35"/>
+<text x="333" y="980" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 9</text>
+<text x="333" y="996" font-size="12.5" fill="#e07a4a" font-weight="bold" text-anchor="middle">ripple</text>
+<text x="333" y="1013" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">note 74, ch 1</text>
+<rect x="536" y="874" width="190" height="84" fill="#272d36" stroke="#e07a4a" stroke-width="2"/>
+<rect x="544" y="882" width="174" height="68" fill="none" stroke="#e07a4a" stroke-opacity="0.35"/>
+<text x="631" y="980" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 10</text>
+<text x="631" y="996" font-size="12.5" fill="#e07a4a" font-weight="bold" text-anchor="middle">ripple2</text>
+<text x="631" y="1013" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">note 76, ch 1</text>
+<rect x="835" y="874" width="190" height="84" fill="#272d36" stroke="#5fb87a" stroke-width="2"/>
+<rect x="843" y="882" width="174" height="68" fill="none" stroke="#5fb87a" stroke-opacity="0.35"/>
+<text x="930" y="980" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 11</text>
+<text x="930" y="996" font-size="12.5" fill="#5fb87a" font-weight="bold" text-anchor="middle">wipe1</text>
+<text x="930" y="1013" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">note 77, ch 1</text>
+<rect x="1133" y="874" width="190" height="84" fill="#272d36" stroke="#5fb87a" stroke-width="2"/>
+<rect x="1141" y="882" width="174" height="68" fill="none" stroke="#5fb87a" stroke-opacity="0.35"/>
+<text x="1228" y="980" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 12</text>
+<text x="1228" y="996" font-size="12.5" fill="#5fb87a" font-weight="bold" text-anchor="middle">wipe2</text>
+<text x="1228" y="1013" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">note 79, ch 1</text>
+<rect x="238" y="1078" width="190" height="84" fill="#272d36" stroke="#9b7ad0" stroke-width="2"/>
+<rect x="246" y="1086" width="174" height="68" fill="none" stroke="#9b7ad0" stroke-opacity="0.35"/>
+<text x="333" y="1184" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 5</text>
+<text x="333" y="1200" font-size="12.5" fill="#9b7ad0" font-weight="bold" text-anchor="middle">trace</text>
+<text x="333" y="1217" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">note 67, ch 1</text>
+<rect x="536" y="1078" width="190" height="84" fill="#272d36" stroke="#d06aa8" stroke-width="2"/>
+<rect x="544" y="1086" width="174" height="68" fill="none" stroke="#d06aa8" stroke-opacity="0.35"/>
+<text x="631" y="1184" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 6</text>
+<text x="631" y="1200" font-size="12.5" fill="#d06aa8" font-weight="bold" text-anchor="middle">random</text>
+<text x="631" y="1217" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">note 69, ch 1</text>
+<rect x="835" y="1078" width="190" height="84" fill="#272d36" stroke="#e2503c" stroke-width="2"/>
+<rect x="843" y="1086" width="174" height="68" fill="none" stroke="#e2503c" stroke-opacity="0.35"/>
+<text x="930" y="1184" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 7</text>
+<text x="930" y="1200" font-size="12.5" fill="#e2503c" font-weight="bold" text-anchor="middle">fire</text>
+<text x="930" y="1217" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">note 71, ch 1</text>
+<rect x="1133" y="1078" width="190" height="84" fill="#272d36" stroke="#e07a4a" stroke-width="2"/>
+<rect x="1141" y="1086" width="174" height="68" fill="none" stroke="#e07a4a" stroke-opacity="0.35"/>
+<text x="1228" y="1184" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 8</text>
+<text x="1228" y="1200" font-size="12.5" fill="#e07a4a" font-weight="bold" text-anchor="middle">bloom</text>
+<text x="1228" y="1217" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">note 72, ch 1</text>
+<rect x="238" y="1282" width="190" height="84" fill="#272d36" stroke="#474d56" stroke-width="2"/>
+<rect x="246" y="1290" width="174" height="68" fill="none" stroke="#474d56" stroke-opacity="0.35"/>
+<text x="333" y="1388" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 1</text>
+<text x="333" y="1404" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
+<text x="333" y="1421" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">velocity + aftertouch</text>
+<rect x="536" y="1282" width="190" height="84" fill="#272d36" stroke="#474d56" stroke-width="2"/>
+<rect x="544" y="1290" width="174" height="68" fill="none" stroke="#474d56" stroke-opacity="0.35"/>
+<text x="631" y="1388" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 2</text>
+<text x="631" y="1404" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
+<text x="631" y="1421" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">velocity + aftertouch</text>
+<rect x="835" y="1282" width="190" height="84" fill="#272d36" stroke="#474d56" stroke-width="2"/>
+<rect x="843" y="1290" width="174" height="68" fill="none" stroke="#474d56" stroke-opacity="0.35"/>
+<text x="930" y="1388" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 3</text>
+<text x="930" y="1404" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
+<text x="930" y="1421" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">velocity + aftertouch</text>
+<rect x="1133" y="1282" width="190" height="84" fill="#272d36" stroke="#474d56" stroke-width="2"/>
+<rect x="1141" y="1290" width="174" height="68" fill="none" stroke="#474d56" stroke-opacity="0.35"/>
+<text x="1228" y="1388" font-size="11.5" fill="#e8ecf1" font-weight="bold" text-anchor="middle">pad 4</text>
+<text x="1228" y="1404" font-size="12.5" fill="#474d56" font-weight="bold" text-anchor="middle">unmapped</text>
+<text x="1228" y="1421" font-size="10.5" fill="#8d96a3" font-weight="normal" text-anchor="middle">velocity + aftertouch</text>
+<text x="40" y="1447" font-size="13" fill="#e8ecf1" font-weight="bold" text-anchor="start">not drawn / not yet mapped</text>
+<text x="40" y="1471" font-size="12" fill="#8d96a3" font-weight="normal" text-anchor="start">Q-Link banks 2-3, pad banks B-D — same controls, different banks, untouched so far</text>
+<text x="40" y="1493" font-size="12" fill="#8d96a3" font-weight="normal" text-anchor="start">pads 1-4 and all 8 knobs/buttons — still deciding which fields go on knobs vs the remaining faders</text>
+</svg>
