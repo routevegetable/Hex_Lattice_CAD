@@ -47,12 +47,12 @@ class ControlInfo:
 class PresetView:
     """A preset twice over: as it stands, and as its file has it.
 
-    Both copies rather than a flag, so a UI can work out exactly what has been
-    changed rather than only that something has.
+    Both copies and no flag: whether a preset has drifted is a question about
+    two patches, and the side that has to show what changed is better placed
+    to answer it than the side that would only say yes or no.
     """
     live: Patch
     stored: Patch
-    dirty: bool = False
 
 
 @dataclass
@@ -86,8 +86,7 @@ class Rig:
     """
     fields: list[FieldInfo] = field(default_factory=list)
     effects: dict[str, EffectInfo] = field(default_factory=dict)
-    presets: list[int] = field(default_factory=list)
-    dirty: list[int] = field(default_factory=list)      # edited since saving
+    presets: list[int] = field(default_factory=list)    # the ones with a file
     selected: int | None = None
     size: int = 16
 
@@ -171,24 +170,53 @@ class Console:
         """The patch as it stands.
 
         A plain read of the rig - nothing is banked. What a preset is holding
-        is the bank's business: slots get there through write_settings, and
+        is the bank's business: slots get there through write_preset, and
         knob positions through the bank's own fold.
         """
         with self.lock:
             return Patch.capture(self._midi, self._fields, self._effects)
 
-    def write_settings(self, patch: Patch):
-        """Apply a patch. Knobs it does not mention are left alone, but slots
-        it does not mention are emptied - a patch is the whole picture."""
-        with self.lock:
-            patch.apply(self._midi, self._fields, self._effects)
-            self._applied = Event.for_now().when
+    def _apply(self, patch: Patch):
+        """Put a patch into the rig. Knobs it does not mention are left alone,
+        but slots it does not mention are emptied - a patch is the whole
+        picture. The lock is already held."""
+        patch.apply(self._midi, self._fields, self._effects)
+        self._applied = Event.for_now().when
 
-            # What is playing is what this preset now holds. The knobs come
-            # back round through the fold, so a patch with no ccs in it - what
-            # the UI posts - does not lose them.
-            if self._selected is not None:
-                self._bank.put(self._selected, patch)
+    # -- the four things you can do to a preset ---------------------------
+
+    def write_preset(self, number: int, patch: Patch):
+        """Put a patch into a preset's live side.
+
+        If that preset is the one playing, the rig hears it. Writing to any
+        other preset is silent - it just sits there until something selects it.
+        """
+        with self.lock:
+            self._bank.put(number, patch)
+
+            if number == self._selected:
+                self._apply(patch)
+
+    def select_preset(self, number: int):
+        """Play what is in a preset's live side."""
+        with self.lock:
+            patch = self._bank.read(number)
+            self._select(number)            # before applying, so it banks here
+            self._apply(patch)
+
+    def commit_preset(self, number: int):
+        """Write a preset's live side out to its file."""
+        with self.lock:
+            self._bank.save(number)
+
+    def revert_preset(self, number: int):
+        """Drop a preset's edits and read its file back. If it is the one
+        playing, the rig goes back with it."""
+        with self.lock:
+            patch = self._bank.revert(number)
+
+            if number == self._selected:
+                self._apply(patch)
 
     # -- presets ----------------------------------------------------------
 
@@ -199,48 +227,7 @@ class Console:
     def _view(self, number: int) -> PresetView:
         """A preset against its file. The lock is already held."""
         return PresetView(live=self._bank.read(number),
-                          stored=self._bank.stored(number),
-                          dirty=self._bank.dirty(number))
-
-    def store_current_to(self, number: int):
-        with self.lock:
-            self._bank.write(number, self.read_settings())
-            self._select(number)
-
-    def load_current_from(self, number: int):
-        with self.lock:
-            patch = self._bank.read(number)
-            self._select(number)            # before applying, so it banks here
-            self.write_settings(patch)
-
-    def save_preset(self, number: int):
-        """Write a preset's edits out to its file."""
-        with self.lock:
-            self._bank.save(number)
-
-    def revert_preset(self, number: int) -> Patch:
-        """Drop a preset's edits. If it is the one playing, put it back live."""
-        with self.lock:
-            patch = self._bank.revert(number)
-
-            if number == self._selected:
-                self.write_settings(patch)
-
-            return patch
-
-    def duplicate_current_to(self, number: int):
-        """Put what is playing into another preset, and move there.
-
-        Nothing is written - the slot is left dirty, so the save button is
-        what commits it. The rig carries on untouched; it is the same patch,
-        it just answers to a different preset now. The one being left keeps
-        its own edits, since reading the settings banks them first.
-        """
-        with self.lock:
-            patch = self._bank.read(self._selected) if self._selected is not None \
-                else self.read_settings()
-            self._bank.put(number, patch)
-            self._select(number)
+                          stored=self._bank.stored(number))
 
     def all_presets(self) -> dict[int, PresetView]:
         """Every preset the bank holds, each against its file."""
@@ -273,7 +260,6 @@ class Console:
                         for name, f in named(self._fields, ScalarField).items()],
                 effects=effects,
                 presets=self._bank.saved(),
-                dirty=self._bank.dirty_presets(),
                 selected=self._selected,
                 size=self._bank.size,
             )

@@ -24,6 +24,7 @@ from pylattice.instrument.hardware import (
 ARTNET = artnet_universes(graph, count=4)
 
 
+
 class FIELDS:
     
     # CC fields
@@ -146,7 +147,7 @@ class FIELDS:
     strobe0 = StrobeField(midi.for_("strobe0"), strobe=PA1)
     strobe1 = StrobeField(midi.for_("strobe1"), strobe=PA2)
     strobe2 = StrobeField(midi.for_("strobe2"), strobe=PA3)
-    
+
     v_gradient = VGradientField(midi.for_("v_gradient"), origin=KA6)
 
     burst = BurstField(graph, midi.for_("burst"), note=PB8, decay=KA7)

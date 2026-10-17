@@ -11,7 +11,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from pylattice.instrument.console import (Console, ControlInfo, Knob, PresetView,
@@ -53,85 +53,56 @@ def make_app(console: Console) -> FastAPI:
         """What can be patched. Everything that *is* patched is in /current."""
         return console.describe()
 
-    @app.get("/current")
-    def current():
-        """Whichever preset is playing. There is nothing else to it - the bank
-        keeps that preset up with the knobs, so this is just its number."""
-        number = console.selected()
-
-        if number is None:
-            raise HTTPException(status_code=404, detail="no preset is selected")
-
-        return RedirectResponse(f"/presets/{number}")
-
-    @app.post("/current")
-    def write_current(patch: Patch) -> PresetView:
-        """Apply a patch. The UI posts the whole thing, every time."""
-        try:
-            console.write_settings(patch)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e)) from None
-        return console.read_preset(console.selected())
+    @app.get("/presets")
+    def all_presets() -> dict[int, PresetView]:
+        """Every preset the bank holds, each against its file."""
+        return console.all_presets()
 
     @app.get("/presets/{number}")
     def read_preset(number: int) -> PresetView:
+        """One preset: its live side, and the file it came from."""
         try:
             return console.read_preset(number)
-        except FileNotFoundError as e:
-            raise HTTPException(status_code=404, detail=str(e)) from None
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from None
 
-    @app.get("/presets")
-    def all_presets() -> dict[int, PresetView]:
-        """Every preset the bank holds, each flagged dirty or not."""
-        return console.all_presets()
+    @app.put("/presets/{number}")
+    def write_preset(number: int, patch: Patch) -> PresetView:
+        """Put a patch into a preset's live side.
 
-    @app.post("/presets/{number}/duplicate")
-    def duplicate_preset(number: int) -> PresetView:
-        """Copy what is playing into a preset and move there, unsaved."""
+        The patch is the whole picture, knobs included - nothing is merged. If
+        this is the preset that is playing the rig hears it at once; writing to
+        any other one is silent until something selects it.
+        """
         try:
-            console.duplicate_current_to(number)
+            console.write_preset(number, patch)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from None
         return console.read_preset(number)
 
-    @app.post("/presets/{number}/save")
-    def save_preset(number: int) -> PresetView:
-        """Write a preset's edits out."""
+    @app.post("/presets/{number}/select")
+    def select_preset(number: int) -> PresetView:
+        """Play what is in this preset's live side."""
         try:
-            console.save_preset(number)
-        except FileNotFoundError as e:
-            raise HTTPException(status_code=404, detail=str(e)) from None
+            console.select_preset(number)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from None
+        return console.read_preset(number)
+
+    @app.post("/presets/{number}/commit")
+    def commit_preset(number: int) -> PresetView:
+        """Write this preset's live side out to its file."""
+        try:
+            console.commit_preset(number)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from None
         return console.read_preset(number)
 
     @app.post("/presets/{number}/revert")
     def revert_preset(number: int) -> PresetView:
-        """Throw a preset's edits away and read its file back."""
+        """Drop this preset's edits and read its file back."""
         try:
             console.revert_preset(number)
-            return console.read_preset(number)
-        except FileNotFoundError as e:
-            raise HTTPException(status_code=404, detail=str(e)) from None
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e)) from None
-
-    @app.post("/presets/{number}/store")
-    def store_preset(number: int) -> PresetView:
-        try:
-            console.store_current_to(number)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e)) from None
-        return console.read_preset(number)
-
-    @app.post("/presets/{number}/load")
-    def load_preset(number: int) -> PresetView:
-        try:
-            console.load_current_from(number)
-        except FileNotFoundError as e:
-            raise HTTPException(status_code=404, detail=str(e)) from None
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from None
         return console.read_preset(number)

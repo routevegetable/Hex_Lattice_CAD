@@ -2,8 +2,10 @@ const OPS = {add: '+', sub: '−', mul: '×', div: '÷', avg: '≈'};
 const STEP_CC = [20, 55];
 
 const get = (p) => fetch(p).then(r => r.json());
-const post = (p, body) => fetch(p, {method: 'POST', headers: {'Content-Type': 'application/json'},
-                                    body: body === undefined ? null : JSON.stringify(body)});
+const send = (method, p, body) => fetch(p, {method, headers: {'Content-Type': 'application/json'},
+                                           body: body === undefined ? null : JSON.stringify(body)});
+const post = (p, body) => send('POST', p, body);
+const put = (p, body) => send('PUT', p, body);
 
 // The two things the page holds: what can be patched, and what is patched.
 let rig = null;
@@ -130,7 +132,7 @@ async function send(key, tree) {
   if (tree === null) delete slots[key];
   else slots[key] = tree;
 
-  const r = await post('/current', {ccs: {}, slots});
+  const r = await put(`/presets/${rig.selected}`, {ccs: patch.ccs, slots});
   if (!r.ok) alert((await r.json()).detail);
   delete edits[key];
   draw();
@@ -139,9 +141,8 @@ async function send(key, tree) {
 // ---- page ----------------------------------------------------------------
 
 async function draw() {
-  let view;
-  [rig, view] = await Promise.all([get('/rig'), get('/current')]);
-  ({live: patch, stored} = view);
+  rig = await get('/rig');
+  ({live: patch, stored} = await get(`/presets/${rig.selected}`));
 
   const effects = Object.keys(rig.effects);
   if (!effects.includes(active)) active = effects[0] ?? null;
@@ -165,11 +166,18 @@ async function draw() {
     const d = document.createElement('div');
     d.className = 'preset' + (saved ? ' saved' : '') + (n === rig.selected ? ' on' : '');
     d.textContent = n;
-    d.title = saved ? 'click to load, shift-click to overwrite' : 'shift-click to store';
+    d.title = saved ? 'click to select, shift-click to overwrite' : 'shift-click to write here';
     d.onclick = async (ev) => {
-      if (ev.shiftKey) await post(`/presets/${n}/store`);
-      else if (saved) { const r = await post(`/presets/${n}/load`);
-                        if (!r.ok) alert((await r.json()).detail); }
+      if (ev.shiftKey) {
+        // What 'store' used to be: put what is playing here, write it out,
+        // and carry on from this preset.
+        await put(`/presets/${n}`, {ccs: patch.ccs, slots: patch.slots});
+        await post(`/presets/${n}/commit`);
+        await post(`/presets/${n}/select`);
+      } else {
+        const r = await post(`/presets/${n}/select`);
+        if (!r.ok) alert((await r.json()).detail);
+      }
       draw();
     };
     box.append(d);
@@ -207,7 +215,10 @@ async function drawStats() {
 // which would pull the tree out from under the edit.
 async function poll() {
   drawStats();
-  if (open.size === 0) { ({live: patch, stored} = await get('/current')); drawControls(); }
+  if (open.size === 0) {
+    ({live: patch, stored} = await get(`/presets/${rig.selected}`));
+    drawControls();
+  }
 }
 
 draw(); drawStats();

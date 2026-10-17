@@ -54,29 +54,32 @@ header .tabs button.on { background: #24334d; color: #fff;
 
 /* the sub bar: one segment each, divided by lines, scrolls sideways.
    What is in it depends on the tab - effects, fields, or the parts of
-   the setup. */
-.subbar { flex: none; display: flex; overflow-x: auto; background: #1a1a1a;
-           border-bottom: 1px solid #333; scrollbar-width: none; }
+   the setup.
+
+   This bar runs the other way round from everything else - dark on light -
+   which is also what makes the emoji in it read as marks rather than smudges. */
+.subbar { flex: none; display: flex; overflow-x: auto; background: #e5e5e5;
+           border-bottom: 1px solid #ccc; scrollbar-width: none; }
 .subbar::-webkit-scrollbar { display: none; }
 .subbar button { flex: none; min-height: 38px; padding: .15rem .8rem;
-                  border: 0; border-right: 1px solid #333;
-                  background: transparent; color: #bbb; font: inherit; }
+                  border: 0; border-right: 1px solid #ccc;
+                  background: transparent; color: #444; font: inherit; }
 .subbar button:last-child { border-right: 0; }
-.subbar button.on { background: #24334d; color: #fff;
-                     box-shadow: inset 0 -3px 0 #6a8fd0; }
-.subbar button small { display: block; font-size: .65rem; color: #888; }
-.subbar button.on small { color: #cfe; }
+.subbar button.on { background: #b9c8e2; color: #11161f;
+                     box-shadow: inset 0 -3px 0 #2f5597; }
+.subbar button small { display: block; font-size: .65rem; color: #777; }
+.subbar button.on small { color: #31405a; }
 
 /* an effect entry is two things in one cell: the name, and a switch for
    turning it off. The divider between them is the usual 1px line. */
 .subbar .subcell { flex: none; display: flex; align-items: stretch;
-                   border-right: 1px solid #333; }
+                   border-right: 1px solid #ccc; }
 .subbar .subcell:last-child { border-right: 0; }
 .subbar .subcell button { border-right: 0; }
-.subbar .subcell.on { background: #24334d; box-shadow: inset 0 -3px 0 #6a8fd0; }
-.subbar .subcell.on .pick { color: #fff; }
-.subbar .kill { padding: 0 .5rem; color: #6d7681; font-size: .8rem; }
-.subbar .add { color: #6d7681; font-size: 1.1rem; padding: 0 1rem; }
+.subbar .subcell.on { background: #b9c8e2; box-shadow: inset 0 -3px 0 #2f5597; }
+.subbar .subcell.on .pick { color: #11161f; }
+.subbar .kill { padding: 0 .5rem; font-size: .9rem; line-height: 1; opacity: .65; }
+.subbar .add { font-size: .95rem; line-height: 1; padding: 0 1rem; }
 
 /* the slot list, and the modal that covers exactly it */
 main { flex: 1; position: relative; overflow: hidden; }

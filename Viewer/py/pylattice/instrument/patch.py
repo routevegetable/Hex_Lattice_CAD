@@ -18,7 +18,21 @@ from pylattice.instrument.types import Effect
 #   "rotary"                                  a field declared in FIELDS
 #   0.25                                      a constant
 #   {"op": "mul", "a": "ripple", "b": 0.5}    a combination, nested freely
-FieldRef = str | float | dict
+#
+# The combination is a dataclass rather than a bare dict, so the shape is
+# declared in one place - the REST schema is generated from it.
+
+
+@dataclass
+class Combination:
+    """Two refs under an operator: `a` and `b` can be refs of any kind, so
+    combinations nest."""
+    op: str
+    a: "FieldRef"
+    b: "FieldRef"
+
+
+FieldRef = str | float | Combination
 
 OPS = {"add": operator.add, "sub": operator.sub, "mul": operator.mul,
        "div": divide, "avg": average}
@@ -35,11 +49,9 @@ def encode_field(field: ScalarField, names: dict[int, str]) -> FieldRef:
         return field.value
 
     if isinstance(field, CombinedField) and field.op in OP_NAMES:
-        return {
-            "op": OP_NAMES[field.op],
-            "a": encode_field(field.a, names),
-            "b": encode_field(field.b, names),
-        }
+        return Combination(op=OP_NAMES[field.op],
+                           a=encode_field(field.a, names),
+                           b=encode_field(field.b, names))
 
     raise ValueError(f"cannot write down a {type(field).__name__} that has no name")
 
@@ -54,14 +66,30 @@ def decode_field(ref: FieldRef, by_name: dict[str, ScalarField]) -> ScalarField:
     if isinstance(ref, (int, float)):
         return ConstantField(ref)
 
-    if isinstance(ref, dict):
-        if ref.get("op") not in OPS:
-            raise ValueError(f"no operator {ref.get('op')!r} - try {', '.join(OPS)}")
-        return CombinedField(OPS[ref["op"]],
-                             decode_field(ref["a"], by_name),
-                             decode_field(ref["b"], by_name))
+    if isinstance(ref, Combination):
+        if ref.op not in OPS:
+            raise ValueError(f"no operator {ref.op!r} - try {', '.join(OPS)}")
+        return CombinedField(OPS[ref.op],
+                             decode_field(ref.a, by_name),
+                             decode_field(ref.b, by_name))
 
     raise ValueError(f"cannot read a field from {ref!r}")
+
+
+def as_json(ref: FieldRef):
+    """A ref as plain JSON - a combination becomes its three keys."""
+    if isinstance(ref, Combination):
+        return {"op": ref.op, "a": as_json(ref.a), "b": as_json(ref.b)}
+
+    return ref
+
+
+def as_ref(raw) -> FieldRef:
+    """The inverse, for reading a file back."""
+    if isinstance(raw, dict):
+        return Combination(op=raw.get("op", ""), a=as_ref(raw.get("a")), b=as_ref(raw.get("b")))
+
+    return raw
 
 
 def named(namespace: type, kind: type) -> dict[str, object]:
@@ -84,6 +112,11 @@ class Patch:
     # effect.slot -> what drives it
     slots: dict[str, FieldRef]
 
+    # CC string id -> Real MIDI CC number
+    cc_map: dict[str, int]
+
+    # Set of active effects
+    active: set[str]
 
     @classmethod
     def capture(cls, midi: MIDI, fields: type, effects: type) -> "Patch":
@@ -165,14 +198,15 @@ class Patch:
         return Patch(ccs=dict(self.ccs), slots=copy.deepcopy(self.slots))
 
     def save(self, path: str):
-        Path(path).write_text(json.dumps({"ccs": self.ccs, "slots": self.slots}, indent=2))
+        slots = {name: as_json(ref) for name, ref in self.slots.items()}
+        Path(path).write_text(json.dumps({"ccs": self.ccs, "slots": slots}, indent=2))
 
     @classmethod
     def load(cls, path: str) -> "Patch":
         saved = json.loads(Path(path).read_text())
         # JSON keys are strings; CC numbers are not.
         return cls(ccs={int(cc): v for cc, v in saved["ccs"].items()},
-                   slots=saved["slots"])
+                   slots={name: as_ref(raw) for name, raw in saved["slots"].items()})
 
 
 @dataclass
@@ -181,9 +215,10 @@ class PresetBank:
 
     Every preset is held in memory as well as on disk. The cached copy is the
     live one - the instrument renders from the cached patch of whatever is
-    selected - so turning a knob makes that entry drift from its file, and
-    that drift is what `dirty` means. Saving writes the cache out; reverting
-    throws it away and reads the file back.
+    selected - so turning a knob makes that entry drift from its file. The
+    bank hands out both copies and says nothing about the drift; whoever is
+    showing it decides what to make of it. Saving writes the cache out;
+    reverting throws it away and reads the file back.
     """
 
     directory: Path
@@ -275,15 +310,6 @@ class PresetBank:
         self.check(number)
         self._cache[number] = patch.copy()
 
-    def dirty(self, number: int) -> bool:
-        """Whether a preset has drifted from its file."""
-        self.check(number)
-        self._fold()
-        return self._cache[number] != self._stored[number]
-
-    def dirty_presets(self) -> list[int]:
-        return [number for number in sorted(self._cache) if self.dirty(number)]
-
     def save(self, number: int):
         """Write a preset's cached patch out. It stops being dirty."""
         self.check(number)
@@ -304,7 +330,3 @@ class PresetBank:
 
         return self._cache[number].copy()
 
-    def write(self, number: int, preset: Patch):
-        """Put a patch in and save it in one go."""
-        self.put(number, preset)
-        self.save(number)

@@ -3,8 +3,10 @@
 const OPS = {add: '+', sub: '−', mul: '×', div: '÷', avg: '≈'};
 
 const get = (p) => fetch(p).then(r => r.json());
-const post = (p, body) => fetch(p, {method: 'POST', headers: {'Content-Type': 'application/json'},
-                                    body: body === undefined ? null : JSON.stringify(body)});
+const send = (method, p, body) => fetch(p, {method, headers: {'Content-Type': 'application/json'},
+                                           body: body === undefined ? null : JSON.stringify(body)});
+const post = (p, body) => send('POST', p, body);
+const put = (p, body) => send('PUT', p, body);
 
 // Three tabs up top; the bar under them is whatever that tab needs.
 const TABS = [['controls', 'Controls'], ['effects', 'Effects'], ['config', 'Configuration']];
@@ -12,7 +14,9 @@ const SECTIONS = [['stats', 'Stats'], ['midi', 'MIDI'], ['presets', 'Presets']];
 
 let rig = null;
 let patch = null;           // what is playing
-let stored = null;          // the same preset as its file has it, for diffing
+let stored = null;          // the same preset as its file has it
+let dirty = false;          // whether those two differ
+let views = {};             // every preset, live against stored - fetched on demand
 let controls = [];          // every knob and pad the instrument watches
 let tab = 'effects';        // which tab is showing
 let chosen = null;          // field showing its details, on Controls
@@ -22,6 +26,19 @@ let open = null;            // "effect.slot" of the expanded slot, one at a time
 let picking = null;         // {key, path} while the field picker is up
 let presetsUp = false;      // the preset list uses the same modal
 let editing = {};           // slot edits, held until every operand is filled
+
+// Whether a preset has drifted from its file is a question about two patches,
+// so it is answered here rather than by the server, which would only be able
+// to say yes or no.
+function same(a, b) {
+  if (a === b) return true;
+  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
+
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every(k => same(a[k], b[k]));
+}
+
+const isDirty = (view) => !!view && !same(view.live, view.stored);
 
 const effectOf = (key) => key.split('.')[0];
 // A Patch names a slot `effect.slot`; the rig keeps the two halves apart.
@@ -47,16 +64,15 @@ function replace(tree, path, value) {
   return {...tree, [step]: replace(tree[step], rest, value)};
 }
 
-// Send every slot, not just the one that changed: a Patch is the whole
-// picture to whoever applies it. No ccs - the UI never moves a knob, and
-// echoing back a copy up to a second old would fight the hardware.
+// Send the whole patch, not just the slot that changed, and the knobs with
+// it: a write replaces a preset's live side outright, nothing is merged.
 async function write(key, tree) {
   const slots = {...patch.slots};
 
   if (tree === null) delete slots[key];
   else slots[key] = tree;
 
-  const r = await post('/current', {ccs: {}, slots});
+  const r = await put(`/presets/${rig.selected}`, {ccs: patch.ccs, slots});
   if (!r.ok) alert((await r.json()).detail);
   await load();
 }
@@ -233,8 +249,9 @@ function closePicker() {
 
 // ---- the preset list -----------------------------------------------------
 
-function openPresets() {
+async function openPresets() {
   presetsUp = true;
+  views = await get('/presets');
   const picker = document.getElementById('picker');
   document.getElementById('modal-title').textContent = 'presets';
   back(null);
@@ -246,7 +263,7 @@ function openPresets() {
     // to. Saving and reverting are up in the header, on whatever is playing.
     const cell = document.createElement('div');
     cell.className = 'pcell' + (rig.presets.includes(n) ? ' saved' : '') +
-                     (rig.dirty.includes(n) ? ' dirty' : '') +
+                     (isDirty(views[n]) ? ' dirty' : '') +
                      (n === rig.selected ? ' on' : '');
 
     const label = document.createElement('b');
@@ -260,10 +277,23 @@ function openPresets() {
       return b;
     };
 
+    // Copying is a write followed by a select: the write puts what is playing
+    // into that preset, and the select is what makes it the one you are on.
+    const copyHere = (to) => {
+      const b = document.createElement('button');
+      b.textContent = '\u29c9';
+      b.title = `copy what is playing into preset ${to}`;
+      b.onclick = async () => {
+        const r = await put(`/presets/${to}`, {ccs: patch.ccs, slots: patch.slots});
+        if (!r.ok) { alert((await r.json()).detail); return; }
+        act(`/presets/${to}/select`);
+      };
+      return b;
+    };
+
     cell.append(label,
-                key('\u25b6', `switch to preset ${n}`, `/presets/${n}/load`),
-                key('\u29c9', `copy what is playing into preset ${n}`,
-                    `/presets/${n}/duplicate`));
+                key('\u25b6', `switch to preset ${n}`, `/presets/${n}/select`),
+                copyHere(n));
     picker.append(cell);
   }
 }
@@ -311,9 +341,11 @@ function choose(value) {
 // ---- page ----------------------------------------------------------------
 
 async function load() {
-  let view;
-  [rig, view, controls] = await Promise.all([get('/rig'), get('/current'), get('/controls')]);
+  [rig, controls] = await Promise.all([get('/rig'), get('/controls')]);
+
+  const view = await get(`/presets/${rig.selected}`);
   ({live: patch, stored} = view);
+  dirty = isDirty(view);
 
   const effects = Object.keys(rig.effects);
   if (!effects.includes(active)) active = effects[0] ?? null;
@@ -374,7 +406,7 @@ function drawSubBar() {
 
       const kill = document.createElement('button');
       kill.className = 'kill';
-      kill.textContent = '\u2715';
+      kill.textContent = '\u{1F5D1}\uFE0F';
       kill.title = `turn ${name} off`;
 
       box.append(pick, kill);
@@ -383,7 +415,7 @@ function drawSubBar() {
 
     const add = document.createElement('button');
     add.className = 'add';
-    add.textContent = '+';
+    add.textContent = '\u2795';
     add.title = 'add an effect';
     bar.append(add);
   } else if (tab === 'controls') {
@@ -476,7 +508,9 @@ async function drawConfigPage() {
     box.append(infoRow('bank size', rig.size));
     box.append(infoRow('playing', rig.selected === null ? '\u2014' : `preset ${rig.selected}`));
     box.append(infoRow('written', rig.presets.join(', ') || 'none'));
-    box.append(infoRow('unsaved edits', rig.dirty.join(', ') || 'none'));
+    views = await get('/presets');
+    const edited = Object.keys(views).filter(n => isDirty(views[n]));
+    box.append(infoRow('unsaved edits', edited.join(', ') || 'none'));
   }
 }
 
@@ -488,21 +522,20 @@ async function drawStats() {
 function drawChip() {
   const chip = document.getElementById('preset-chip');
   const n = rig.selected;
-  const dirty = n !== null && rig.dirty.includes(n);
 
   chip.textContent = n === null ? 'preset —' : `preset ${n}`;
   chip.className = (n === null ? 'none' : '') + (dirty ? ' dirty' : '');
 
   // Saving and reverting act on whatever is playing, so they live up here
   // rather than once per row.
-  for (const [id, verb] of [['save-chip', 'save'], ['revert-chip', 'revert']]) {
+  for (const [id, verb] of [['save-chip', 'commit'], ['revert-chip', 'revert']]) {
     const b = document.getElementById(id);
     b.disabled = !dirty;
     b.title = dirty ? `${verb} preset ${n}` : `nothing to ${verb}`;
   }
 }
 
-for (const [id, path] of [['save-chip', 'save'], ['revert-chip', 'revert']]) {
+for (const [id, path] of [['save-chip', 'commit'], ['revert-chip', 'revert']]) {
   document.getElementById(id).onclick = () => {
     if (rig.selected !== null) act(`/presets/${rig.selected}/${path}`);
   };
@@ -529,7 +562,9 @@ setInterval(async () => {
   }
 
   if (open === null && picking === null && !presetsUp) {
-    ({live: patch, stored} = await get('/current'));
+    const view = await get(`/presets/${rig.selected}`);
+    ({live: patch, stored} = view);
+    dirty = isDirty(view);
     if (tab !== 'effects') controls = await get('/controls');
     drawPage();
   }

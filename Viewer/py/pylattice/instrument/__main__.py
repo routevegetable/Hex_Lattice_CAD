@@ -165,7 +165,7 @@ serve(CONSOLE)
 def load_preset(number: int):
     """Switch the bank to a preset, saying so either way."""
     try:
-        CONSOLE.load_current_from(number)
+        CONSOLE.select_preset(number)
         print(f"preset {number} loaded")
     except (FileNotFoundError, ValueError) as e:
         print(f"preset {number}: {e}")
