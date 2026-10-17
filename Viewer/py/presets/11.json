@@ -34,14 +34,27 @@
     "35": 0
   },
   "slots": {
-    "bg_waves.hue": "param_a",
+    "bg_waves.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "rotary",
+        "b": 0.37
+      },
+      "b": 0.68
+    },
     "bg_waves.value": "fader_a",
+    "pluck.a_amp": "strobe2",
     "net.amp": "ripple2",
     "net.hue": 0.53,
     "net.value": 0.5,
     "net.sat": 0.0,
     "prob_zaps.prob": "ripple2",
+<<<<<<< Updated upstream
     "map_fiber.value": "trace",
+=======
+    "map_fiber.value": "bloom",
+>>>>>>> Stashed changes
     "map_fiber.hue": {
       "gradient": "fire",
       "of": "trace_progress",
@@ -52,25 +65,47 @@
       "of": "trace_progress",
       "ch": "s"
     },
+<<<<<<< Updated upstream
     "map_fiber2.value": "bloom",
     "map_fiber2.hue": 0.0,
     "map_fiber2.saturation": 1.0,
+=======
+    "map_fiber2.value": "v_edges",
+    "map_fiber2.hue": 0.0,
+    "map_fiber2.saturation": 0.86,
+>>>>>>> Stashed changes
     "hex_bloom.value": "fader_b",
     "hex_bloom.hue": "param_b"
   },
   "off": [
+<<<<<<< Updated upstream
     "bg_waves",
     "bg_waves2",
     "bisexual",
     "hex_bloom",
     "map_fiber3",
     "pluck",
+=======
+    "bg_waves2",
+    "bisexual",
+    "hex_bloom",
+    "map_fiber",
+    "map_fiber2",
+    "map_fiber3",
+    "net",
+>>>>>>> Stashed changes
     "prob_zaps",
     "sunrise"
   ],
   "params": {
     "bloom": {
+<<<<<<< Updated upstream
       "attack": 20.0,
+=======
+      "attack": 1417.0,
+      "hold": 1934.0,
+      "decay": 1116.0,
+>>>>>>> Stashed changes
       "density": 0.01
     }
   }
