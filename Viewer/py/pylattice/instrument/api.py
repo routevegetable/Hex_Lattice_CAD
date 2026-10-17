@@ -6,6 +6,7 @@ Everything structured is a dataclass - FastAPI serialises those directly, so
 there are no dictionaries crossing the wire by hand. The page itself lives in
 static/, read per request, so editing it only needs a browser reload.
 """
+
 import threading
 from pathlib import Path
 
@@ -13,11 +14,26 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
+from pylattice.fields.gradient import GRADIENTS
 from pylattice.instrument.console import Console, Knob, Rig, Stats
 from pylattice.instrument.patch import Patch
 
 STATIC = Path(__file__).parent / "static"
+
+
+class Enabled(BaseModel):
+    enabled: bool
+
+
+class GradientBody(BaseModel):
+    stops: list[dict[str, float]]
+
+
+class EnabledMany(BaseModel):
+    enabled: bool
+    names: list[str] | None = None  # every effect when left out
 
 
 def make_app(console: Console) -> FastAPI:
@@ -32,6 +48,52 @@ def make_app(console: Console) -> FastAPI:
     def mobile() -> str:
         """The touch layout - same API, built for a small landscape screen."""
         return (STATIC / "mobile.html").read_text()
+
+    @app.get("/v3", response_class=HTMLResponse)
+    def v3() -> str:
+        """The third layout - presets first, with per-effect switches."""
+        return (STATIC / "v3.html").read_text()
+
+    @app.get("/gradients")
+    def gradients() -> dict[str, list[dict[str, float]]]:
+        """Every colour gradient, name -> stops (at, h, s, v)."""
+        return GRADIENTS.all()
+
+    @app.put("/gradients/{name}")
+    def put_gradient(name: str, body: GradientBody) -> dict[str, list[dict[str, float]]]:
+        """Make a gradient, or change one. Written to gradients.json."""
+        try:
+            GRADIENTS.put(name, body.stops)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from None
+        return GRADIENTS.all()
+
+    @app.post("/effects/enabled")
+    def set_all_enabled(body: EnabledMany) -> Patch:
+        """Switch several effects (default: all) on or off in one go."""
+        try:
+            console.set_effects_enabled(body.enabled, body.names)
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from None
+        return console.read_settings()
+
+    @app.post("/effects/{name}/enabled")
+    def set_enabled(name: str, body: Enabled) -> Patch:
+        """Switch an effect on or off. Part of the patch, so it dirties it."""
+        try:
+            console.set_effect_enabled(name, body.enabled)
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from None
+        return console.read_settings()
+
+    @app.post("/effects/{name}/reset")
+    def reset_effect(name: str) -> Patch:
+        """Set every slot of an effect to 0."""
+        try:
+            console.reset_effect(name)
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from None
+        return console.read_settings()
 
     @app.get("/stats")
     def stats() -> Stats:
@@ -126,9 +188,13 @@ def make_app(console: Console) -> FastAPI:
     return app
 
 
-def serve(console: Console, host: str = "127.0.0.1", port: int = 8800) -> threading.Thread:
+def serve(
+    console: Console, host: str = "127.0.0.1", port: int = 8800
+) -> threading.Thread:
     """Run the API on its own daemon thread, so the render loop keeps the main one."""
-    config = uvicorn.Config(make_app(console), host=host, port=port, log_level="warning")
+    config = uvicorn.Config(
+        make_app(console), host=host, port=port, log_level="warning"
+    )
     server = uvicorn.Server(config)
 
     thread = threading.Thread(target=server.run, name="lattice-api", daemon=True)

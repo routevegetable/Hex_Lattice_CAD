@@ -4,6 +4,7 @@ The render loop runs in the main thread; the REST server runs in its own. Both
 go through a Console, which holds one lock. The loop takes it for the whole
 frame, so nothing ever renders half a patch.
 """
+
 import threading
 from dataclasses import dataclass, field
 
@@ -17,16 +18,32 @@ from pylattice.instrument.types import Effect
 @dataclass
 class Stats:
     """How the render loop is doing."""
+
     fps: float = 0.0
     render_ms: float = 0.0
     gc_ms: float = 0.0
 
 
+def field_group(name: str, f) -> str:
+    """Where a field sits in a dropdown: the rest - rotary, scope, masks - then
+    faders (a CC read straight off a control), then pads (anything a note or a
+    pad's pressure drives), and artnet last. The page sets the order."""
+    if name.startswith("artnet"):
+        return "artnet"
+    if type(f).__name__ in ("CCField", "FaderField", "PolyTouchField"):
+        return "faders"
+    if hasattr(f, "_note") or type(f).__name__ == "FireField":
+        return "pads"
+    return "fields"
+
+
 @dataclass
 class FieldInfo:
     """A field a slot can be pointed at, and what kind it is."""
+
     name: str
     kind: str
+    group: str = "fields"  # for the UI's dropdowns: faders, fields, pads or artnet
 
 
 @dataclass
@@ -36,6 +53,7 @@ class Knob:
     `age_ms` is how long ago, worked out here because the clock is monotonic
     and means nothing on the other side of the wire.
     """
+
     cc: int
     value: int
     comments: list[str] = field(default_factory=list)
@@ -50,12 +68,19 @@ class Rig:
     vocabulary, so a UI knows which fields it may choose and which slots exist
     at all, including the ones nothing is plugged into.
     """
+
     fields: list[FieldInfo] = field(default_factory=list)
-    slots: list[str] = field(default_factory=list)      # "effect.slot"
+    slots: list[str] = field(default_factory=list)  # "effect.slot"
     presets: list[int] = field(default_factory=list)
-    dirty: list[int] = field(default_factory=list)      # edited since saving
+    dirty: list[int] = field(default_factory=list)  # edited since saving
     selected: int | None = None
     size: int = 16
+    # field -> default settings, for fields that can be tuned from the UI
+    tunable: dict[str, dict[str, float]] = field(default_factory=dict)
+    # field -> {controller: what the control is called there}, and which
+    # controller is plugged in (empty when the fields don't say)
+    controls: dict[str, dict[str, str]] = field(default_factory=dict)
+    controller: str = ""
 
 
 class Console:
@@ -86,12 +111,12 @@ class Console:
             latest, moved = None, 0
             for number, state in self._midi.get_ccs().items():
                 if state.hidden:
-                    continue                # plumbing, not a knob anyone turned
+                    continue  # plumbing, not a knob anyone turned
 
                 when = state.event.read().when
 
                 if when <= self._applied:
-                    continue                # a preset put it there, not a hand
+                    continue  # a preset put it there, not a hand
 
                 if when > moved:
                     latest, moved = (number, state), when
@@ -100,8 +125,12 @@ class Console:
                 return None
 
             number, state = latest
-            return Knob(cc=number, value=state.value,
-                        comments=list(state.comments), age_ms=now - moved)
+            return Knob(
+                cc=number,
+                value=state.value,
+                comments=list(state.comments),
+                age_ms=now - moved,
+            )
 
     # -- settings ---------------------------------------------------------
 
@@ -150,7 +179,7 @@ class Console:
     def save_preset(self, number: int):
         """Write a preset's edits out to its file."""
         with self.lock:
-            self.read_settings()        # catch up on anything just moved
+            self.read_settings()  # catch up on anything just moved
             self._bank.save(number)
 
     def revert_preset(self, number: int) -> Patch:
@@ -162,6 +191,32 @@ class Console:
                 self.write_settings(patch)
 
             return patch
+
+    # -- effects ----------------------------------------------------------
+
+    def _effect(self, name: str) -> Effect:
+        effects = named(self._effects, Effect)
+        if name not in effects:
+            raise ValueError(f"no effect {name!r}")
+        return effects[name]
+
+    def set_effect_enabled(self, name: str, enabled: bool):
+        """Switch an effect on or off. Its slots stay as they are."""
+        with self.lock:
+            self._effect(name).enabled = enabled
+
+    def set_effects_enabled(self, enabled: bool, names: list[str] | None = None):
+        """Switch several effects at once - every one when names is None."""
+        with self.lock:
+            effects = named(self._effects, Effect)
+            for name in effects if names is None else names:
+                self._effect(name).enabled = enabled
+
+    def reset_effect(self, name: str):
+        """Empty every slot of an effect to 0. Revert brings them back."""
+        with self.lock:
+            for slot in self._effect(name).get_slots().values():
+                slot.clear()
 
     def duplicate_current_to(self, number: int):
         """Put what is playing into another preset, and move there.
@@ -179,7 +234,7 @@ class Console:
     def all_presets(self) -> dict[int, Patch]:
         """Every preset the bank holds, each saying whether it is dirty."""
         with self.lock:
-            self.read_settings()        # so the selected one is up to date
+            self.read_settings()  # so the selected one is up to date
             return self._bank.get_all()
 
     def selected(self) -> int | None:
@@ -200,18 +255,29 @@ class Console:
 
     def describe(self) -> Rig:
         with self.lock:
-            self.read_settings()        # so `dirty` reflects the knobs now
+            self.read_settings()  # so `dirty` reflects the knobs now
 
-            slots = [f"{name}.{slot}"
-                     for name, effect in named(self._effects, Effect).items()
-                     for slot in effect.get_slots()]
+            slots = [
+                f"{name}.{slot}"
+                for name, effect in named(self._effects, Effect).items()
+                for slot in effect.get_slots()
+            ]
 
             return Rig(
-                fields=[FieldInfo(name, type(f).__name__)
-                        for name, f in named(self._fields, ScalarField).items()],
+                fields=[
+                    FieldInfo(name, type(f).__name__, field_group(name, f))
+                    for name, f in named(self._fields, ScalarField).items()
+                ],
                 slots=slots,
                 presets=self._bank.saved(),
                 dirty=self._bank.dirty_presets(),
                 selected=self._selected,
                 size=self._bank.size,
+                controls=dict(getattr(self._fields, "CONTROLS", {})),
+                controller=getattr(self._fields, "CONTROLLER", ""),
+                tunable={
+                    name: dict(f.DEFAULTS)
+                    for name, f in named(self._fields, ScalarField).items()
+                    if hasattr(f, "DEFAULTS") and hasattr(f, "set_params")
+                },
             )

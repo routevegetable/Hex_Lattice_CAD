@@ -1,4 +1,5 @@
 """Saving and restoring a patch: where the knobs are, and what drives what."""
+
 import copy
 import json
 import operator
@@ -7,7 +8,15 @@ from pathlib import Path
 import traceback
 
 from pylattice.examples.midi import MIDI
-from pylattice.fields.types import CombinedField, ConstantField, ScalarField, average, divide
+from pylattice.fields.gradient import GRADIENTS, GradientField
+from pylattice.fields.types import (
+    CombinedField,
+    ConstantField,
+    ScalarField,
+    Unplugged,
+    average,
+    divide,
+)
 from pylattice.instrument.types import Effect
 
 # What drives a slot, as JSON. A live field cannot be pickled - the MIDI-backed
@@ -17,10 +26,18 @@ from pylattice.instrument.types import Effect
 #   "rotary"                                  a field declared in FIELDS
 #   0.25                                      a constant
 #   {"op": "mul", "a": "ripple", "b": 0.5}    a combination, nested freely
+#   {"gradient": "sunset", "of": "rotary", "ch": "h"}
+#                                             one channel of a colour gradient,
+#                                             walked by the field in "of"
 FieldRef = str | float | dict
 
-OPS = {"add": operator.add, "sub": operator.sub, "mul": operator.mul,
-       "div": divide, "avg": average}
+OPS = {
+    "add": operator.add,
+    "sub": operator.sub,
+    "mul": operator.mul,
+    "div": divide,
+    "avg": average,
+}
 OP_NAMES = {op: name for name, op in OPS.items()}
 
 
@@ -32,6 +49,13 @@ def encode_field(field: ScalarField, names: dict[int, str]) -> FieldRef:
 
     if isinstance(field, ConstantField):
         return field.value
+
+    if isinstance(field, GradientField):
+        return {
+            "gradient": field.gradient.name,
+            "of": encode_field(field.driver, names),
+            "ch": field.channel,
+        }
 
     if isinstance(field, CombinedField) and field.op in OP_NAMES:
         return {
@@ -53,28 +77,55 @@ def decode_field(ref: FieldRef, by_name: dict[str, ScalarField]) -> ScalarField:
     if isinstance(ref, (int, float)):
         return ConstantField(ref)
 
+    if isinstance(ref, dict) and "gradient" in ref:
+        return GradientField(
+            GRADIENTS.get(ref["gradient"]),
+            decode_field(ref["of"], by_name),
+            ref.get("ch", "h"),
+        )
+
     if isinstance(ref, dict):
         if ref.get("op") not in OPS:
             raise ValueError(f"no operator {ref.get('op')!r} - try {', '.join(OPS)}")
-        return CombinedField(OPS[ref["op"]],
-                             decode_field(ref["a"], by_name),
-                             decode_field(ref["b"], by_name))
+        return CombinedField(
+            OPS[ref["op"]],
+            decode_field(ref["a"], by_name),
+            decode_field(ref["b"], by_name),
+        )
 
     raise ValueError(f"cannot read a field from {ref!r}")
 
 
+def _differs(a: "Patch", b: "Patch") -> bool:
+    """Whether two patches disagree about anything a person would call an edit.
+
+    A control one side has never heard of can not have been moved, so ccs are
+    only compared where both have them.
+    """
+    shared = a.ccs.keys() & b.ccs.keys()
+    return (
+        any(a.ccs[k] != b.ccs[k] for k in shared)
+        or a.slots != b.slots
+        or a.off != b.off
+        or a.params != b.params
+    )
+
+
 def named(namespace: type, kind: type) -> dict[str, object]:
     """The `kind` things declared in a class body, in the order written."""
-    return {name: value for name, value in vars(namespace).items()
-            if isinstance(value, kind)}
+    return {
+        name: value
+        for name, value in vars(namespace).items()
+        if isinstance(value, kind)
+    }
 
 
 @dataclass
 class Patch:
     """Every setting there is: where the knobs are, and what drives what.
 
-        Patch.capture(midi, FIELDS, EFFECTS).save("preset.json")
-        Patch.load("preset.json").apply(midi, FIELDS, EFFECTS)
+    Patch.capture(midi, FIELDS, EFFECTS).save("preset.json")
+    Patch.load("preset.json").apply(midi, FIELDS, EFFECTS)
     """
 
     # CC number -> value
@@ -82,6 +133,15 @@ class Patch:
 
     # effect.slot -> what drives it
     slots: dict[str, FieldRef]
+
+    # Effects switched off, sorted. Their slots stay wired; they just do not
+    # draw. A file with no such key means everything is on.
+    off: list[str] = field(default_factory=list)
+
+    # field -> its tunable settings (a bloom's envelope, say), for the fields
+    # that have any. Only what differs from the field's defaults is kept, so a
+    # preset written before a field had settings reads as untouched.
+    params: dict[str, dict[str, float]] = field(default_factory=dict)
 
     # Whether this has drifted from what is on disk. The bank fills it in when
     # it hands a preset out; `compare=False` keeps it out of equality, which is
@@ -91,29 +151,53 @@ class Patch:
     @classmethod
     def capture(cls, midi: MIDI, fields: type, effects: type) -> "Patch":
         """Read the current patch off the live objects."""
-        field_names = {id(field): name for name, field in named(fields, ScalarField).items()}
+        field_names = {
+            id(field): name for name, field in named(fields, ScalarField).items()
+        }
 
         slots = {}
         for effect_name, effect in named(effects, Effect).items():
             for slot_name, slot in effect.get_slots().items():
-                if slot.field is None:
-                    continue                # nothing plugged in
+                if slot.field is None or isinstance(slot.field, Unplugged):
+                    continue  # nothing plugged in
                 # A combination or a constant is written out as how to rebuild
                 # it; anything else unnamed cannot be, and is left out.
                 try:
-                    slots[f"{effect_name}.{slot_name}"] = encode_field(slot.field, field_names)
+                    slots[f"{effect_name}.{slot_name}"] = encode_field(
+                        slot.field, field_names
+                    )
                 except ValueError:
                     traceback.print_exc()
-                    #print(f"Error: ")
+                    # print(f"Error: ")
                     pass
 
         # get_ccs hands back the controls themselves; a preset only wants
         # where each one is sitting - and only for controls the instrument
         # actually watches. Anything else that turned up on the wire (a bank
         # select, an all-notes-off) is not a setting of ours.
-        return cls(ccs={control: state.value
-                        for control, state in midi.get_ccs().items() if state.watched},
-                   slots=slots)
+        params = {}
+        for name, f in named(fields, ScalarField).items():
+            defaults = getattr(f, "DEFAULTS", None)
+            if defaults is None or not hasattr(f, "params"):
+                continue
+            changed = {k: v for k, v in f.params.items() if v != defaults.get(k)}
+            if changed:
+                params[name] = changed
+
+        return cls(
+            ccs={
+                control: state.value
+                for control, state in midi.get_ccs().items()
+                if state.watched
+            },
+            slots=slots,
+            off=sorted(
+                name
+                for name, effect in named(effects, Effect).items()
+                if not effect.enabled
+            ),
+            params=params,
+        )
 
     def apply(self, midi: MIDI, fields: type, effects: type, whole: bool = True):
         """Put the knobs back and re-patch the slots.
@@ -150,6 +234,21 @@ class Patch:
                 print(f"{target}: {effect_name!r} has no slot {slot_name!r}, skipped")
                 continue
 
+            # trace_progress is 0 on every end a trace hasn't lit, so a
+            # gradient walking it only traces a path if .value is the trace
+            # itself - anything else and the gradient's first stop washes
+            # the whole lattice instead. Only checked on a whole patch: a
+            # one-slot edit from the UI says nothing about .value either way.
+            if whole and isinstance(ref, dict) and ref.get("of") == "trace_progress":
+                value_ref = self.slots.get(f"{effect_name}.value")
+                if value_ref != "trace":
+                    print(
+                        f"{target}: walks trace_progress, but "
+                        f"{effect_name}.value is {value_ref!r}, not 'trace' -"
+                        " this will wash the lattice with one colour instead"
+                        " of tracing the path"
+                    )
+
             try:
                 field = decode_field(ref, by_name)
             except ValueError as e:
@@ -157,10 +256,27 @@ class Patch:
 
             wanted.setdefault(effect_name, {})[slot_name] = field
 
+        # Tunable fields: a whole patch puts back every one it does not name.
+        for name, f in by_name.items():
+            if not hasattr(f, "set_params"):
+                continue
+            if name in self.params:
+                f.set_params(
+                    {**getattr(f, "DEFAULTS", {}), **self.params[name]}
+                    if whole
+                    else self.params[name]
+                )
+            elif whole:
+                f.set_params(getattr(f, "DEFAULTS", {}))
+
         for effect_name, effect in by_effect.items():
             mine = wanted.get(effect_name, {})
 
+            # Which effects draw is only part of the picture when the patch is
+            # the whole of it - a one-slot edit from the UI says nothing here.
             if whole:
+                effect.enabled = effect_name not in self.off
+
                 for slot_name, slot in effect.get_slots().items():
                     if slot_name not in mine:
                         slot.clear()
@@ -171,17 +287,31 @@ class Patch:
     def copy(self) -> "Patch":
         """An independent copy. The slot refs nest, so they go deep - two
         patches must never share a dict, or editing one edits the other."""
-        return Patch(ccs=dict(self.ccs), slots=copy.deepcopy(self.slots))
+        return Patch(
+            ccs=dict(self.ccs),
+            slots=copy.deepcopy(self.slots),
+            off=list(self.off),
+            params=copy.deepcopy(self.params),
+        )
 
     def save(self, path: str):
-        Path(path).write_text(json.dumps({"ccs": self.ccs, "slots": self.slots}, indent=2))
+        saved = {"ccs": self.ccs, "slots": self.slots}
+        if self.off:  # leave the key out when nothing is off
+            saved["off"] = self.off
+        if self.params:
+            saved["params"] = self.params
+        Path(path).write_text(json.dumps(saved, indent=2))
 
     @classmethod
     def load(cls, path: str) -> "Patch":
         saved = json.loads(Path(path).read_text())
         # JSON keys are strings; CC numbers are not.
-        return cls(ccs={int(cc): v for cc, v in saved["ccs"].items()},
-                   slots=saved["slots"])
+        return cls(
+            ccs={int(cc): v for cc, v in saved["ccs"].items()},
+            slots=saved["slots"],
+            off=sorted(saved.get("off", [])),
+            params=saved.get("params", {}),
+        )
 
 
 @dataclass
@@ -273,7 +403,7 @@ class PresetBank:
     def dirty(self, number: int) -> bool:
         """Whether a preset has drifted from its file."""
         self.check(number)
-        return self._cache[number] != self._stored[number]
+        return _differs(self._cache[number], self._stored[number])
 
     def dirty_presets(self) -> list[int]:
         return [number for number in sorted(self._cache) if self.dirty(number)]
