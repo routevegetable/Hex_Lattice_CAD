@@ -1,21 +1,24 @@
 {
   "ccs": {
-    "10": 0,
-    "74": 127,
-    "71": 0,
-    "76": 0,
-    "114": 92,
-    "18": 127,
-    "75": 24,
+    "10": 127,
+    "74": 115,
+    "71": 3,
+    "76": 127,
+    "114": 24,
+    "18": 2,
+    "75": 4,
     "19": 127,
     "16": 127,
-    "17": 61,
-    "91": 65,
+    "17": 62,
+    "91": 127,
     "79": 0,
     "72": 3,
-    "77": 3,
+    "77": 67,
     "93": 0,
     "73": 0,
+    "54": 0,
+    "123": 0,
+    "51": 0,
     "21": 0,
     "20": 0,
     "22": 0,
@@ -26,41 +29,59 @@
     "27": 0,
     "28": 0,
     "29": 0,
+    "55": 0,
     "30": 0,
     "31": 0,
     "32": 0,
     "33": 0,
     "34": 0,
-    "35": 0
+    "35": 0,
+    "52": 0,
+    "53": 0,
+    "50": 0
   },
   "slots": {
     "bg_waves.hue": {
       "op": "add",
-      "a": "param_a",
+      "a": 0.61,
       "b": {
         "op": "mul",
-        "a": "random",
-        "b": 0.75
+        "a": "ripple",
+        "b": 0.0
       }
     },
     "bg_waves.value": {
-      "op": "mul",
-      "a": "random",
-      "b": 0.5
+      "op": "sub",
+      "a": {
+        "op": "mul",
+        "a": 0.32,
+        "b": "fader_a"
+      },
+      "b": {
+        "op": "mul",
+        "a": "wipe1",
+        "b": 0.24
+      }
     },
     "bg_waves.flow": {
       "op": "div",
-      "a": "wipe1",
-      "b": 0.5
+      "a": "ripple",
+      "b": 0.6
     },
-    "bg_waves2.hue": 0.0,
-    "bg_waves2.value": 0.0,
-    "bg_waves2.flow": 0.0,
+    "pluck.a_amp": "wipe2",
+    "pluck.b_amp": "wipe1",
+    "pluck.c_amp": "wipe1",
+    "pluck.period": "param_b",
+    "pluck.value": 0.0,
     "net.amp": "wipe1",
-    "net.hue": 0.4,
-    "net.value": 0.0,
+    "net.hue": 0.27,
+    "net.value": {
+      "op": "sub",
+      "a": "trace",
+      "b": 0.34
+    },
     "sunrise.value": "param_a",
-    "bisexual.value": "fader_a",
+    "bisexual.value": 0.0,
     "bisexual.speed": {
       "op": "sub",
       "a": 0.3,
@@ -68,23 +89,27 @@
     },
     "prob_zaps.prob": {
       "op": "mul",
-      "a": "strobe0",
-      "b": 0.1
+      "a": 0.0,
+      "b": "ripple"
     },
-    "prob_zaps.hue": 0.5,
-    "prob_zaps.value": 0.23,
     "map_fiber.value": {
-      "op": "mul",
+      "op": "sub",
       "a": "scope",
-      "b": "strobe1"
+      "b": 1.0
     },
-    "map_fiber.hue": 0.66,
-    "map_fiber.saturation": 0.72,
-    "map_fiber2.value": 0.0,
-    "map_fiber2.hue": 0.0,
-    "map_fiber2.saturation": 0.0,
-    "map_fiber3.value": 0.0,
-    "map_fiber3.hue": 0.0,
-    "map_fiber3.saturation": 0.0
+    "map_fiber.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "rotary",
+        "b": 0.1
+      },
+      "b": 0.4
+    },
+    "map_fiber.saturation": {
+      "op": "sub",
+      "a": 1.0,
+      "b": "wipe1"
+    }
   }
 }
