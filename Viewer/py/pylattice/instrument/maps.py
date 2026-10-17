@@ -26,6 +26,35 @@ class Envelope(Protocol):
 
     def get(self, now: Event, trigger: Event) -> float: ...
 
+class ShapedEnvelope(Envelope):
+    """Up over `attack`, held at 1 for `hold`, then down over `decay` (all ms).
+
+    Each leg eases rather than ramping, so a slow bloom does not have a visible
+    corner at the top. The times can be changed while it is playing.
+    """
+
+    def __init__(self, attack: float = 1500, hold: float = 500, decay: float = 3000):
+        self.attack, self.hold, self.decay = attack, hold, decay
+
+    @staticmethod
+    def _ease(x: float) -> float:
+        return x * x * (3 - 2 * x)
+
+    def get(self, now: Event, trigger: Event | None) -> float:
+        if trigger is None or not now.after(trigger):
+            return 0.0
+        t = now.when - trigger.when
+        if t < self.attack:
+            return self._ease(t / self.attack)
+        t -= self.attack
+        if t < self.hold:
+            return 1.0
+        t -= self.hold
+        if t < self.decay:
+            return self._ease(1 - t / self.decay)
+        return 0.0
+
+
 class CCEnvelope(Envelope):
     def __init__(self, midi: MIDI, *, period_cc: int, up: bool):
         self._period = midi.cc(period_cc)  # How long to do a sweep

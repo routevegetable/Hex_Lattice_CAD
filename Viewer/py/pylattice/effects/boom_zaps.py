@@ -4,7 +4,7 @@ from typing import Callable
 from pylattice.fields.types import Slot
 from pylattice.instrument.types import Effect
 from pylattice.examples.colors import hsv
-from pylattice.fields.types import ScalarField
+from pylattice.fields.types import ScalarField, Unplugged
 from pylattice.examples.tempo import Event, EventLatch, History, periodic, sweep
 from pylattice.graph import EndRef, Graph
 from pylattice.lattice_writer import LatticeWriter
@@ -46,8 +46,7 @@ def make_zap_edge(end: EndRef, lattice: LatticeWriter):
             # Value envelope
             v = sweep(now, trg, 60, value, 0, 0)
             if trg:
-                hue = trg.rand(idx + end.__hash__()) % 4 / 4
-                hue = 0.8
+                hue = hues[0]  # the zap keeps the hue it was fired with
 
             if v > 0.01:
                 # This end
@@ -78,6 +77,11 @@ def init_boom_zaps(graph_: Graph, lattice_: LatticeWriter):
 booms = History(30)
 new_boom = EventLatch()
 
+def _unplugged(slot: ScalarField) -> bool:
+    """True for a slot nothing was ever plugged into - an explicit 0 is not."""
+    return isinstance(getattr(slot, "field", slot), Unplugged)
+
+
 def prob_zaps(now: Event, lattice: LatticeWriter, graph: Graph, prob_field: ScalarField, hue_field: ScalarField, value_field: ScalarField):
     
     for end in graph.ends():
@@ -89,6 +93,14 @@ def prob_zaps(now: Event, lattice: LatticeWriter, graph: Graph, prob_field: Scal
 
             hue = hue_field.get(now, end)
             value = value_field.get(now, end)
+            # A slot nobody has plugged in reads 0, which would leave the zaps
+            # black and (for hue) red. Fall back to what they looked like
+            # before these were slots: full brightness, hue 0.8. A 0 someone
+            # set on purpose is respected, so value 0 still silences them.
+            if _unplugged(value_field):
+                value = 1.0
+            if _unplugged(hue_field):
+                hue = 0.8
             prob = min(prob, 1)
             prob = prob/4
             #prob = math.pow(prob, 20)

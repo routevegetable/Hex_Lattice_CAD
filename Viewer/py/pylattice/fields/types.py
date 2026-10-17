@@ -130,6 +130,18 @@ def _combine(op, a: "ScalarField | float", b: "ScalarField | float") -> ScalarFi
         return NotImplemented
     return CombinedField(op, a, b)
 
+class Unplugged(ConstantField):
+    """What a slot holds when nothing was ever plugged in: 0, but knowably
+    not the same as a 0 somebody chose. Effects can give it a default of their
+    own, and a patch leaves it out instead of writing 0.0."""
+
+    def __init__(self):
+        super().__init__(0)
+
+    def __repr__(self) -> str:
+        return "Unplugged()"
+
+
 class Slot(ScalarField):
     """A mutable cell an effect owns, holding whatever field drives it.
 
@@ -148,7 +160,7 @@ class Slot(ScalarField):
 
     def __init__(self, name: str = ""):
         self.name = name
-        self._field: ScalarField = ConstantField(0)
+        self._field: ScalarField = Unplugged()
 
     def set(self, field: "ScalarField | float") -> ScalarField:
         """Plug a field (or a constant) in, replacing whatever was there."""
@@ -162,7 +174,7 @@ class Slot(ScalarField):
 
     def clear(self):
         """Unplug whatever is in here, back to how it started."""
-        self._field = ConstantField(0)
+        self._field = Unplugged()
 
     @property
     def field(self) -> ScalarField:

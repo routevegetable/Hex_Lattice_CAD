@@ -83,6 +83,9 @@ class RandomTraceField(ScalarField):
         # A float per end, the ends at 0 left out. Thrown away and re-traced
         # whenever the time moves on.
         self._state: dict[EndRef, float] = {}
+        # How far along its path the brightest pass over each end in _state is,
+        # 0 at the start of that path to 1 at its far end.
+        self._progress: dict[EndRef, float] = {}
         self._generated: int | None = None
         self._seen: Event | None = None
 
@@ -207,6 +210,7 @@ class RandomTraceField(ScalarField):
         self._generated = now.when
         self._consume_note()
         self._state = {}
+        self._progress = {}
 
         # ms the head takes to cross one edge. Geometric rather than linear -
         # over a range this wide a linear knob spends most of its travel in
@@ -225,7 +229,15 @@ class RandomTraceField(ScalarField):
             if head <= 0 or head - self.WIDTH > self.LENGTH:
                 continue        # not off yet, or run off the end of its path
 
-            for i, end in enumerate(self._trace(ev, aim)):
+            path = list(self._trace(ev, aim))
+
+            # Paths here are short - the lattice is only a couple of rows tall
+            # and a trace is cut off at the top and bottom - so progress is
+            # measured against this path's own length, not LENGTH, or a
+            # gradient would never get past its first few colours.
+            span = max(len(path) - 0.5, 0.5)
+
+            for i, end in enumerate(path):
                 if i >= head:
                     break       # the rest of the path is ahead of the head
 
@@ -234,11 +246,33 @@ class RandomTraceField(ScalarField):
                 for at, lit in ((i, end), (i + 0.5, end.other())):
                     level = self._level(at, head)
 
-                    if level > 0:
+                    if level > self._state.get(lit, 0.0):
                         # Paths cross, and one can cross itself - the brightest
                         # pass over an end wins.
-                        self._state[lit] = max(level, self._state.get(lit, 0.0))
+                        self._state[lit] = level
+                        self._progress[lit] = min(at / span, 1.0)
 
     def get(self, now: Event, end: EndRef) -> float:
         self._regen(now)
         return self._state.get(end, 0.0)
+
+    def progress(self, now: Event, end: EndRef) -> float:
+        """How far along its path the light on this end is: 0 at the start of
+        a particle's path, 1 at the far end. 0 where nothing is lit."""
+        self._regen(now)
+        return self._progress.get(end, 0.0)
+
+
+class TraceProgressField(ScalarField):
+    """Where along its own path a trace is, for walking a gradient with it.
+
+    Plug a gradient into this rather than into the trace itself, and one whole
+    trace - from where it starts to where it runs out - is one whole gradient.
+    Pair it with the trace as the value, so only the lit edges show.
+    """
+
+    def __init__(self, trace: RandomTraceField):
+        self._trace = trace
+
+    def get(self, now: Event, end: EndRef) -> float:
+        return self._trace.progress(now, end)

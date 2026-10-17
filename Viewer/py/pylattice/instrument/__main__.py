@@ -7,28 +7,42 @@ import traceback
 from typing import Callable
 from pylattice.effects.map_tiles import MapTiles
 from pylattice.effects.pluck import Pluck, WobbleNet
-from pylattice.effects.boom_zaps import ProbZaps, init_boom_zaps, prob_zaps, run_boom_zaps
+from pylattice.effects.boom_zaps import (
+    ProbZaps,
+    init_boom_zaps,
+    prob_zaps,
+    run_boom_zaps,
+)
 from pylattice.effects.waves import BgWaves, bg_waves
 from pylattice.examples.colors import hsv, vary
-from pylattice.fields.types import Slot
+from pylattice.fields.types import ConstantField, ScalarField, Slot
+from pylattice.fields.artnet import artnet_universes
+from pylattice.fields.controls import CCField, PolyTouchField
+from pylattice.fields.random import NoteRandomField
+from pylattice.fields.ripple import NoteRippleField
+from pylattice.fields.rotary import RotaryField
+from pylattice.fields.scope import ScopeFieldBetter
+from pylattice.fields.trace import RandomTraceField
+from pylattice.fields.wipe import NoteWipeField
 from pylattice.instrument.maps import ColorMap
 from pylattice.examples.tempo import Event, EventLatch, sweep
 from pylattice.graph import EdgeClass, EndRef, Graph
 from pylattice.lattice_writer import LatticeWriter
 from pathlib import Path
 from pylattice.instrument.api import serve
-from pylattice.instrument.fields import FIELDS
 from pylattice.instrument.hardware import STEPS, graph, lattice, midi
 from pylattice.instrument.console import Console
 from pylattice.instrument.patch import Patch, PresetBank, named
 from pylattice.instrument.types import Effect
 
-
-
-
+# The fields, and which controller number each one listens to, come from
+# fields.py and the controller profile in hardware.py - one menu for the
+# rig and for the web UI.
+from pylattice.instrument.fields import FIELDS
 
 
 from pylattice.examples.sunrise import color_transitions, sunrise
+
 
 class Sunrise(Effect):
     value: Slot
@@ -40,12 +54,9 @@ class Sunrise(Effect):
         return
 
 
-
-
 class BisexualSpin(Effect):
     value: Slot
     speed: Slot
-
 
     def draw_hex(self, base: EndRef, lattice: LatticeWriter):
         val = self.value.get(now, base)
@@ -64,34 +75,31 @@ class BisexualSpin(Effect):
 
             f = dist / 6
 
-            #hue = vary(now, 0.66, 1, 5000, f)
+            # hue = vary(now, 0.66, 1, 5000, f)
 
             for i in range(4):
 
-                hue = vary(now, 0.66, 1.02, period, f + i*0.05)
-                #print(hue)
+                hue = vary(now, 0.66, 1.02, period, f + i * 0.05)
+                # print(hue)
                 col = list(hsv(hue, 1, val))
                 lattice[end][i] = col
                 lattice[end.lr()[0]][i] = col
 
-
-
-
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
 
-
         for base in [
-            graph.TILE[0,0].bottom_end(EdgeClass.D),
-            graph.TILE[1,0].bottom_end(EdgeClass.B),
-            graph.TILE[3,1].bottom_end(EdgeClass.D),
-            graph.TILE[4,0].bottom_end(EdgeClass.B),
+            graph.TILE[0, 0].bottom_end(EdgeClass.B),
+            # graph.TILE[1, 1].bottom_end(EdgeClass.D),
+            # graph.TILE[2, 0].bottom_end(EdgeClass.B),
         ]:
             self.draw_hex(base, lattice)
 
         return
 
+
 class DumbEffect(Effect):
     value: Slot
+
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
 
         for end in graph.ends():
@@ -107,6 +115,7 @@ class MapFiber(Effect):
     value: Slot
     hue: Slot
     saturation: Slot
+
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
 
         for end in graph.ends():
@@ -115,15 +124,14 @@ class MapFiber(Effect):
             hue = self.hue.get(now, end)
             saturation = self.saturation.get(now, end)
 
-
             if val > 0.1:
                 lattice[end][0] = list(hsv(hue, saturation, val))
             if val > 0.3:
-                lattice[end][1] = list(hsv(hue, saturation, val/2))
+                lattice[end][1] = list(hsv(hue, saturation, val / 2))
             if val > 0.6:
-                lattice[end][2] = list(hsv(hue, saturation, val/3))
+                lattice[end][2] = list(hsv(hue, saturation, val / 3))
             if val > 0.8:
-                lattice[end][3] = list(hsv(hue, saturation, val/4))
+                lattice[end][3] = list(hsv(hue, saturation, val / 4))
 
         return
 
@@ -131,53 +139,29 @@ class MapFiber(Effect):
 # This is the living field-slot data structure
 class EFFECTS:
 
-    bg_waves = BgWaves(
-        hue=FIELDS.param_a,
-        value=FIELDS.fader_a,
-        flow=0
+    bg_waves = BgWaves(hue=FIELDS.param_a, value=FIELDS.fader_a, flow=0)
+    pluck = Pluck(
+        a_amp=FIELDS.wipe2,
+        b_amp=FIELDS.wipe1,
+        c_amp=FIELDS.wipe1,
+        period=FIELDS.param_b,
+        value=FIELDS.fader_b,
     )
-    
-    bg_waves2 = BgWaves(
-        hue=FIELDS.param_a,
-        value=FIELDS.fader_a,
-        flow=0
-    )
-    
-    net = WobbleNet(
-        amp=FIELDS.ripple2,
-        hue=FIELDS.param_b,
-        value=FIELDS.fader_b
-    )
-    
-    sunrise = Sunrise( 
+    bg_waves2 = BgWaves(hue=FIELDS.param_a, value=FIELDS.fader_a, flow=0)
+    net = WobbleNet(amp=FIELDS.ripple2, hue=FIELDS.param_b, value=FIELDS.fader_b)
+    # dumb = DumbEffect(
+    #    value = FIELDS.param_a
+    # )
+
+    prob_zaps = ProbZaps(prob=FIELDS.ripple2)  # We're always zappin
+    map_fiber = MapFiber(value=0, hue=0, saturation=0)  # We're always zappin
+    map_fiber2 = MapFiber(value=0, hue=0, saturation=0)
+    map_fiber3 = MapFiber(value=0, hue=0, saturation=0)
+    sunrise = Sunrise(
         value=FIELDS.param_a,
     )
-    bisexual = BisexualSpin(
-        value = FIELDS.param_a,
-        speed = FIELDS.param_b
-    )
-    prob_zaps = ProbZaps(
-        prob=FIELDS.ripple2
-    )
-    
-    map_fiber = MapFiber(
-        value=0,
-        hue=0,
-        saturation=0
-    )
-    
-    map_fiber2 = MapFiber(
-        value=0,
-        hue=0,
-        saturation=0
-    )
-    
-    map_fiber3 = MapFiber(
-        value=0,
-        hue=0,
-        saturation=0
-    )
-    #map_tiles = MapTiles(
+    bisexual = BisexualSpin(value=FIELDS.param_a, speed=FIELDS.param_b)
+    # map_tiles = MapTiles(
     #    a_hue=0,
     #    a_sat=0,
     #    a_value=0,
@@ -187,14 +171,12 @@ class EFFECTS:
     #    c_hue=0,
     #    c_sat=0,
     #    c_value=0,
-    #)
+    # )
 
 
 # Everything declared in EFFECTS, in the order written - so a preset patches
 # the same objects that render.
 effects: list[Effect] = list(named(EFFECTS, Effect).values())
-
-
 
 
 init_boom_zaps(graph, lattice)
@@ -203,6 +185,7 @@ init_boom_zaps(graph, lattice)
 BANK = PresetBank(Path("presets"))
 CONSOLE = Console(midi, FIELDS, EFFECTS, BANK)
 serve(CONSOLE)
+
 
 def load_preset(number: int):
     """Switch the bank to a preset, saying so either way."""
@@ -214,13 +197,14 @@ def load_preset(number: int):
 
 
 # Start from preset 0 - the knobs and wiring are only remembered by presets.
-load_preset(0)
+try:
+    CONSOLE.load_current_from(0)
+    print("preset 0 loaded")
+except (FileNotFoundError, ValueError) as e:
+    print(f"preset 0: {e}")
 
-# A step button loads the preset of the same number, and so does a program
-# change - the BSP sends one per project, and a sequencer upstream can send
-# them wherever it likes.
-step_ccs = [midi.cc(cc, f"preset {n}", hidden=True)
-            for n, cc in enumerate(STEPS[:BANK.size])]
+# A step button loads the preset of the same number.
+step_ccs = [midi.cc(cc) for cc in STEPS[: BANK.size]]
 step_seen = [0] * len(step_ccs)
 
 program = midi.program()
@@ -233,7 +217,7 @@ def check_steps():
         moved = watch()
 
         if moved.when == step_seen[number] or moved.data != 127:
-            continue        # not new, or the button coming back up
+            continue  # not new, or the button coming back up
 
         step_seen[number] = moved.when
         load_preset(number)
@@ -246,7 +230,7 @@ def check_program():
     chosen = program()
 
     if chosen.when == program_seen:
-        return              # nothing new - the seed included
+        return  # nothing new - the seed included
 
     program_seen = chosen.when
 
@@ -255,7 +239,6 @@ def check_program():
         return
 
     load_preset(chosen.data)
-
 
 
 # PyPy collects incrementally, so a bounded step per frame is what its GC
@@ -283,7 +266,8 @@ while True:
         check_program()
 
         for effect in effects:
-            effect.render(now, lattice, graph)
+            if effect.enabled:
+                effect.render(now, lattice, graph)
         lattice.show()
 
     frames += 1
@@ -300,31 +284,28 @@ while True:
     gc_step()
     dt_gc = time.time_ns() - t1
     dt_render = t1 - t0
-    
-    
+
     time.sleep(0.002)
-    
+
     # To sec
     dt = (t1 - t0) / 1000000000
-    
+
     PERIOD = 0.001
     if dt < PERIOD:
         time.sleep(PERIOD - dt)
-        
+
     continue
 
-
     # Background effects
-    
+
     # Note effects
-    
+
     # Impulse effects
-    
-    
+
     bg_waves(graph, lattice, now, param_field, note_wipe)
-    
-    #run_boom_zaps(now)
+
+    # run_boom_zaps(now)
     prob_zaps(now, polytouch_field * note_wipe)
-    
+
     lattice.show()
     time.sleep(0.05)
