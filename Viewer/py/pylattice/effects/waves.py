@@ -23,7 +23,7 @@ def bg_waves(
         for end in ends:
             base_hue = bg_hue.get(now, end)
             base_value = bg_value.get(now, end)
-            if base_value < 0.1:
+            if base_value < 0.001:
                 continue
             flow = bg_flow.get(now, end)
             #base_sat = 0.9 

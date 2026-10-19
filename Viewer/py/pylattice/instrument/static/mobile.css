@@ -152,6 +152,39 @@ input[type=range] { flex: 1; min-width: 5rem; max-width: 12rem; height: 24px;
           color: #fff; font-size: 1.05rem; font-weight: 600; }
 #cc-num { flex: none; color: #6d7681; font-size: .75rem; letter-spacing: .03em; }
 
+/* a picture of the box: two rows of eight, with whatever the chosen field
+   listens to lit up */
+.surface { padding: .5rem; border-bottom: 1px solid #2a2a2a; }
+.surface .box { display: block; width: 100%; max-height: 190px; }
+.box .shell { fill: #14181d; stroke: #22272e; }
+.box .cap { fill: #20262e; stroke: #39414d; }
+.box .pointer { stroke: #6d7681; stroke-width: 2; stroke-linecap: round; }
+.box .tag { fill: #6d7681; font-size: 9px; text-anchor: middle;
+            font-family: system-ui, sans-serif; }
+/* what the chosen field listens to */
+.box .lit .cap { fill: #24334d; stroke: #6a8fd0; stroke-width: 2; }
+.box .lit .pointer { stroke: #cfe3ff; }
+.box .lit .tag { fill: #cfe3ff; }
+.surface select { background: #20262e; color: #cde; border: 1px solid #39414d;
+                  font: inherit; font-size: .85rem; padding: .15rem .3rem; }
+
+/* the knobs behind the expression being edited, laid out like the readout.
+   Only there while a slot is open. */
+.ctrls { display: flex; flex-wrap: wrap; border-top: 1px solid #2a2a2a; }
+.ctrl { display: flex; align-items: center; gap: .4rem; flex: none;
+        min-height: 34px; padding: .1rem .5rem .1rem .25rem;
+        border: 0; border-right: 1px solid #2a2a2a;
+        background: #12161b; color: #cde; font: inherit; font-size: .8rem; }
+.ctrl .dial { flex: none; width: 24px; height: 24px; }
+/* dragging one turns it, so the page must not scroll out from under it */
+.ctrl { touch-action: none; }
+.ctrl b { color: #cfe3ff; font-weight: 600; }
+.ctrl .now { color: #fff; font-weight: 600; min-width: 1.8rem;
+             text-align: right; font-variant-numeric: tabular-nums; }
+.ctrl .at { color: #6d7681; font-variant-numeric: tabular-nums; }
+.ctrl.waiting { background: #2b2417; }
+.ctrl.waiting .at { color: #e0b070; }
+
 /* modal: covers the slots only */
 .modal { position: absolute; inset: 0; background: #151515; display: flex;
          flex-direction: column; z-index: 5; }

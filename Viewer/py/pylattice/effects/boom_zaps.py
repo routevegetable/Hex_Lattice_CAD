@@ -4,6 +4,7 @@ from typing import Callable
 from pylattice.fields.types import Slot
 from pylattice.instrument.types import Effect
 from pylattice.examples.colors import hsv
+from pylattice.examples.midi import MIDIFor
 from pylattice.fields.types import ScalarField
 from pylattice.examples.tempo import Event, EventLatch, History, periodic, sweep
 from pylattice.graph import EndRef, Graph
@@ -32,7 +33,8 @@ def make_zap_edge(end: EndRef, lattice: LatticeWriter):
     for _ in range(4):
         latches.append(EventLatch())
 
-    def zap_fn(now: Event, level: float, hues: tuple[float, float], value: float=1):
+    def zap_fn(now: Event, level: float, hues: tuple[float, float],
+               value: float = 1, length: float = 60):
 
         for idx in range(4):
 
@@ -40,16 +42,17 @@ def make_zap_edge(end: EndRef, lattice: LatticeWriter):
             trg = latches[idx].maybe(now, idx, 10 + end.__hash__() % 30, level)
 
             # Saturation envelope
-            s = sweep(now, trg, 60, 0.2, 0.5)
+            s = sweep(now, trg, length, 0.2, 0.5)
             #s = sweep(now, trg, 30, 0.4, 1, 0.4)
 
-            # Value envelope
-            v = sweep(now, trg, 60, value, 0, 0)
+            # Value envelope - the same length, so a zap fades and desaturates
+            # together rather than one outliving the other
+            v = sweep(now, trg, length, value, 0, 0)
             if trg:
                 hue = trg.rand(idx + end.__hash__()) % 4 / 4
                 hue = 0.8
 
-            if v > 0.01:
+            if v > 0.001:
                 # This end
                 lattice[end][idx] = [*hsv(hue, s, v)]
 
@@ -78,7 +81,8 @@ def init_boom_zaps(graph_: Graph, lattice_: LatticeWriter):
 booms = History(30)
 new_boom = EventLatch()
 
-def prob_zaps(now: Event, lattice: LatticeWriter, graph: Graph, prob_field: ScalarField, hue_field: ScalarField, value_field: ScalarField):
+def prob_zaps(now: Event, lattice: LatticeWriter, graph: Graph, prob_field: ScalarField,
+              hue_field: ScalarField, value_field: ScalarField, length: float = 60):
     
     for end in graph.ends():
         if end.top:
@@ -92,21 +96,41 @@ def prob_zaps(now: Event, lattice: LatticeWriter, graph: Graph, prob_field: Scal
             prob = min(prob, 1)
             prob = prob/4
             #prob = math.pow(prob, 20)
-            zaps[end](now, prob, (hue, hue), value)
+            zaps[end](now, prob, (hue, hue), value, length)
 
 
 
 class ProbZaps(Effect):
-    """Random zaps along every edge, at a field-driven likelihood."""
+    """Random zaps along every edge, at a field-driven likelihood.
+
+    How long a zap takes to fade is a knob of the effect's own rather than a
+    slot: it shapes how the thing draws, not what drives it, so there is
+    nothing for a field to say about it.
+    """
 
     prob: Slot
     hue: Slot
     value: Slot
 
+    SHORTEST = 60       # ms a zap takes to fade at CC 0 - how it has always been
+    LONGEST = 1500      # ms at CC 127
+
+    def __init__(self, midi: MIDIFor):
+        super().__init__()
+        # Off the desk on purpose: all sixteen BSP knobs are already spoken
+        # for, and sharing one would move something else as well. It is still
+        # a dial in the UI, and can be mapped onto a knob from there.
+        self._length = midi.cc(102, "length")
+
+    def envelope(self) -> float:
+        """ms the saturation and value envelopes take, a constant ratio per
+        knob step so the whole sweep is usable."""
+        return self.SHORTEST * (self.LONGEST / self.SHORTEST) ** (self._length().data / 127)
+
     def render(self, now: Event, lattice_: LatticeWriter, graph_: Graph):
         if not graph:
             init_boom_zaps(graph_, lattice_)
-        prob_zaps(now, lattice, graph, self.prob, self.hue, self.value)
+        prob_zaps(now, lattice, graph, self.prob, self.hue, self.value, self.envelope())
 
 def run_boom_zaps(now: Event):
 

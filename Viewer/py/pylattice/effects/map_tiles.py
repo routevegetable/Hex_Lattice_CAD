@@ -40,7 +40,7 @@ class MapTiles(Effect):
 
             for end in hex.ends():
                 h, s, v = [f.get(now, end) for f in fields]
-                if v < 0.1:
+                if v < 0.001:
                     continue
 
                 col = list(hsv(h, s, v))

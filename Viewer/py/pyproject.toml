@@ -13,6 +13,9 @@ authors = [{ name = "Lee Marshall", email = "lee@wanker.biz" }]
 dependencies = [
     "stupidartnet>=1.6.0",
     "uvicorn",
+    # uvicorn serves websockets only if one of these is present, and the knob
+    # stream is a websocket. Pure python, so it builds on pypy.
+    "wsproto",
     "mido",
     # mido's default backend, but it cannot build on PyPy - there the ctypes
     # portmidi backend is used instead (brew install portmidi).

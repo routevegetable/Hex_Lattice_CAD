@@ -125,13 +125,9 @@ class FIELDS:
         shape=KA7
     )
 
-    # Rotated version of rotary
-    rotary180 = RotaryField(
-        graph, midi.for_("rotary"),
-        period=KA5,
-        parts=KA6,
-        shape=KA7
-    )
+    # The same rotation, half a turn round. Not a second field: it shares
+    # rotary's phase, so the two stay opposite whichever of them is in a slot.
+    rotary180 = rotary.turned(0.5)
     
     # Art-Net pixels, per universe: red, green, blue, and their average
     artnet0_r, artnet0_g, artnet0_b, artnet0_v = ARTNET[0]

@@ -38,21 +38,21 @@ def wobble(now: Event, lattice: LatticeWriter, edge: EdgeRef, p: int, amp: float
     max_brightness *= value
     #print(value)
     # Center
-    if center_brightness > 0.01:
+    if center_brightness > 0.001:
         c = list(hsv(hue, 0.7, center_brightness))
         idx = (filament_offset)
         lattice[end][idx] = c
         lattice[other][idx] = c
     
     # Middle
-    if middle_brightness > 0.01:
+    if middle_brightness > 0.001:
         c = list(hsv(hue, 0.7, middle_brightness))
         idx = (filament_offset + (1 if y > 0 else 2)) % 4
         lattice[end][idx] = c
         lattice[other][idx] = c
                     
     # Max
-    if max_brightness > 0.01 and False:
+    if max_brightness > 0.001 and False:
         lattice[end][3] = [max_brightness] * 3
         lattice[other][3] = [max_brightness] * 3
                     

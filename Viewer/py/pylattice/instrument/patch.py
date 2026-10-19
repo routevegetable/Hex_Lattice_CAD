@@ -112,11 +112,15 @@ class Patch:
     # effect.slot -> what drives it
     slots: dict[str, FieldRef]
 
-    # CC string id -> Real MIDI CC number
-    cc_map: dict[str, int]
+    # CC string id -> real MIDI CC number. Sparse: a control the map does not
+    # name sits on the default it was declared with.
+    cc_map: dict[str, int] = field(default_factory=dict)
 
-    # Set of active effects
-    active: set[str]
+    # Which effects draw, in order - a list rather than a set, because the
+    # order they are named in is itself a setting. None means the patch does
+    # not say - a file written before effects could be switched off - and
+    # every effect is taken as on.
+    active: list[str] | None = None
 
     @classmethod
     def capture(cls, midi: MIDI, fields: type, effects: type) -> "Patch":
@@ -135,13 +139,23 @@ class Patch:
                     #print(f"Error: ")
                     pass
 
-        # get_ccs hands back the controls themselves; a preset only wants
-        # where each one is sitting - and only for controls the instrument
-        # actually watches. Anything else that turned up on the wire (a bank
-        # select, an all-notes-off) is not a setting of ours.
-        return cls(ccs={control: state.value
-                        for control, state in midi.get_ccs().items() if state.watched},
-                   slots=slots)
+        # Only the controls that have been moved away from where they were
+        # declared. A preset that says nothing about a control brings it up on
+        # its default, which is what lets an old preset meet a new control.
+        defaults = midi.cc_defaults()
+        cc_map = {name: number for name, number in midi.cc_map().items()
+                  if number != defaults.get(name)}
+
+        # A preset wants where each knob is sitting, by the number it sits on
+        # - only the knobs something is plugged into, not every stray that has
+        # turned up on the wire.
+        ccs = {number: state.value
+               for number, state in midi.get_ccs_by_number().items()
+               if state.comments}
+
+        return cls(ccs=ccs, slots=slots, cc_map=cc_map,
+                   active=[name for name, effect in named(effects, Effect).items()
+                           if effect.active])
 
     def apply(self, midi: MIDI, fields: type, effects: type):
         """Put the knobs back and re-patch the slots.
@@ -152,11 +166,23 @@ class Patch:
         blank rig, and reverting to one clears it. Everything that applies a
         patch sends all of it, the UI included.
         """
+        # Where the controls live comes first: the values below are addressed
+        # by CC number, so they have to land after everything is plugged in.
+        midi.set_cc_map(self.cc_map)
+
         for control, value in self.ccs.items():
             midi.set_cc(control, value)
 
         by_name = named(fields, ScalarField)
         by_effect = named(effects, Effect)
+
+        # An effect the patch does not name is off. A patch with no `active`
+        # list at all predates being able to switch them off, so every effect
+        # counts as named rather than none of them.
+        active = list(by_effect) if self.active is None else self.active
+
+        for name, effect in by_effect.items():
+            effect.active = name in active
 
         # Work the whole thing out before changing anything, so a patch naming
         # a field that has gone fails without half-applying.
@@ -195,18 +221,26 @@ class Patch:
     def copy(self) -> "Patch":
         """An independent copy. The slot refs nest, so they go deep - two
         patches must never share a dict, or editing one edits the other."""
-        return Patch(ccs=dict(self.ccs), slots=copy.deepcopy(self.slots))
+        return Patch(ccs=dict(self.ccs), slots=copy.deepcopy(self.slots),
+                     cc_map=dict(self.cc_map),
+                     active=None if self.active is None else list(self.active))
 
     def save(self, path: str):
         slots = {name: as_json(ref) for name, ref in self.slots.items()}
-        Path(path).write_text(json.dumps({"ccs": self.ccs, "slots": slots}, indent=2))
+        out = {"ccs": self.ccs, "slots": slots, "cc_map": self.cc_map,
+               "active": self.active}
+        Path(path).write_text(json.dumps(out, indent=2))
 
     @classmethod
     def load(cls, path: str) -> "Patch":
         saved = json.loads(Path(path).read_text())
         # JSON keys are strings; CC numbers are not.
+        active = saved.get("active")
+
         return cls(ccs={int(cc): v for cc, v in saved["ccs"].items()},
-                   slots={name: as_ref(raw) for name, raw in saved["slots"].items()})
+                   slots={name: as_ref(raw) for name, raw in saved["slots"].items()},
+                   cc_map=saved.get("cc_map", {}),
+                   active=None if active is None else list(active))
 
 
 @dataclass
@@ -281,7 +315,7 @@ class PresetBank:
     def _from_storage(self, number: int) -> Patch:
         """A preset's file, or a patch that does nothing if it has none."""
         if not self.exists(number):
-            return Patch(ccs={}, slots={})
+            return Patch(ccs={}, slots={}, cc_map={})
 
         return Patch.load(self.path(number))
 

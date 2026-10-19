@@ -1,0 +1,56 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>lattice</title>
+<link rel="stylesheet" href="/static/mobile.css">
+
+<div class="app">
+  <header>
+    <nav class="tabs" id="tabs"></nav>
+    <span id="fps">…</span>
+    <button id="preset-chip">preset —</button>
+    <button id="save-chip" disabled>💾</button>
+    <button id="revert-chip" disabled>↺</button>
+  </header>
+
+  <!-- what the sub bar holds depends on the tab -->
+  <nav class="subbar" id="subbar"></nav>
+
+  <main id="main">
+    <div class="page" id="page"></div>
+
+    <!-- covers the slots, never the effects bar -->
+    <!-- the knob that moved last, over everything, for two seconds -->
+    <div class="ccbar" id="ccbar" hidden>
+      <svg class="dial" viewBox="0 0 40 40" aria-hidden="true">
+        <path id="dial-track" fill="none" stroke="#39414d" stroke-width="4" stroke-linecap="butt"/>
+        <path id="dial-value" fill="none" stroke="#6a8fd0" stroke-width="4" stroke-linecap="butt"/>
+        <line id="dial-pin" stroke="#cfe3ff" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <b id="cc-comments"></b>
+      <span id="cc-val"></span>
+      <span id="cc-num"></span>
+    </div>
+
+    <div class="modal" id="modal" hidden>
+      <div class="modal-bar">
+        <button id="modal-back">‹ back</button>
+        <span id="modal-title"></span>
+        <button id="modal-close">✕</button>
+      </div>
+      <div class="picker" id="picker"></div>
+    </div>
+  </main>
+</div>
+
+<script src="/static/mobile.js"></script>
+
+<script>
+setTimeout(async () => {
+  open = 'prob_zaps.hue'; drawSlots();
+  wire.send(JSON.stringify({cc: 71, value: 100}));
+  await new Promise(r => setTimeout(r, 700));
+  await put('/presets/' + rig.selected, {...patch, slots: {...patch.slots, 'prob_zaps.prob': 'rotary'}}); await load();
+}, 2200);
+</script>

@@ -8,6 +8,7 @@ Requires-Python: >=3.11
 Description-Content-Type: text/markdown
 Requires-Dist: stupidartnet>=1.6.0
 Requires-Dist: uvicorn
+Requires-Dist: wsproto
 Requires-Dist: mido
 Requires-Dist: python-rtmidi; platform_python_implementation == "CPython"
 Requires-Dist: fastapi>=0.141.1

@@ -41,6 +41,7 @@ class ControlInfo:
     value: int                                          # or pressure, for a note
     comments: list[str] = field(default_factory=list)
     hidden: bool = False
+    default: int | None = None                          # where a cc was declared
 
 
 @dataclass
@@ -57,10 +58,12 @@ class PresetView:
 
 @dataclass
 class Knob:
-    """The control that moved most recently, for a UI to show as it happens.
+    """One CC number as it stands, for a UI to draw.
 
-    `age_ms` is how long ago, worked out here because the clock is monotonic
-    and means nothing on the other side of the wire.
+    `age_ms` is how long since it last moved, worked out here because the
+    clock is monotonic and means nothing on the other side of the wire. It is
+    also how a UI picks out which knob was turned most recently, and whether
+    that happened since it started watching.
     """
     cc: int
     value: int
@@ -103,9 +106,6 @@ class Console:
         bank.live_ccs = self._live_ccs      # so the bank can keep up with the knobs
         self._stats = Stats()
         self._selected: int | None = None
-        # When a patch was last applied. Controls it moved are not news - the
-        # display is for knobs someone turned, not knobs a preset put back.
-        self._applied = 0
 
     def controls(self) -> list[ControlInfo]:
         """Every control the instrument watches, and what for.
@@ -114,51 +114,49 @@ class Console:
         a preset uses to decide what is a setting of ours.
         """
         with self.lock:
-            out = [ControlInfo("cc", number, state.value,
-                               list(state.comments), state.hidden)
-                   for number, state in self._midi.get_ccs().items() if state.watched]
+            knobs = self._midi.get_ccs_by_number()
+
+            out = [ControlInfo("cc", m.midi_cc, knobs[m.midi_cc].value, [name],
+                               m.hidden, m.default_cc)
+                   for name, m in self._midi.get_mappings().items()
+                   if m.midi_cc in knobs]
 
             out += [ControlInfo("note", number, state.pressure, list(state.comments))
                     for number, state in self._midi.get_notes().items()]
 
             return sorted(out, key=lambda c: (c.kind, c.number))
 
-    def last_cc(self) -> Knob | None:
-        """Whichever control moved last, or None if none ever has.
+    def set_cc(self, number: int, value: int):
+        """Move a knob from outside - a drag in the UI.
 
-        Controls are seeded at `when` 0, which is not a move - a knob nobody
-        has touched since the app started is not news, nor is a knob that a
-        preset moved. Controls marked hidden are skipped outright.
+        It lands exactly as a knob on the desk would, so the preset that is
+        playing picks it up through the bank's fold and goes dirty.
+        """
+        with self.lock:
+            self._midi.set_cc(number, max(0, min(127, value)))
+
+    def knobs(self) -> dict[int, Knob]:
+        """Every CC number that has said anything, named or not.
+
+        Nothing is filtered: which of these are worth showing is for whoever
+        has the mapping in front of them to decide, and mapping a knob means
+        watching the ones that are not yet anybody's.
         """
         with self.lock:
             now = Event.for_now().when
 
-            latest, moved = None, 0
-            for number, state in self._midi.get_ccs().items():
-                if state.hidden:
-                    continue                # plumbing, not a knob anyone turned
-
-                when = state.event.read().when
-
-                if when <= self._applied:
-                    continue                # a preset put it there, not a hand
-
-                if when > moved:
-                    latest, moved = (number, state), when
-
-            if latest is None:
-                return None
-
-            number, state = latest
-            return Knob(cc=number, value=state.value,
-                        comments=list(state.comments), age_ms=now - moved)
+            return {number: Knob(cc=number, value=state.value,
+                                 comments=sorted(state.comments),
+                                 age_ms=now - state.event.read().when)
+                    for number, state in self._midi.get_ccs_by_number().items()}
 
     # -- settings ---------------------------------------------------------
 
     def _live_ccs(self) -> dict[int, int]:
         """Where every watched knob is sitting now."""
         return {number: state.value
-                for number, state in self._midi.get_ccs().items() if state.watched}
+                for number, state in self._midi.get_ccs_by_number().items()
+                if state.comments}
 
     def _select(self, number: int | None):
         """Say which preset is playing. The bank needs to know too, so it can
@@ -181,7 +179,6 @@ class Console:
         but slots it does not mention are emptied - a patch is the whole
         picture. The lock is already held."""
         patch.apply(self._midi, self._fields, self._effects)
-        self._applied = Event.for_now().when
 
     # -- the four things you can do to a preset ---------------------------
 

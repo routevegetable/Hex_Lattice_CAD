@@ -6,13 +6,16 @@ Everything structured is a dataclass - FastAPI serialises those directly, so
 there are no dictionaries crossing the wire by hand. The page itself lives in
 static/, read per request, so editing it only needs a browser reload.
 """
+import asyncio
 import threading
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+
+from dataclasses import asdict
 
 from pylattice.instrument.console import (Console, ControlInfo, Knob, PresetView,
                                           Rig, Stats)
@@ -43,10 +46,72 @@ def make_app(console: Console) -> FastAPI:
         """Every knob and pad the instrument watches, and what it drives."""
         return console.controls()
 
-    @app.get("/knobinfo")
-    def knob() -> Knob | None:
-        """The control that moved last. Null until one does."""
-        return console.last_cc()
+    # Pushed rather than polled: the knobs move continuously and a UI that
+    # asked would either be behind them or ask far too often.
+    KNOB_HZ = 10
+
+    @app.websocket("/ws/knobs")
+    async def knobs(socket: WebSocket):
+        """Knobs both ways.
+
+        Out: every CC number, ten times a second, for as long as anyone is
+        listening. In: `{"cc": 77, "value": 64}` to move one, which lands the
+        same way a hand on the desk would.
+        """
+        await socket.accept()
+
+        async def push():
+            """A frame per tick, and never a wait for room to put one.
+
+            A frame is the whole state of the desk rather than a change to it,
+            so one that could not be sent is worth nothing: the next frame
+            says everything it would have. That makes dropping the right
+            answer, and it is why this loop never awaits the send.
+
+            The send goes out as a task of its own and the loop only sleeps.
+            If that task is still going when the next tick comes round -
+            a client that has stopped reading, a link that has stalled - the
+            tick is skipped rather than queued, so there is at most one frame
+            in flight and never a backlog to work through. A slow client slows
+            only itself.
+            """
+            sending: asyncio.Task | None = None
+
+            try:
+                while True:
+                    if sending is None or sending.done():
+                        if sending is not None:
+                            # A send that failed - the far end gone - raises
+                            # here, which is how this loop finds out.
+                            sending.result()
+
+                        # console.knobs takes the render lock, which the loop
+                        # holds for a frame - under a millisecond, so the event
+                        # loop can wear it.
+                        frame = {str(cc): asdict(knob)
+                                 for cc, knob in console.knobs().items()}
+                        sending = asyncio.create_task(socket.send_json(frame))
+
+                    await asyncio.sleep(1 / KNOB_HZ)
+            finally:
+                # Going away mid-send: nothing is waiting on this task, so it
+                # has to be called off rather than left to finish alone.
+                if sending is not None and not sending.done():
+                    sending.cancel()
+
+        async def pull():
+            while True:
+                moved = await socket.receive_json()
+
+                try:
+                    console.set_cc(int(moved["cc"]), int(moved["value"]))
+                except (KeyError, TypeError, ValueError):
+                    pass            # not something we can act on; keep listening
+
+        try:
+            await asyncio.gather(push(), pull())
+        except WebSocketDisconnect:
+            pass
 
     @app.get("/rig")
     def rig() -> Rig:

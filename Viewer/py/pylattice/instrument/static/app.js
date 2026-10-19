@@ -124,15 +124,16 @@ function tile(key) {
   return el;
 }
 
-// Send every slot, not just the one that changed: a Patch is the whole
-// picture to whoever applies it. No ccs, so live knobs are untouched.
+// Send the whole patch, not just the slot that changed: a Patch is the whole
+// picture to whoever applies it, so anything left out is reset rather than
+// left alone - the effects that are on, and where every control is mapped.
 async function send(key, tree) {
   const slots = {...patch.slots};
 
   if (tree === null) delete slots[key];
   else slots[key] = tree;
 
-  const r = await put(`/presets/${rig.selected}`, {ccs: patch.ccs, slots});
+  const r = await put(`/presets/${rig.selected}`, {...patch, slots});
   if (!r.ok) alert((await r.json()).detail);
   delete edits[key];
   draw();
@@ -171,7 +172,7 @@ async function draw() {
       if (ev.shiftKey) {
         // What 'store' used to be: put what is playing here, write it out,
         // and carry on from this preset.
-        await put(`/presets/${n}`, {ccs: patch.ccs, slots: patch.slots});
+        await put(`/presets/${n}`, {...patch});
         await post(`/presets/${n}/commit`);
         await post(`/presets/${n}/select`);
       } else {

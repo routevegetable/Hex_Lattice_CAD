@@ -18,7 +18,7 @@ from pylattice.lattice_writer import LatticeWriter
 from pathlib import Path
 from pylattice.instrument.api import serve
 from pylattice.instrument.fields import FIELDS
-from pylattice.instrument.hardware import STEPS, graph, lattice, midi
+from pylattice.instrument.hardware import graph, lattice, midi
 from pylattice.instrument.console import Console
 from pylattice.instrument.patch import Patch, PresetBank, named
 from pylattice.instrument.types import Effect
@@ -49,7 +49,7 @@ class BisexualSpin(Effect):
 
     def draw_hex(self, base: EndRef, lattice: LatticeWriter):
         val = self.value.get(now, base)
-        if val < 0.1:
+        if val < 0.001:
             return
         hue = 0.8
 
@@ -116,7 +116,7 @@ class MapFiber(Effect):
             saturation = self.saturation.get(now, end)
 
 
-            if val > 0.1:
+            if val > 0.001:
                 lattice[end][0] = list(hsv(hue, saturation, val))
             if val > 0.3:
                 lattice[end][1] = list(hsv(hue, saturation, val/2))
@@ -141,7 +141,7 @@ class EFFECTS:
     net = WobbleNet()
     sunrise = Sunrise()
     bisexual = BisexualSpin()
-    prob_zaps = ProbZaps()
+    prob_zaps = ProbZaps(midi.for_("prob_zaps"))
     map_fiber = MapFiber()
     map_fiber2 = MapFiber()
     map_fiber3 = MapFiber()
@@ -174,27 +174,10 @@ def load_preset(number: int):
 # Start from preset 0 - the knobs and wiring are only remembered by presets.
 load_preset(0)
 
-# A step button loads the preset of the same number, and so does a program
-# change - the BSP sends one per project, and a sequencer upstream can send
-# them wherever it likes.
-step_ccs = [midi.cc(cc, f"preset {n}", hidden=True)
-            for n, cc in enumerate(STEPS[:BANK.size])]
-step_seen = [0] * len(step_ccs)
-
+# A program change loads the preset of the same number - the BSP sends one per
+# project, and a sequencer upstream can send them wherever it likes.
 program = midi.program()
 program_seen = 0
-
-
-def check_steps():
-    """Load a preset when its step button is newly pressed - a CC of 127."""
-    for number, watch in enumerate(step_ccs):
-        moved = watch()
-
-        if moved.when == step_seen[number] or moved.data != 127:
-            continue        # not new, or the button coming back up
-
-        step_seen[number] = moved.when
-        load_preset(number)
 
 
 def check_program():
@@ -237,11 +220,11 @@ while True:
 
         now = Event.for_now()
         midi.tick()
-        check_steps()
         check_program()
 
         for effect in effects:
-            effect.render(now, lattice, graph)
+            if effect.active:
+                effect.render(now, lattice, graph)
         lattice.show()
 
     frames += 1
@@ -260,7 +243,7 @@ while True:
     dt_render = t1 - t0
     
     
-    time.sleep(0.002)
+    time.sleep(0.02)
     
     # To sec
     dt = (t1 - t0) / 1000000000

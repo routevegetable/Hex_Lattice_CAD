@@ -39,8 +39,8 @@ class NoteRippleField(ScalarField):
         # The lattice wraps, so nothing is ever further than half of it away.
         self._furthest = math.hypot(self._width / 2, self._height / 2)
 
-        self._note = midi.note(note)
-        self._poly = midi.polytouch(note)
+        self._note = midi.note(note, "trigger")
+        self._poly = midi.polytouch(note, "intensity")
         self._speed_cc = midi.cc(speed, "speed")
         self._latches = [EventLatch() for _ in range(4)]
         self._releases = [EventLatch() for _ in range(4)]

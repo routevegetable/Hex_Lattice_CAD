@@ -1,5 +1,6 @@
 stupidartnet>=1.6.0
 uvicorn
+wsproto
 mido
 fastapi>=0.141.1
 

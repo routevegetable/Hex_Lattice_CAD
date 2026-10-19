@@ -15,8 +15,9 @@ class VGradientField(ScalarField):
         graph = end.tile.graph
         
         phys_height = graph.height * TileRef.HEIGHT
-        
-        origin = self._origin_cc().data * 127 / phys_height
+
+        # The knob picks a height, so it reads as a fraction of the lattice.
+        origin = self._origin_cc().data / 127 * phys_height
 
         _x, y = end.vertex().physical()
 
