@@ -79,12 +79,15 @@
       "b": "strobe1"
     },
     "map_fiber.hue": 0.66,
-    "map_fiber.saturation": 0.72,
+    "map_fiber.sat": 0.72,
     "map_fiber2.value": 0.0,
     "map_fiber2.hue": 0.0,
-    "map_fiber2.saturation": 0.0,
+    "map_fiber2.sat": 0.0,
     "map_fiber3.value": 0.0,
     "map_fiber3.hue": 0.0,
-    "map_fiber3.saturation": 0.0
+    "map_fiber3.sat": 0.0,
+    "bg_waves.sat": 1,
+    "bg_waves2.sat": 1,
+    "net.sat": 1
   }
 }

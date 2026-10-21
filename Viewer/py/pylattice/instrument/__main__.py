@@ -5,7 +5,10 @@ import math
 import time
 import traceback
 from typing import Callable
+from pylattice.effects.bisexual_spin import BisexualSpin
+from pylattice.effects.map_fiber import MapFiber
 from pylattice.effects.map_tiles import MapTiles
+from pylattice.effects.sunrise import Sunrise
 from pylattice.effects.pluck import Pluck, WobbleNet
 from pylattice.effects.boom_zaps import ProbZaps, init_boom_zaps, prob_zaps, run_boom_zaps
 from pylattice.effects.waves import BgWaves, bg_waves
@@ -28,68 +31,6 @@ from pylattice.instrument.types import Effect
 
 
 
-from pylattice.examples.sunrise import color_transitions, sunrise
-
-class Sunrise(Effect):
-    value: Slot
-
-    def draw_sunrise(self):
-        sunrise(color_transitions)
-
-    def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
-        return
-
-
-
-
-class BisexualSpin(Effect):
-    value: Slot
-    speed: Slot
-
-
-    def draw_hex(self, base: EndRef, lattice: LatticeWriter):
-        val = self.value.get(now, base)
-        if val < 0.001:
-            return
-        hue = 0.8
-
-        period = self.speed.get(now, base) * 10000 + 1
-
-        if period > 500:
-            period = 10000
-        else:
-            period = 500
-
-        for dist, end in enumerate(base.path("RRRRR")):
-
-            f = dist / 6
-
-            #hue = vary(now, 0.66, 1, 5000, f)
-
-            for i in range(4):
-
-                hue = vary(now, 0.66, 1.02, period, f + i*0.05)
-                #print(hue)
-                col = list(hsv(hue, 1, val))
-                lattice[end][i] = col
-                lattice[end.lr()[0]][i] = col
-
-
-
-
-    def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
-
-
-        for base in [
-            graph.TILE[0,0].bottom_end(EdgeClass.D),
-            graph.TILE[1,0].bottom_end(EdgeClass.B),
-            graph.TILE[3,1].bottom_end(EdgeClass.D),
-            graph.TILE[4,0].bottom_end(EdgeClass.B),
-        ]:
-            self.draw_hex(base, lattice)
-
-        return
-
 class DumbEffect(Effect):
     value: Slot
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
@@ -99,31 +40,6 @@ class DumbEffect(Effect):
             val = self.value.get(now, end)
 
             lattice[end][0] = [val, val, 1]
-
-        return
-
-
-class MapFiber(Effect):
-    value: Slot
-    hue: Slot
-    saturation: Slot
-    def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
-
-        for end in graph.ends():
-
-            val = self.value.get(now, end)
-            hue = self.hue.get(now, end)
-            saturation = self.saturation.get(now, end)
-
-
-            if val > 0.001:
-                lattice[end][0] = list(hsv(hue, saturation, val))
-            if val > 0.3:
-                lattice[end][1] = list(hsv(hue, saturation, val/2))
-            if val > 0.6:
-                lattice[end][2] = list(hsv(hue, saturation, val/3))
-            if val > 0.8:
-                lattice[end][3] = list(hsv(hue, saturation, val/4))
 
         return
 
@@ -139,13 +55,15 @@ class EFFECTS:
     bg_waves = BgWaves()
     bg_waves2 = BgWaves()
     net = WobbleNet()
-    sunrise = Sunrise()
-    bisexual = BisexualSpin()
     prob_zaps = ProbZaps(midi.for_("prob_zaps"))
     map_fiber = MapFiber()
     map_fiber2 = MapFiber()
     map_fiber3 = MapFiber()
     #map_tiles = MapTiles()
+
+    # Parked: no longer offered. Presets that name them skip those slots.
+    #sunrise = Sunrise()
+    #bisexual = BisexualSpin()
 
 
 # Everything declared in EFFECTS, in the order written - so a preset patches
