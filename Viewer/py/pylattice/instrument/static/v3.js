@@ -315,13 +315,116 @@ function fieldMenu(box, current, onPick) {
 // it as it was rather than at 0. Per session, and per page - it is not a setting.
 const lastValue = {};
 
+// ---- hue ------------------------------------------------------------------
+// A hue slot is a position on a wheel that runs 0..2, so a range can wrap. It
+// is held as a number, or as a field squeezed into a stretch of the wheel:
+//
+//   0.4                       a fixed hue         no field
+//   param_a                   the field itself    start 0, width 1
+//   mul(f, k) / div(f, k)     squeezed            start 0, width k
+//   add(<any of those>, c)    shifted             start c
+//
+// Anything else is a formula, which the hue control leaves alone.
+const AXIS = 2;
+const clampAxis = (x) => Math.max(0, Math.min(AXIS, x));
+const isHueSlot = (key) => key.split('.').slice(1).join('.').endsWith('hue');
+
+function squeezed(t) {
+  if (typeof t === 'string') return {field: t, width: 1};
+  if (t && typeof t === 'object' && (t.op === 'mul' || t.op === 'div')) {
+    const [f, k] = [t.a, t.b];
+    if (typeof f === 'string' && typeof k === 'number' && (t.op === 'mul' || k !== 0))
+      return {field: f, width: t.op === 'mul' ? k : 1 / k};
+    if (t.op === 'mul' && typeof k === 'string' && typeof f === 'number')
+      return {field: k, width: f};
+  }
+  return null;
+}
+
+function parseHue(t) {
+  if (typeof t === 'number') return {field: null, start: t, width: 0};
+  const core = squeezed(t);
+  if (core) return {...core, start: 0};
+  if (t && typeof t === 'object' && t.op === 'add') {
+    for (const [x, c] of [[t.a, t.b], [t.b, t.a]]) {
+      const inner = squeezed(x);
+      if (inner && typeof c === 'number') return {...inner, start: c};
+    }
+  }
+  return null;
+}
+
+function buildHue({field, start, width}) {
+  if (field === null) return start;
+  const w = Math.round(width * 1000) / 1000, st = Math.round(start * 1000) / 1000;
+  let tree = field;
+  if (w !== 1) tree = {op: 'mul', a: tree, b: w};
+  if (st !== 0) tree = {op: 'add', a: tree, b: st};
+  return tree;
+}
+
+// The band between two thumbs, painted with the part of the wheel it covers.
+function paintBand(band, from, to) {
+  const lo = Math.min(from, to), hi = Math.max(from, to);
+  const frac = Math.max((hi - lo) / AXIS, 0.002);
+  band.style.left = `${lo / AXIS * 100}%`;
+  band.style.width = `${frac * 100}%`;
+  band.firstChild.style.width = `${100 / frac}%`;
+  band.firstChild.style.left = `${-(lo / AXIS) / frac * 100}%`;
+}
+
+// The wheel with one thumb for a fixed hue, or two for the range a field is
+// squeezed into. `onInput` says what to show while dragging, `onCommit` is
+// what to save when a thumb is let go.
+function hueBar(start, end, single, onInput, onCommit) {
+  const bar = document.createElement('div');
+  bar.className = 'hue-bar' + (single ? '' : ' wide');
+
+  const wheel = document.createElement('div');
+  wheel.className = 'wheel';
+  const band = document.createElement('div');
+  band.className = 'band';
+  band.append(document.createElement('div'));
+  bar.append(wheel, band);
+
+  const thumb = (cls, value) => {
+    const r = document.createElement('input');
+    r.className = cls;
+    r.type = 'range';
+    r.min = '0';
+    r.max = String(AXIS);
+    r.step = '0.01';
+    r.value = String(clampAxis(value));
+    return r;
+  };
+  const a = thumb('start', start), b = thumb('end', end);
+  // A fixed hue has one thumb. The other is hidden rather than disabled: it sits
+  // exactly on the first and a disabled one still swallows the drag.
+  if (single) { b.disabled = true; b.style.display = 'none'; }
+  bar.append(a, b);
+
+  const read = () => [parseFloat(a.value), parseFloat(single ? a.value : b.value)];
+  const show = () => { const [s0, e0] = read(); paintBand(band, s0, e0); onInput(s0, e0); };
+  show();
+
+  a.oninput = b.oninput = show;
+  a.onchange = b.onchange = () => onCommit(...read());
+
+  // Typing a hue moves the one thumb.
+  bar.setHue = (v) => { a.value = String(clampAxis(v)); show(); onCommit(...read()); };
+  return bar;
+}
+
 // Which way a slot is driven: a number, a field, or a formula.
 const modeOf = (tree) => typeof tree === 'string' ? 'field'
                        : tree === null || typeof tree === 'number' ? 'value' : 'formula';
 
 function slotRow(key, tree) {
-  const mode = modeOf(tree);
-  if (mode === 'value') lastValue[key] = tree ?? 0;
+  // A hue slot in a shape the wheel can show gets the wheel; an empty one is a
+  // fixed hue of 0, like any other empty slot.
+  const hue = isHueSlot(key) ? parseHue(tree ?? 0) : null;
+  const mode = hue ? (hue.field === null ? 'value' : 'field') : modeOf(tree);
+  if (mode === 'value') lastValue[key] = hue ? hue.start : (tree ?? 0);
 
   const row = document.createElement('div');
   row.className = 'slot' + (tree === null ? ' empty' : '');
@@ -334,7 +437,8 @@ function slotRow(key, tree) {
   // hang off.
   const ctl = document.createElement('div');
   ctl.className = 'ctl fpick';
-  const toggle = fieldMenu(ctl, tree, (v) => writeSlot(key, v));
+  const toggle = fieldMenu(ctl, hue?.field ?? tree, (v) => writeSlot(key, !hue ? v : buildHue(
+      {field: v, start: hue.start, width: hue.field ? hue.width : 1})));
 
   const seg = document.createElement('span');
   seg.className = 'seg';
@@ -357,10 +461,37 @@ function slotRow(key, tree) {
   if (mode === 'field') {
     const chip = document.createElement('button');
     chip.className = 'chip';
-    chip.textContent = `${tree} \u25be`;
+    chip.textContent = `${hue?.field ?? tree} \u25be`;
     chip.title = 'pick another field';
     chip.onclick = toggle;
     ctl.append(chip);
+
+    if (hue) {
+      const readout = document.createElement('span');
+      readout.className = 'dim';
+      ctl.append(readout);
+      ctl.append(hueBar(hue.start, hue.start + hue.width, false,
+          (s0, e0) => { readout.textContent = `${fmt(s0)} ${e0 >= s0 ? '\u2192' : '\u2190'} ${fmt(e0)}`; },
+          (s0, e0) => writeSlot(key, buildHue({field: hue.field, start: s0, width: e0 - s0}))));
+    }
+  } else if (mode === 'value' && hue) {
+    const box = document.createElement('input');
+    box.className = 'num';
+    box.type = 'text';
+    box.inputMode = 'decimal';
+    box.spellcheck = false;
+    box.title = 'type a hue (0-2)';
+
+    const bar = hueBar(hue.start, hue.start, true,
+        (s0) => { if (document.activeElement !== box) box.value = fmt(s0); },
+        (s0) => writeSlot(key, s0));
+    box.onchange = () => {
+      const v = parseFloat(box.value);
+      if (Number.isFinite(v)) bar.setHue(v); else box.value = fmt(hue.start);
+    };
+    box.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); box.blur(); } };
+    box.onfocus = () => box.select();
+    ctl.append(bar, box);
   } else if (mode === 'value') {
     ctl.append(constantControl(tree ?? 0, (v) => writeSlot(key, v)));
   } else {
