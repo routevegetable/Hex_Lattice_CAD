@@ -188,3 +188,8 @@ aside { min-width: 0; position: sticky; top: 8px; align-self: start; max-height:
 .node input, .node button { cursor: auto; }
 .node button { cursor: pointer; }
 .node input[type=text] { cursor: text; }
+
+/* a formula in words, under the arithmetic */
+.words { color: var(--dim); font-family: var(--font-sans, system-ui, sans-serif); font-size: 12px; margin-top: 1px; }
+.lines { min-width: 0; flex: 1; }
+.lines .expr { display: block; }

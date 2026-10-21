@@ -664,6 +664,63 @@ function leafEditor(key, tree, path) {
   return row;
 }
 
+// ---- what a formula says, in words --------------------------------------------
+// A plain reading of the arithmetic, built from its shape and the names in it. It
+// does not know what a field does beyond its name, so a rotary is just "rotary".
+const MASKS = {v_edges: 'the vertical edges', h_edges: 'the horizontal edges',
+               d1_edges: 'the first diagonal edges', d2_edges: 'the second diagonal edges'};
+
+const isNum = (n) => typeof n === 'number';
+const isMask = (n) => typeof n === 'string' && n in MASKS;
+const pct = (k) => `${Math.round(k * 100)}%`;
+
+// A leaf as a phrase, or an operation in brackets so it can sit inside another.
+function operand(n) {
+  if (n === null || n === undefined) return '(empty)';
+  if (isNum(n)) return fmt(n);
+  if (typeof n === 'string') return n;
+  if (n.gradient !== undefined) return describe(n);
+  return `(${explain(n)})`;
+}
+
+function explain(n) {
+  if (n === null || n === undefined) return 'nothing yet';
+  if (isNum(n)) return `the constant ${fmt(n)}`;
+  if (typeof n === 'string') return n;
+  if (n.gradient !== undefined) return describe(n);
+
+  const {op, a, b} = n;
+  const inverse = (x) => x && typeof x === 'object' && x.op === 'sub' && x.a === 1 ? x.b : null;
+
+  if (op === 'mul') {
+    for (const [x, y] of [[a, b], [b, a]]) {
+      if (isMask(y)) return `${operand(x)}, only on ${MASKS[y]}`;
+      if (isNum(y) && y === 0) return 'always 0';
+      if (isNum(y) && y > 0 && y < 1) return `${operand(x)} at ${pct(y)} strength`;
+      if (isNum(y) && y > 1) return `${operand(x)} boosted ${fmt(y)} times`;
+      if (isNum(y) && y < 0) return `${operand(x)} flipped and scaled by ${fmt(-y)}`;
+      if (inverse(y) !== null) return `${operand(x)}, fading out as ${operand(inverse(y))} rises`;
+    }
+    return `${operand(a)} scaled by ${operand(b)}`;
+  }
+  if (op === 'add') {
+    for (const [x, y] of [[a, b], [b, a]])
+      if (isNum(y)) return y >= 0 ? `${operand(x)}, lifted by ${fmt(y)}` : `${operand(x)}, lowered by ${fmt(-y)}`;
+    return `${operand(a)} plus ${operand(b)}`;
+  }
+  if (op === 'sub') {
+    if (a === 1) return `the opposite of ${operand(b)} (high where it is low)`;
+    if (isNum(b)) return `${operand(a)}, lowered by ${fmt(b)}`;
+    return `${operand(a)} minus ${operand(b)}`;
+  }
+  if (op === 'div') {
+    if (isNum(b) && b !== 0) return `${operand(a)} divided by ${fmt(b)}`;
+    return `${operand(a)} divided by ${operand(b)} (0 where that is 0)`;
+  }
+  if (op === 'avg') return `halfway between ${operand(a)} and ${operand(b)}`;
+  return describe(n);
+}
+
 // A formula as text, with each level's brackets in the colour of its box in the
 // editor, so the two can be matched up at a glance.
 function groupedText(node, depth = 0) {
@@ -798,11 +855,16 @@ function slotRow(key, saved) {
   // A formula shows as arithmetic, with the editor under it when it is open. The
   // editor can be folded away, leaving only the arithmetic.
   const showsEditor = mode === 'formula' || (open && hue);
-  let summary = null, editor = null;
+  let summary = null, editor = null, words = null;
+  const hueWords = (h) => `${h.field} sweeps the hue from ${fmt(h.start)} to ${fmt(h.start + h.width)}`;
   if (showsEditor) {
     summary = document.createElement('span');
     summary.className = 'expr';
     summary.append(groupedText(shown));
+
+    words = document.createElement('div');
+    words.className = 'words';
+    words.textContent = hue && hue.field !== null ? hueWords(hue) : explain(shown);
 
     editor = document.createElement('div');
     editor.className = 'tree';
@@ -830,6 +892,7 @@ function slotRow(key, saved) {
             if (editor) {
               const t = hueTree({field: hue.field, start: s0, width: e0 - s0});
               summary.replaceChildren(groupedText(t));
+              words.textContent = hueWords({field: hue.field, start: s0, width: e0 - s0});
               editor.replaceChildren(nodeEditor(key, t, []));
             }
           },
@@ -877,7 +940,10 @@ function slotRow(key, saved) {
       mark();
     };
 
-    line.append(fold, summary);
+    const lines = document.createElement('div');
+    lines.className = 'lines';
+    lines.append(summary, words);
+    line.append(fold, lines);
 
     // A formula with an empty operand is held here and not sent to the rig.
     if (key in editing) {
@@ -1090,7 +1156,14 @@ function drawParking() {
     chip.className = 'parked';
     chip.draggable = true;
     chip.title = 'drag back onto an operand in a formula';
-    chip.append(groupedText(p.tree));
+    const body = document.createElement('div');
+    const arithmetic = document.createElement('div');
+    arithmetic.append(groupedText(p.tree));
+    const words = document.createElement('div');
+    words.className = 'words';
+    words.textContent = explain(p.tree);
+    body.append(arithmetic, words);
+    chip.append(body);
 
     const x = document.createElement('button');
     x.className = 'discard';
