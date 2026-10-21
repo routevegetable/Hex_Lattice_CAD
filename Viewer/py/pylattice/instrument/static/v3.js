@@ -203,6 +203,111 @@ function constantControl(value, commit) {
   return wrap;
 }
 
+// A menu of the rig's fields to plug into a slot, with a box to search them.
+// The page does not redraw while one is open, since it lives in the page.
+let picking = null;         // the closer of the open one
+
+const kindOf = (f) => f.kind.replace(/Field$/, '');
+
+function fieldPicker(current, onPick, label) {
+  const box = document.createElement('div');
+  box.className = 'fpick';
+
+  const btn = document.createElement('button');
+  btn.className = 'fpick-btn';
+  btn.type = 'button';
+  const name = document.createElement('span');
+  name.textContent = label;
+  const caret = document.createElement('span');
+  caret.className = 'fpick-caret';
+  caret.textContent = '\u25be';
+  btn.append(name, caret);
+  box.append(btn);
+
+  const close = () => {
+    document.removeEventListener('pointerdown', away, true);
+    box.querySelector('.fpick-list')?.remove();
+    picking = null;
+  };
+  const away = (ev) => { if (!box.contains(ev.target)) close(); };
+  const choose = (value) => { close(); onPick(value); };
+
+  btn.onclick = () => {
+    if (picking === close) { close(); return; }
+    picking?.();
+    picking = close;
+
+    const menu = document.createElement('div');
+    menu.className = 'fpick-list';
+    const search = document.createElement('input');
+    search.className = 'fpick-search';
+    search.type = 'search';
+    search.placeholder = 'search fields';
+    const body = document.createElement('div');
+    body.className = 'fpick-body';
+    menu.append(search, body);
+
+    let rows = [], cursor = 0;
+
+    const item = (text, hint, value, on) => {
+      const row = document.createElement('div');
+      row.className = 'fpick-item' + (on ? ' on' : '');
+      const t = document.createElement('span');
+      t.textContent = text;
+      const h = document.createElement('span');
+      h.className = 'dim';
+      h.textContent = hint;
+      row.append(t, h);
+      row.onclick = () => choose(value);
+      return row;
+    };
+
+    const render = () => {
+      const terms = search.value.toLowerCase().split(/\s+/).filter(Boolean);
+      const hit = (f) => terms.every(t => `${f.name} ${kindOf(f)}`.toLowerCase().includes(t));
+
+      body.replaceChildren();
+      // Back to a plain number, for a slot that has a field in it.
+      if (typeof current === 'string' && !terms.length) body.append(item('a constant', '0', 0, false));
+
+      for (const f of [...rig.fields].sort((a, b) => a.name.localeCompare(b.name)))
+        if (hit(f)) body.append(item(f.name, kindOf(f), f.name, f.name === current));
+
+      rows = [...body.querySelectorAll('.fpick-item')];
+      if (!rows.length) {
+        const none = document.createElement('div');
+        none.className = 'fpick-none';
+        none.textContent = 'nothing matches';
+        body.append(none);
+      }
+      cursor = Math.min(cursor, Math.max(rows.length - 1, 0));
+      mark();
+    };
+    const mark = () => rows.forEach((r, i) => r.classList.toggle('hi', i === cursor));
+
+    search.oninput = () => { cursor = 0; render(); };
+    search.onkeydown = (ev) => {
+      if (ev.key === 'ArrowDown') cursor = Math.min(cursor + 1, rows.length - 1);
+      else if (ev.key === 'ArrowUp') cursor = Math.max(cursor - 1, 0);
+      else if (ev.key === 'Enter') { rows[cursor]?.click(); return; }
+      else if (ev.key === 'Escape') { close(); return; }
+      else return;
+      ev.preventDefault();
+      mark();
+      rows[cursor]?.scrollIntoView({block: 'nearest'});
+    };
+
+    render();
+    box.append(menu);
+    const now = body.querySelector('.on');
+    if (now) { cursor = rows.indexOf(now); mark(); now.scrollIntoView({block: 'nearest'}); }
+    search.focus({preventScroll: true});
+    document.addEventListener('pointerdown', away, true);
+  };
+
+  return box;
+}
+
 function slotRow(key, tree) {
   const row = document.createElement('div');
   row.className = 'slot' + (tree === null ? ' empty' : '');
@@ -212,14 +317,23 @@ function slotRow(key, tree) {
   name.textContent = key.split('.').slice(1).join('.');
   row.append(name);
 
-  if (tree === null || typeof tree === 'number') {
-    row.append(constantControl(tree ?? 0, (v) => writeSlot(key, v)));
+  const pick = (label, cls) => {
+    const p = fieldPicker(tree, (v) => writeSlot(key, v), label);
+    p.classList.add(cls);
+    return p;
+  };
+
+  if (typeof tree === 'string') {
+    row.append(pick(tree, 'whole'));
+  } else if (tree === null || typeof tree === 'number') {
+    row.append(constantControl(tree ?? 0, (v) => writeSlot(key, v)), pick('field', 'small'));
   } else {
-    // A field or a formula: shown as what it is. Changing it comes later.
+    // A formula: shown as what it is. Editing one comes later; picking a field
+    // here replaces it.
     const expr = document.createElement('span');
     expr.className = 'expr';
     expr.textContent = describe(tree);
-    row.append(expr);
+    row.append(expr, pick('field', 'small'));
   }
 
   return row;
@@ -393,7 +507,7 @@ function drawEffects() {
 async function refresh() {
   [rig, views] = await Promise.all([get('/rig'), get('/presets')]);
   drawPresets();
-  if (!adding && !inUse()) drawEffects();
+  if (!adding && !picking && !inUse()) drawEffects();
 }
 
 async function drawStats() {
