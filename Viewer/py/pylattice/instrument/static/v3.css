@@ -136,3 +136,17 @@ aside { min-width: 0; }
 .hue-bar input::-moz-range-track { background: none; }
 .ctl > .num { flex: none; width: 58px; background: var(--panel); color: var(--text); border: 1px solid var(--line);
               border-radius: 4px; padding: 2px 6px; font: inherit; }
+
+/* the formula editor */
+.tree { flex: 1 1 100%; border-left: 2px solid var(--line); padding-left: 8px; margin: 2px 0 4px; }
+.node { margin: 2px 0; }
+.node .kids { margin-left: 10px; border-left: 1px dashed var(--line); padding-left: 8px; }
+.ops { display: flex; gap: 3px; margin: 2px 0; }
+.ops button { padding: 0 8px; min-width: 26px; }
+.ops button.on { border-color: var(--accent); color: var(--accent); }
+.ops .drop { margin-left: auto; color: var(--dim); }
+.leaf { display: flex; align-items: center; gap: 6px; margin: 3px 0; flex-wrap: wrap; position: relative; }
+.leaf .num { flex: none; width: 58px; background: var(--panel); color: var(--text);
+             border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; font: inherit; }
+.leaf .wrap { font-size: 11px; padding: 0 6px; color: var(--dim); white-space: nowrap; }
+.seg.small button { font-size: 12px; padding: 1px 7px; }
