@@ -93,7 +93,10 @@
       },
       "b": 0.57
     },
-    "prob_zaps.hue": 0.69
+    "prob_zaps.hue": 0.69,
+    "bg_waves.sat": 1,
+    "bg_waves2.sat": 1,
+    "net.sat": 0.7
   },
   "cc_map": {
     "burst.decay": 73

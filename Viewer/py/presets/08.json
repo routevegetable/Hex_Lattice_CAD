@@ -60,7 +60,10 @@
         "a": "fire",
         "b": 0.7
       }
-    }
+    },
+    "bg_waves.sat": 1,
+    "bg_waves2.sat": 1,
+    "net.sat": 0.7
   },
   "cc_map": {},
   "active": [

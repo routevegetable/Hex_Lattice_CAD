@@ -94,6 +94,9 @@
       "b": 0.34
     },
     "map_fiber.hue": 0.15,
-    "map_fiber.sat": 1.0
+    "map_fiber.sat": 1.0,
+    "bg_waves.sat": 1,
+    "bg_waves2.sat": 1,
+    "net.sat": 0.7
   }
 }
