@@ -99,3 +99,5 @@ aside { min-width: 0; }
               padding: 3px 8px; border-radius: 4px; cursor: pointer; }
 .fpick-item:hover, .fpick-item.on, .fpick-item.hi { background: rgba(106, 143, 208, .22); }
 .fpick-none { padding: 8px; color: var(--dim); font-size: 12px; }
+.fpick-group { padding: 6px 8px 2px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+               color: var(--dim); }

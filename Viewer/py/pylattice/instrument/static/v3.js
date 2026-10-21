@@ -207,7 +207,9 @@ function constantControl(value, commit) {
 // The page does not redraw while one is open, since it lives in the page.
 let picking = null;         // the closer of the open one
 
-const kindOf = (f) => f.kind.replace(/Field$/, '');
+// The order the menu lists them in: the rest, then faders, pads and artnet.
+const GROUPS = ['fields', 'faders', 'pads', 'artnet'];
+const groupOf = (f) => f.group ?? 'fields';
 
 function fieldPicker(current, onPick, label) {
   const box = document.createElement('div');
@@ -242,7 +244,7 @@ function fieldPicker(current, onPick, label) {
     const search = document.createElement('input');
     search.className = 'fpick-search';
     search.type = 'search';
-    search.placeholder = 'search fields';
+    search.placeholder = 'search fields, faders, pads';
     const body = document.createElement('div');
     body.className = 'fpick-body';
     menu.append(search, body);
@@ -254,24 +256,36 @@ function fieldPicker(current, onPick, label) {
       row.className = 'fpick-item' + (on ? ' on' : '');
       const t = document.createElement('span');
       t.textContent = text;
-      const h = document.createElement('span');
-      h.className = 'dim';
-      h.textContent = hint;
-      row.append(t, h);
+      row.append(t);
+      if (hint) {
+        const h = document.createElement('span');
+        h.className = 'dim';
+        h.textContent = hint;
+        row.append(h);
+      }
       row.onclick = () => choose(value);
       return row;
     };
 
     const render = () => {
       const terms = search.value.toLowerCase().split(/\s+/).filter(Boolean);
-      const hit = (f) => terms.every(t => `${f.name} ${kindOf(f)}`.toLowerCase().includes(t));
+      const hit = (f) => terms.every(t => `${f.name} ${groupOf(f)}`.toLowerCase().includes(t));
 
       body.replaceChildren();
       // Back to a plain number, for a slot that has a field in it.
-      if (typeof current === 'string' && !terms.length) body.append(item('a constant', '0', 0, false));
+      if (typeof current === 'string' && !terms.length) body.append(item('constant', '', 0, false));
 
-      for (const f of [...rig.fields].sort((a, b) => a.name.localeCompare(b.name)))
-        if (hit(f)) body.append(item(f.name, kindOf(f), f.name, f.name === current));
+      for (const group of GROUPS) {
+        const mine = rig.fields.filter(f => groupOf(f) === group && hit(f))
+                               .sort((a, b) => a.name.localeCompare(b.name));
+        if (!mine.length) continue;
+
+        const head = document.createElement('div');
+        head.className = 'fpick-group';
+        head.textContent = group;
+        body.append(head);
+        for (const f of mine) body.append(item(f.name, '', f.name, f.name === current));
+      }
 
       rows = [...body.querySelectorAll('.fpick-item')];
       if (!rows.length) {
