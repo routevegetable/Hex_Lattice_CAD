@@ -62,7 +62,9 @@ class WobbleNet(Effect):
     hue: Slot
     sat: Slot
     value: Slot
-    
+
+    slot_defaults = {"sat": 1}
+
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
         p = 120
         

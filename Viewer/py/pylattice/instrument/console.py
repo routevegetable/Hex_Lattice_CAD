@@ -89,6 +89,8 @@ class Knob:
 class EffectInfo:
     """An effect, and the slots it has to plug fields into."""
     slots: list[str] = field(default_factory=list)
+    # What a slot holds with nothing in it, where that is not 0.
+    defaults: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -285,7 +287,7 @@ class Console:
 
     def describe(self) -> Rig:
         with self.lock:
-            effects = {name: EffectInfo(list(effect.get_slots()))
+            effects = {name: EffectInfo(list(effect.get_slots()), dict(effect.slot_defaults))
                        for name, effect in named(self._effects, Effect).items()}
 
             return Rig(

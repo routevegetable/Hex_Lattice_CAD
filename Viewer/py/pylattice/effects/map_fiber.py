@@ -10,6 +10,9 @@ class MapFiber(Effect):
     value: Slot
     hue: Slot
     sat: Slot
+
+    slot_defaults = {"sat": 1}
+
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
 
         for end in graph.ends():

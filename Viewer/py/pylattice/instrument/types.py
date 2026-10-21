@@ -1,6 +1,6 @@
 """What an effect is: something with slots, that draws."""
 import inspect
-from typing import Protocol, Self, runtime_checkable
+from typing import ClassVar, Protocol, Self, runtime_checkable
 
 from pylattice.fields.types import ScalarField, Slot
 from pylattice.examples.tempo import Event
@@ -40,7 +40,7 @@ class Effect(Protocol):
         self.muted = False
 
         for name in self.declared_slots():
-            setattr(self, name, Slot(name))
+            setattr(self, name, Slot(name, self.slot_defaults.get(name, 0)))
 
     @classmethod
     def declared_slots(cls) -> list[str]:
@@ -60,6 +60,10 @@ class Effect(Protocol):
 
     active: bool
     muted: bool
+
+    # Slot name -> what it holds when unplugged, for the ones that should not
+    # start on 0 (a saturation, say). Set on the class.
+    slot_defaults: ClassVar[dict[str, float]] = {}
 
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph): ...
 

@@ -146,9 +146,12 @@ class Slot(ScalarField):
     like one. Being mutable, what drives a slot can be changed while running.
     """
 
-    def __init__(self, name: str = ""):
+    def __init__(self, name: str = "", default: float = 0):
         self.name = name
-        self._field: ScalarField = ConstantField(0)
+        # What the slot holds when nothing is plugged in. Most are happy on 0,
+        # but a saturation left at 0 draws white, so it asks for 1.
+        self.default = default
+        self._field: ScalarField = ConstantField(default)
 
     def set(self, field: "ScalarField | float") -> ScalarField:
         """Plug a field (or a constant) in, replacing whatever was there."""
@@ -162,7 +165,7 @@ class Slot(ScalarField):
 
     def clear(self):
         """Unplug whatever is in here, back to how it started."""
-        self._field = ConstantField(0)
+        self._field = ConstantField(self.default)
 
     @property
     def field(self) -> ScalarField:
