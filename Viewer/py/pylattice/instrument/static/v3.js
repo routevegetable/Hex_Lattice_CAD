@@ -16,7 +16,13 @@ function same(a, b) {
   return keys.length === Object.keys(b).length && keys.every(k => same(a[k], b[k]));
 }
 
-const isDirty = (view) => !!view && !same(view.live, view.stored);
+// A knob the file does not list is not an edit. The live copy of a preset
+// records every knob the rig watches, so one added since the file was written
+// turns up in it as soon as the preset is played - nobody moved anything.
+const edited = (live, stored) =>
+    ({...live, ccs: Object.fromEntries(Object.entries(live.ccs).filter(([cc]) => cc in stored.ccs))});
+
+const isDirty = (view) => !!view && !same(edited(view.live, view.stored), view.stored);
 
 async function act(path) {
   const r = await post(path);
