@@ -60,3 +60,7 @@ aside { min-width: 0; }
               padding: 4px 8px; border-radius: 4px; }
 .menu .item:hover { background: rgba(106, 143, 208, .22); }
 .menu .dim { padding: 4px 8px; }
+
+.bin { padding: 0; width: 24px; height: 24px; line-height: 1; border: none; background: none;
+       color: var(--dim); }
+.bin:hover { color: var(--text); }

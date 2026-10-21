@@ -249,7 +249,18 @@ function drawEffects() {
     sw.onclick = () => setMuted(isMuted(name) ? rig.muted.filter(n => n !== name)
                                               : [...rig.muted, name]);
 
-    head.append(title, count, sw);
+    // Taking it out of the preset is the real edit; the switch only mutes. Its
+    // wiring stays in the patch, so adding it again finds it as it was.
+    const bin = document.createElement('button');
+    bin.className = 'bin';
+    bin.textContent = '\u2715';
+    bin.title = `take ${name} out of this preset`;
+    bin.onclick = async () => {
+      if (isMuted(name)) await setMuted(rig.muted.filter(n => n !== name));
+      setActive(names.filter(n => n !== name));
+    };
+
+    head.append(title, count, sw, bin);
 
     card.append(head);
     list.append(card);
