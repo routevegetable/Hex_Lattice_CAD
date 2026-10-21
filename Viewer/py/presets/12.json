@@ -77,6 +77,9 @@
     "map_fiber2.sat": 0.0,
     "map_fiber3.value": 0.0,
     "map_fiber3.hue": 0.0,
-    "map_fiber3.sat": 0.0
+    "map_fiber3.sat": 0.0,
+    "bg_waves.sat": 1,
+    "bg_waves2.sat": 1,
+    "net.sat": 1
   }
 }
