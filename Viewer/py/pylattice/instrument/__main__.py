@@ -139,13 +139,15 @@ class EFFECTS:
     bg_waves = BgWaves()
     bg_waves2 = BgWaves()
     net = WobbleNet()
-    sunrise = Sunrise()
-    bisexual = BisexualSpin()
     prob_zaps = ProbZaps(midi.for_("prob_zaps"))
     map_fiber = MapFiber()
     map_fiber2 = MapFiber()
     map_fiber3 = MapFiber()
     #map_tiles = MapTiles()
+
+    # Parked: no longer offered. Presets that name them skip those slots.
+    #sunrise = Sunrise()
+    #bisexual = BisexualSpin()
 
 
 # Everything declared in EFFECTS, in the order written - so a preset patches
