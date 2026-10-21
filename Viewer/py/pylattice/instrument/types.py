@@ -31,6 +31,10 @@ class Effect(Protocol):
     """
 
     def __init__(self):
+        # Silenced for now, without leaving the patch. Not a setting: it is
+        # never saved, and a patch applying leaves it alone.
+        self.muted = False
+
         for name in self.declared_slots():
             setattr(self, name, Slot(name))
 
@@ -49,6 +53,8 @@ class Effect(Protocol):
                 if (annotation is Slot or annotation == "Slot") and name not in names:
                     names.append(name)
         return names
+
+    muted: bool
 
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph): ...
 

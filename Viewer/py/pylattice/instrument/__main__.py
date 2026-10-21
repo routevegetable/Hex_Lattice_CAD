@@ -134,7 +134,8 @@ while True:
         check_program()
 
         for effect in CONSOLE.chain():
-            effect.render(now, lattice, graph)
+            if not effect.muted:
+                effect.render(now, lattice, graph)
         lattice.show()
 
     frames += 1

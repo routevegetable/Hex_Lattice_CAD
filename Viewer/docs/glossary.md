@@ -61,6 +61,12 @@ for the sake of blending and other transformations.
 
 **Slot** — A thing on an effect that a field plugs into. It has a name.
 
+**Muted** — an effect that is silenced without leaving the patch. It is skipped
+when drawing, so the rig looks as if it were not there, while its slots keep
+their fields. Muting is for looking at one thing at a time, so it is not part
+of a preset: it is never saved, and selecting a preset clears it. `PUT /muted`
+takes exactly the effects to silence and unsilences the rest.
+
 **Patch** — An assignment of fields to slots, and a set of control surface CC values.
 This is everything that makes a given effect chain's behavior.
 The whole patch is replaced on post by the UI, which sends every slot it
