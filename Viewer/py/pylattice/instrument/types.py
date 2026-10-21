@@ -35,6 +35,10 @@ class Effect(Protocol):
         # move this; nothing else looks at it but the render loop.
         self.active = True
 
+        # Silenced for now, without leaving the patch. Not a setting: it is
+        # never saved, and a patch applying leaves it alone.
+        self.muted = False
+
         for name in self.declared_slots():
             setattr(self, name, Slot(name))
 
@@ -55,6 +59,7 @@ class Effect(Protocol):
         return names
 
     active: bool
+    muted: bool
 
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph): ...
 

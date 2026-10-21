@@ -141,7 +141,7 @@ while True:
         check_program()
 
         for effect in effects:
-            if effect.active:
+            if effect.active and not effect.muted:
                 effect.render(now, lattice, graph)
         lattice.show()
 
