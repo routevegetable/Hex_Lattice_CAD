@@ -90,6 +90,7 @@ class Rig:
     fields: list[FieldInfo] = field(default_factory=list)
     effects: dict[str, EffectInfo] = field(default_factory=dict)
     presets: list[int] = field(default_factory=list)    # the ones with a file
+    muted: list[str] = field(default_factory=list)      # silenced, still in the patch
     selected: int | None = None
     size: int = 16
 
@@ -201,6 +202,27 @@ class Console:
             self._select(number)            # before applying, so it banks here
             self._apply(patch)
 
+            # A mute is for looking at the preset you are on. The next one
+            # starts out playing in full.
+            self._unmute()
+
+    def _unmute(self):
+        for effect in named(self._effects, Effect).values():
+            effect.muted = False
+
+    def set_muted(self, names: list[str]):
+        """Silence exactly these effects. A mute is not part of any patch: the
+        effects stay in the preset, and nothing is saved or goes dirty."""
+        with self.lock:
+            by_name = named(self._effects, Effect)
+
+            unknown = [n for n in names if n not in by_name]
+            if unknown:
+                raise ValueError(f"no effect {', '.join(map(repr, unknown))}")
+
+            for name, effect in by_name.items():
+                effect.muted = name in names
+
     def commit_preset(self, number: int):
         """Write a preset's live side out to its file."""
         with self.lock:
@@ -257,6 +279,8 @@ class Console:
                         for name, f in named(self._fields, ScalarField).items()],
                 effects=effects,
                 presets=self._bank.saved(),
+                muted=[name for name, effect in named(self._effects, Effect).items()
+                       if effect.muted],
                 selected=self._selected,
                 size=self._bank.size,
             )
