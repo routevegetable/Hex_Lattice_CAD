@@ -515,6 +515,17 @@ function moveSegment(from, to) {
     // One formula, two places in it: both edits land on the same tree.
     if (startsWith(to.path, from.path)) return;           // onto itself, or inside itself
     if (whole) return;                                    // the whole of it, into itself
+
+    // Two places that do not contain each other trade: what was there goes to
+    // where this came from, so a part can be moved to the other side of an operation.
+    if (!startsWith(from.path, to.path)) {
+      const there = at(from.tree, to.path);
+      let swapped = replace(from.tree, from.path, there);
+      swapped = replace(swapped, to.path, part);
+      setFormula(to.key, swapped);
+      return;
+    }
+
     let t = replace(from.tree, from.path, null);
     park(at(t, to.path));
     t = replace(t, to.path, part);
@@ -772,6 +783,14 @@ function nodeEditor(key, tree, path, depth = 0) {
     b.onclick = () => setFormula(key, replace(tree, path, {...node, op: name}));
     head.append(b);
   }
+  // Which side is which matters for - and the others read left to right.
+  const flip = document.createElement('button');
+  flip.className = 'flip';
+  flip.textContent = '\u21c4';
+  flip.title = 'swap the two sides';
+  flip.onclick = () => setFormula(key, replace(tree, path, {...node, a: node.b, b: node.a}));
+  head.append(flip);
+
   const drop = document.createElement('button');
   drop.className = 'drop';
   drop.textContent = '\u00d7';
