@@ -82,6 +82,20 @@
       "op": "sub",
       "a": 1.0,
       "b": "wipe2"
-    }
+    },
+    "bg_waves.sat": 1,
+    "bg_waves2.hue": 0,
+    "bg_waves2.sat": 1,
+    "bg_waves2.value": 0,
+    "bg_waves2.flow": 0,
+    "net.sat": 1,
+    "prob_zaps.hue": 0,
+    "prob_zaps.value": 0,
+    "map_fiber2.value": 0,
+    "map_fiber2.hue": 0,
+    "map_fiber2.sat": 1,
+    "map_fiber3.value": 0,
+    "map_fiber3.hue": 0,
+    "map_fiber3.sat": 1
   }
 }
