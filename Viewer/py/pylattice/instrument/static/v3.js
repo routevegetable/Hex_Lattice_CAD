@@ -672,7 +672,7 @@ function nodeEditor(key, tree, path, depth = 0) {
   }
   const drop = document.createElement('button');
   drop.className = 'drop';
-  drop.textContent = 'remove operation';
+  drop.textContent = '\u00d7';
   drop.title = 'remove this operation and keep only its first operand';
   drop.onclick = () => setFormula(key, replace(tree, path, node.a));
   head.append(drop);
