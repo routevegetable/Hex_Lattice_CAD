@@ -50,3 +50,13 @@ aside { min-width: 0; }
 .switch.on::after { left: 20px; }
 
 .effects-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+
+/* the plus, and the effects it offers */
+.plus { position: relative; margin-left: auto; }
+.menu { position: absolute; z-index: 40; top: 100%; right: 0; margin-top: 4px; min-width: 180px;
+        background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+        padding: 4px; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.menu .item { display: block; width: 100%; text-align: left; border: none; background: none;
+              padding: 4px 8px; border-radius: 4px; }
+.menu .item:hover { background: rgba(106, 143, 208, .22); }
+.menu .dim { padding: 4px 8px; }
