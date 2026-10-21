@@ -2,6 +2,8 @@
 
 const get = (p) => fetch(p).then(r => r.json());
 const post = (p) => fetch(p, {method: 'POST'});
+const put = (p, body) => fetch(p, {method: 'PUT', headers: {'Content-Type': 'application/json'},
+                                   body: JSON.stringify(body)});
 
 let rig = null;             // what can be patched, and which preset is playing
 let views = {};             // every preset, live against what its file has
@@ -80,6 +82,19 @@ function drawPresets() {
   }
 }
 
+// ---- muting --------------------------------------------------------------
+
+// Silencing an effect is for looking at one thing at a time. It is not part of
+// the preset - the effect stays in it and nothing goes dirty - and the rig
+// clears it when another preset is selected.
+async function setMuted(names) {
+  const r = await put('/muted', names);
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  await refresh();
+}
+
+const isMuted = (name) => rig.muted.includes(name);
+
 // ---- the effects ---------------------------------------------------------
 
 const list = document.getElementById('effects');
@@ -116,7 +131,7 @@ function drawEffects() {
     const wired = keys.filter(k => (view.live.slots[k] ?? null) !== null).length;
 
     const card = document.createElement('section');
-    card.className = 'effect';
+    card.className = 'effect' + (isMuted(name) ? ' off' : '');
     card.dataset.effect = name;
 
     const head = document.createElement('div');
@@ -126,7 +141,13 @@ function drawEffects() {
     const count = document.createElement('span');
     count.className = 'dim';
     count.textContent = `${wired}/${keys.length}`;
-    head.append(title, count);
+    const sw = document.createElement('button');
+    sw.className = 'switch' + (isMuted(name) ? '' : ' on');
+    sw.title = isMuted(name) ? `unmute ${name}` : `mute ${name}`;
+    sw.onclick = () => setMuted(isMuted(name) ? rig.muted.filter(n => n !== name)
+                                              : [...rig.muted, name]);
+
+    head.append(title, count, sw);
 
     card.append(head);
     list.append(card);
