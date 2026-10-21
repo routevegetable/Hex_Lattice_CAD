@@ -451,10 +451,16 @@ function replace(tree, path, value) {
   return {...tree, [step]: replace(tree[step], rest, value)};
 }
 
+// Hue slots opened as a formula read (field x squeeze) + start in full. Once a
+// section has been taken out by hand the formula is shown as it is, so the section
+// stays gone instead of coming back at 1 and 0.
+const trimmed = new Set();
+
 // Take the editor away, and whatever half-built formula it was holding.
 function leaveFormula(key) {
   delete editing[key];
   formulaOpen.delete(key);
+  trimmed.delete(key);
 }
 
 // ---- the parking lot -------------------------------------------------------
@@ -594,6 +600,7 @@ function dropTarget(el, to) {
 }
 
 function setFormula(key, tree) {
+  trimmed.add(key);                     // edited by hand: show it as it is from here on
   if (isLeaf(tree)) {            // down to one operand: no longer a formula
     leaveFormula(key);
     if (tree === null) drawEffects(); else writeSlot(key, tree);
@@ -806,7 +813,7 @@ function slotRow(key, saved) {
       (formulaOpen.has(key) && (hue ? hue.field !== null : !isLeaf(tree)));
 
   // The formula of a hue that has a field in it reads (field x squeeze) + start.
-  const shown = hue && hue.field !== null && !(key in editing) ? hueTree(hue) : tree;
+  const shown = hue && hue.field !== null && !(key in editing) && !trimmed.has(key) ? hueTree(hue) : tree;
 
   const mode = hue ? (hue.field === null ? 'value' : 'field') : open ? 'formula' : modeOf(tree);
   if (mode === 'value') lastValue[key] = hue ? hue.start : (tree ?? emptyValue(key));
@@ -896,7 +903,8 @@ function slotRow(key, saved) {
 
             // The formula follows the thumbs as they move, not when they are let go.
             if (editor) {
-              const t = hueTree({field: hue.field, start: s0, width: e0 - s0});
+              const range = {field: hue.field, start: s0, width: e0 - s0};
+              const t = trimmed.has(key) ? buildHue(range) : hueTree(range);
               summary.replaceChildren(groupedText(t));
               words.textContent = hueWords({field: hue.field, start: s0, width: e0 - s0});
               editor.replaceChildren(nodeEditor(key, t, []));
@@ -1221,6 +1229,7 @@ async function refresh() {
   if (rig.selected !== formulasFor) {
     editing = {};
     formulaOpen.clear();
+    trimmed.clear();
     formulasFor = rig.selected;
   }
   drawPresets();
