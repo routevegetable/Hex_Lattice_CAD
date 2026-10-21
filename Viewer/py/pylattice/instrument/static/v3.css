@@ -48,3 +48,5 @@ aside { min-width: 0; }
                  border-radius: 50%; background: #fff; transition: left .12s; }
 .switch.on { background: var(--accent); }
 .switch.on::after { left: 20px; }
+
+.effects-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }

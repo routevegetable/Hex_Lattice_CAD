@@ -95,6 +95,25 @@ async function setMuted(names) {
 
 const isMuted = (name) => rig.muted.includes(name);
 
+// What "mute all" silenced, so "unmute all" brings back those and nothing else. The
+// rig clears every mute when a preset is selected, so this goes with it.
+let silenced = [];
+let silencedFor = null;
+
+function allOff(names) {
+  const anyOn = names.some(n => !isMuted(n));
+
+  if (anyOn) {
+    silenced = names.filter(n => !isMuted(n));
+    silencedFor = rig.selected;
+    return setMuted([...new Set([...rig.muted, ...names])]);
+  }
+
+  const back = silencedFor === rig.selected && silenced.length ? silenced : names;
+  silenced = [];
+  return setMuted(rig.muted.filter(n => !back.includes(n)));
+}
+
 // ---- the effects ---------------------------------------------------------
 
 const list = document.getElementById('effects');
@@ -119,6 +138,22 @@ function drawEffects() {
   if (!view) return;
 
   const names = chain(view.live);
+
+  const bar = document.createElement('div');
+  bar.className = 'effects-bar';
+  const anyOn = names.some(n => !isMuted(n));
+  const all = document.createElement('button');
+  all.textContent = anyOn ? 'mute all' : 'unmute all';
+  all.disabled = !names.length;
+  all.title = anyOn ? 'mute every effect, to look at them one at a time - they stay in the preset'
+                    : 'unmute the effects that mute all silenced';
+  all.onclick = () => allOff(names);
+  const tally = document.createElement('span');
+  tally.className = 'dim';
+  tally.textContent = `${names.filter(n => !isMuted(n)).length}/${names.length} on`;
+  bar.append(all, tally);
+  list.append(bar);
+
   if (!names.length) {
     const none = document.createElement('p');
     none.className = 'dim';
