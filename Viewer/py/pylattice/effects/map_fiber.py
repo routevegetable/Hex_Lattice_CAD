@@ -10,6 +10,7 @@ class MapFiber(Effect):
     value: Slot
     hue: Slot
     sat: Slot
+
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
 
         for end in graph.ends():

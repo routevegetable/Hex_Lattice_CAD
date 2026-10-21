@@ -108,6 +108,9 @@
       "op": "sub",
       "a": 1.0,
       "b": "scope"
-    }
+    },
+    "bg_waves.sat": 1,
+    "bg_waves2.sat": 1,
+    "net.sat": 0.7
   }
 }
