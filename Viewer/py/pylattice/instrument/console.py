@@ -22,11 +22,25 @@ class Stats:
     gc_ms: float = 0.0
 
 
+def field_group(name: str, f) -> str:
+    """Where a field sits in a dropdown: the rest - rotary, scope, masks - then
+    faders (a CC read straight off a control), then pads (anything a note or a
+    pad's pressure drives), and artnet last. The page sets the order."""
+    if name.startswith("artnet"):
+        return "artnet"
+    if type(f).__name__ in ("CCField", "FaderField", "PolyTouchField"):
+        return "faders"
+    if hasattr(f, "_note") or type(f).__name__ == "FireField":
+        return "pads"
+    return "fields"
+
+
 @dataclass
 class FieldInfo:
     """A field a slot can be pointed at, and what kind it is."""
     name: str
     kind: str
+    group: str = "fields"       # for the UI's dropdowns: fields, faders, pads or artnet
 
 
 @dataclass
@@ -275,7 +289,7 @@ class Console:
                        for name, effect in named(self._effects, Effect).items()}
 
             return Rig(
-                fields=[FieldInfo(name, type(f).__name__)
+                fields=[FieldInfo(name, type(f).__name__, field_group(name, f))
                         for name, f in named(self._fields, ScalarField).items()],
                 effects=effects,
                 presets=self._bank.saved(),
