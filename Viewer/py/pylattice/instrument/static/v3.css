@@ -149,11 +149,10 @@ aside { min-width: 0; }
 .paren.d2 { color: #b08cf0; } .paren.d3 { color: #e0a040; }
 .paren { font-weight: 700; }
 .node .kids { margin-left: 2px; }
-.between { text-align: center; color: var(--dim); font-size: 12px; line-height: 1; margin: 1px 0; }
 .ops { display: flex; gap: 3px; margin: 2px 0; }
 .ops button { padding: 0 8px; min-width: 26px; }
 .ops button.on { border-color: var(--g); color: var(--g); }
-.ops .drop { margin-left: auto; color: var(--dim); }
+.ops .drop { margin-left: auto; color: var(--dim); font-size: 12px; padding: 0 8px; }
 .leaf { display: flex; align-items: center; gap: 6px; margin: 3px 0; flex-wrap: wrap; position: relative; }
 .leaf .num { flex: none; width: 58px; background: var(--panel); color: var(--text);
              border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; font: inherit; }

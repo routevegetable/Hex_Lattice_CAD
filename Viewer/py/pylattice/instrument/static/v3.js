@@ -583,19 +583,14 @@ function nodeEditor(key, tree, path, depth = 0) {
   }
   const drop = document.createElement('button');
   drop.className = 'drop';
-  drop.textContent = '\u2a2f';
-  drop.title = 'drop this operation, keep the first operand';
+  drop.textContent = 'unwrap';
+  drop.title = 'drop this operation and keep only its first operand';
   drop.onclick = () => setFormula(key, replace(tree, path, node.a));
   head.append(drop);
 
   const kids = document.createElement('div');
   kids.className = 'kids';
-  // The operator is said again between the two operands, where it applies.
-  const between = document.createElement('div');
-  between.className = 'between';
-  between.textContent = OPS[node.op];
-
-  kids.append(nodeEditor(key, tree, [...path, 'a'], depth + 1), between,
+  kids.append(nodeEditor(key, tree, [...path, 'a'], depth + 1),
               nodeEditor(key, tree, [...path, 'b'], depth + 1));
   box.append(head, kids);
   return box;
