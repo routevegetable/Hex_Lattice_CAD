@@ -156,7 +156,7 @@ aside { min-width: 0; position: sticky; top: 8px; align-self: start; max-height:
 .leaf { display: flex; align-items: center; gap: 6px; margin: 3px 0; flex-wrap: wrap; position: relative; }
 .leaf .num { flex: none; width: 58px; background: var(--panel); color: var(--text);
              border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; font: inherit; }
-.leaf .wrap { font-size: 11px; padding: 0 6px; color: var(--dim); white-space: nowrap; }
+.leaf .wrap { font-size: 14px; line-height: 1; padding: 0 7px; color: var(--dim); }
 .seg.small button { font-size: 12px; padding: 1px 7px; }
 
 /* the arithmetic of a formula, with a fold for the editor under it */
@@ -181,3 +181,6 @@ aside { min-width: 0; position: sticky; top: 8px; align-self: start; max-height:
 .lifted { opacity: .4; }
 .grip { cursor: grab; color: var(--dim); padding: 0 4px; user-select: none; font-size: 14px; line-height: 1; }
 .node.over, .leaf.over { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.unapplied { flex: none; font-size: 11px; color: var(--dirty); border: 1px solid var(--dirty); border-radius: 9px;
+              padding: 0 8px; white-space: nowrap; }

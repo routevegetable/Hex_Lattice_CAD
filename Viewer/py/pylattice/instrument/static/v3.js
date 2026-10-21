@@ -621,8 +621,8 @@ function leafEditor(key, tree, path) {
   if (node !== null) {
     const wrap = document.createElement('button');
     wrap.className = 'wrap';
-    wrap.textContent = 'combine';
-    wrap.title = 'make this the first half of a new operation, and choose the other half';
+    wrap.textContent = '+';
+    wrap.title = 'add another term: this becomes the first half of a new operation, and you choose the other half';
     wrap.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', a: node, b: null}));
     row.append(wrap);
   }
@@ -842,6 +842,15 @@ function slotRow(key, saved) {
     };
 
     line.append(fold, summary);
+
+    // A formula with an empty operand is held here and not sent to the rig.
+    if (key in editing) {
+      const note = document.createElement('span');
+      note.className = 'unapplied';
+      note.textContent = 'not applied yet';
+      note.title = 'fill in every empty operand and it goes to the rig';
+      line.append(note);
+    }
     ctl.append(line, editor);
   }
 
