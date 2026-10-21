@@ -536,12 +536,33 @@ function leafEditor(key, tree, path) {
   return row;
 }
 
-function nodeEditor(key, tree, path) {
+// A formula as text, with each level's brackets in the colour of its box in the
+// editor, so the two can be matched up at a glance.
+function groupedText(node, depth = 0) {
+  const out = document.createElement('span');
+  if (isLeaf(node)) { out.textContent = describe(node); return out; }
+
+  const paren = (c) => {
+    const p = document.createElement('span');
+    p.className = `paren d${depth % DEPTHS}`;
+    p.textContent = c;
+    return p;
+  };
+  out.append(paren('('), groupedText(node.a, depth + 1), ` ${OPS[node.op]} `,
+             groupedText(node.b, depth + 1), paren(')'));
+  return out;
+}
+
+// Each level of a formula is a box of its own, coloured by how deep it is. There
+// is no limit to how deep: any operand can be wrapped in another operation.
+const DEPTHS = 4;
+
+function nodeEditor(key, tree, path, depth = 0) {
   const node = at(tree, path);
   if (isLeaf(node)) return leafEditor(key, tree, path);
 
   const box = document.createElement('div');
-  box.className = 'node';
+  box.className = `node d${depth % DEPTHS}`;
 
   const head = document.createElement('div');
   head.className = 'ops';
@@ -562,7 +583,13 @@ function nodeEditor(key, tree, path) {
 
   const kids = document.createElement('div');
   kids.className = 'kids';
-  kids.append(nodeEditor(key, tree, [...path, 'a']), nodeEditor(key, tree, [...path, 'b']));
+  // The operator is said again between the two operands, where it applies.
+  const between = document.createElement('div');
+  between.className = 'between';
+  between.textContent = OPS[node.op];
+
+  kids.append(nodeEditor(key, tree, [...path, 'a'], depth + 1), between,
+              nodeEditor(key, tree, [...path, 'b'], depth + 1));
   box.append(head, kids);
   return box;
 }
@@ -680,7 +707,7 @@ function slotRow(key, saved) {
   } else {
     const expr = document.createElement('span');
     expr.className = 'expr';
-    expr.textContent = describe(tree);
+    expr.append(groupedText(tree));
     ctl.append(expr);
   }
 

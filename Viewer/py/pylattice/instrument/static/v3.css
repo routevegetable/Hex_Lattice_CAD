@@ -139,11 +139,20 @@ aside { min-width: 0; }
 
 /* the formula editor */
 .tree { flex: 1 1 100%; border-left: 2px solid var(--line); padding-left: 8px; margin: 2px 0 4px; }
-.node { margin: 2px 0; }
-.node .kids { margin-left: 10px; border-left: 1px dashed var(--line); padding-left: 8px; }
+.node { margin: 3px 0; padding: 3px 6px; border: 1px solid var(--g); border-left: 4px solid var(--g);
+         border-radius: 6px; background: color-mix(in srgb, var(--g) 9%, transparent); }
+.node.d0 { --g: #6a8fd0; }
+.node.d1 { --g: #4fb3a9; }
+.node.d2 { --g: #b08cf0; }
+.node.d3 { --g: #e0a040; }
+.paren.d0 { color: #6a8fd0; } .paren.d1 { color: #4fb3a9; }
+.paren.d2 { color: #b08cf0; } .paren.d3 { color: #e0a040; }
+.paren { font-weight: 700; }
+.node .kids { margin-left: 2px; }
+.between { text-align: center; color: var(--dim); font-size: 12px; line-height: 1; margin: 1px 0; }
 .ops { display: flex; gap: 3px; margin: 2px 0; }
 .ops button { padding: 0 8px; min-width: 26px; }
-.ops button.on { border-color: var(--accent); color: var(--accent); }
+.ops button.on { border-color: var(--g); color: var(--g); }
 .ops .drop { margin-left: auto; color: var(--dim); }
 .leaf { display: flex; align-items: center; gap: 6px; margin: 3px 0; flex-wrap: wrap; position: relative; }
 .leaf .num { flex: none; width: 58px; background: var(--panel); color: var(--text);
