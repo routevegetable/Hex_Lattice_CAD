@@ -159,3 +159,9 @@ aside { min-width: 0; }
              border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; font: inherit; }
 .leaf .wrap { font-size: 11px; padding: 0 6px; color: var(--dim); white-space: nowrap; }
 .seg.small button { font-size: 12px; padding: 1px 7px; }
+
+/* the arithmetic of a formula, with a fold for the editor under it */
+.formula-line { flex: 1 1 100%; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.fold { padding: 0; width: 20px; height: 20px; line-height: 1; border: none; background: none;
+        color: var(--dim); font-size: 14px; }
+.tree[hidden] { display: none; }

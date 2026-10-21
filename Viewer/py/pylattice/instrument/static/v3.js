@@ -325,6 +325,13 @@ function fieldMenu(box, current, onPick) {
 // it as it was rather than at 0. Per session, and per page - it is not a setting.
 const lastValue = {};
 
+// Which slots have their formula folded to just the arithmetic - a habit of the
+// person looking, so it is kept in the browser rather than in the preset.
+const loadSet = (k) => { try { return new Set(JSON.parse(localStorage.getItem(k) ?? '[]')); }
+                         catch { return new Set(); } };
+const saveSet = (k, set) => { try { localStorage.setItem(k, JSON.stringify([...set])); } catch {} };
+const folded = loadSet('v3.folded');
+
 // ---- hue ------------------------------------------------------------------
 // A hue slot is a position on a wheel that runs 0..2, so a range can wrap. It
 // is held as a number, or as a field squeezed into a stretch of the wheel:
@@ -668,6 +675,21 @@ function slotRow(key, saved) {
 
   ctl.append(seg);
 
+  // A formula shows as arithmetic, with the editor under it when it is open. The
+  // editor can be folded away, leaving only the arithmetic.
+  const showsEditor = mode === 'formula' || (open && hue);
+  let summary = null, editor = null;
+  if (showsEditor) {
+    summary = document.createElement('span');
+    summary.className = 'expr';
+    summary.append(groupedText(shown));
+
+    editor = document.createElement('div');
+    editor.className = 'tree';
+    editor.hidden = folded.has(key);
+    editor.append(nodeEditor(key, shown, []));
+  }
+
   if (mode === 'field') {
     const chip = document.createElement('button');
     chip.className = 'chip';
@@ -681,7 +703,16 @@ function slotRow(key, saved) {
       readout.className = 'dim';
       ctl.append(readout);
       ctl.append(hueBar(hue.start, hue.start + hue.width, false,
-          (s0, e0) => { readout.textContent = `${fmt(s0)} ${e0 >= s0 ? '\u2192' : '\u2190'} ${fmt(e0)}`; },
+          (s0, e0) => {
+            readout.textContent = `${fmt(s0)} ${e0 >= s0 ? '\u2192' : '\u2190'} ${fmt(e0)}`;
+
+            // The formula follows the thumbs as they move, not when they are let go.
+            if (editor) {
+              const t = hueTree({field: hue.field, start: s0, width: e0 - s0});
+              summary.replaceChildren(groupedText(t));
+              editor.replaceChildren(nodeEditor(key, t, []));
+            }
+          },
           (s0, e0) => writeSlot(key, buildHue({field: hue.field, start: s0, width: e0 - s0}))));
     }
   } else if (mode === 'value' && hue) {
@@ -704,19 +735,30 @@ function slotRow(key, saved) {
     ctl.append(bar, box);
   } else if (mode === 'value') {
     ctl.append(constantControl(tree ?? emptyValue(key), (v) => writeSlot(key, v)));
-  } else {
-    const expr = document.createElement('span');
-    expr.className = 'expr';
-    expr.append(groupedText(tree));
-    ctl.append(expr);
   }
 
-  // The editor: always for a formula, and below the wheel when a hue opens it.
-  if (mode === 'formula' || (open && hue)) {
-    const editor = document.createElement('div');
-    editor.className = 'tree';
-    editor.append(nodeEditor(key, shown, []));
-    ctl.append(editor);
+  // The arithmetic, then the editor: always for a formula, and below the hue
+  // slider when it opens one.
+  if (showsEditor) {
+    const line = document.createElement('div');
+    line.className = 'formula-line';
+
+    const fold = document.createElement('button');
+    fold.className = 'fold';
+    const mark = () => {
+      fold.textContent = editor.hidden ? '\u25b8' : '\u25be';
+      fold.title = editor.hidden ? 'show the editor' : 'show only the arithmetic';
+    };
+    mark();
+    fold.onclick = () => {
+      editor.hidden = !editor.hidden;
+      if (editor.hidden) folded.add(key); else folded.delete(key);
+      saveSet('v3.folded', folded);
+      mark();
+    };
+
+    line.append(fold, summary);
+    ctl.append(line, editor);
   }
 
   row.append(name, ctl);
