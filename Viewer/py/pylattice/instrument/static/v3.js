@@ -209,32 +209,25 @@ let picking = null;         // the closer of the open one
 
 // The order the menu lists them in: the rest, then faders, pads and artnet.
 const GROUPS = ['fields', 'faders', 'pads', 'artnet'];
+
+// Where a slot's slider starts when it is switched to a constant and has not
+// been one before.
+const DEFAULT_CONSTANT = 0.5;
 const groupOf = (f) => f.group ?? 'fields';
 
-function fieldPicker(current, onPick, label) {
-  const box = document.createElement('div');
-  box.className = 'fpick';
-
-  const btn = document.createElement('button');
-  btn.className = 'fpick-btn';
-  btn.type = 'button';
-  const name = document.createElement('span');
-  name.textContent = label;
-  const caret = document.createElement('span');
-  caret.className = 'fpick-caret';
-  caret.textContent = '\u25be';
-  btn.append(name, caret);
-  box.append(btn);
-
+// The menu hangs off `box`, which the caller places and whatever opens it sits
+// in. This returns the thing that opens it, or closes it if it is already up.
+function fieldMenu(box, current, onPick) {
   const close = () => {
     document.removeEventListener('pointerdown', away, true);
     box.querySelector('.fpick-list')?.remove();
+    box.classList.remove('open');
     picking = null;
   };
   const away = (ev) => { if (!box.contains(ev.target)) close(); };
   const choose = (value) => { close(); onPick(value); };
 
-  btn.onclick = () => {
+  return () => {
     if (picking === close) { close(); return; }
     picking?.();
     picking = close;
@@ -272,9 +265,6 @@ function fieldPicker(current, onPick, label) {
       const hit = (f) => terms.every(t => `${f.name} ${groupOf(f)}`.toLowerCase().includes(t));
 
       body.replaceChildren();
-      // Back to a plain number, for a slot that has a field in it.
-      if (typeof current === 'string' && !terms.length) body.append(item('constant', '', 0, false));
-
       for (const group of GROUPS) {
         const mine = rig.fields.filter(f => groupOf(f) === group && hit(f))
                                .sort((a, b) => a.name.localeCompare(b.name));
@@ -313,43 +303,74 @@ function fieldPicker(current, onPick, label) {
 
     render();
     box.append(menu);
+    box.classList.add('open');
     const now = body.querySelector('.on');
     if (now) { cursor = rows.indexOf(now); mark(); now.scrollIntoView({block: 'nearest'}); }
     search.focus({preventScroll: true});
     document.addEventListener('pointerdown', away, true);
   };
-
-  return box;
 }
 
+// What a slot held as a plain number last, so switching back to a value finds
+// it as it was rather than at 0. Per session, and per page - it is not a setting.
+const lastValue = {};
+
+// Which way a slot is driven: a number, a field, or a formula.
+const modeOf = (tree) => typeof tree === 'string' ? 'field'
+                       : tree === null || typeof tree === 'number' ? 'value' : 'formula';
+
 function slotRow(key, tree) {
+  const mode = modeOf(tree);
+  if (mode === 'value') lastValue[key] = tree ?? 0;
+
   const row = document.createElement('div');
   row.className = 'slot' + (tree === null ? ' empty' : '');
 
   const name = document.createElement('span');
   name.className = 'name';
   name.textContent = key.split('.').slice(1).join('.');
-  row.append(name);
 
-  const pick = (label, cls) => {
-    const p = fieldPicker(tree, (v) => writeSlot(key, v), label);
-    p.classList.add(cls);
-    return p;
+  // The control sits in a box of its own, so the field menu has something to
+  // hang off.
+  const ctl = document.createElement('div');
+  ctl.className = 'ctl fpick';
+  const toggle = fieldMenu(ctl, tree, (v) => writeSlot(key, v));
+
+  const seg = document.createElement('span');
+  seg.className = 'seg';
+  const part = (label, id, title, onclick) => {
+    const b = document.createElement('button');
+    b.className = id === mode ? 'on' : '';
+    b.dataset.id = id;
+    b.textContent = label;
+    b.title = title;
+    if (onclick) b.onclick = onclick; else b.disabled = true;
+    seg.append(b);
   };
+  part('constant', 'value', 'a plain number',
+       () => { if (mode !== 'value') writeSlot(key, lastValue[key] ?? DEFAULT_CONSTANT); });
+  part('field', 'field', 'follow a field', toggle);
+  part('\u0192', 'formula', mode === 'formula' ? 'a formula' : 'formulas come later');
 
-  if (typeof tree === 'string') {
-    row.append(pick(tree, 'whole'));
-  } else if (tree === null || typeof tree === 'number') {
-    row.append(constantControl(tree ?? 0, (v) => writeSlot(key, v)), pick('field', 'small'));
+  ctl.append(seg);
+
+  if (mode === 'field') {
+    const chip = document.createElement('button');
+    chip.className = 'chip';
+    chip.textContent = `${tree} \u25be`;
+    chip.title = 'pick another field';
+    chip.onclick = toggle;
+    ctl.append(chip);
+  } else if (mode === 'value') {
+    ctl.append(constantControl(tree ?? 0, (v) => writeSlot(key, v)));
   } else {
-    // A formula: shown as what it is. Editing one comes later; picking a field
-    // here replaces it.
     const expr = document.createElement('span');
     expr.className = 'expr';
     expr.textContent = describe(tree);
-    row.append(expr, pick('field', 'small'));
+    ctl.append(expr);
   }
 
+  row.append(name, ctl);
   return row;
 }
 
