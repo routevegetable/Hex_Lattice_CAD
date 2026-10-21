@@ -78,7 +78,7 @@
       "b": 0.22
     },
     "map_fiber.hue": 0.27,
-    "map_fiber.saturation": {
+    "map_fiber.sat": {
       "op": "sub",
       "a": 1.0,
       "b": "wipe2"

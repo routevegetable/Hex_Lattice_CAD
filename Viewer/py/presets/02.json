@@ -60,6 +60,6 @@
     "prob_zaps.value": 0.49,
     "map_fiber.value": "trace",
     "map_fiber.hue": 0.45,
-    "map_fiber.saturation": 0.95
+    "map_fiber.sat": 0.95
   }
 }

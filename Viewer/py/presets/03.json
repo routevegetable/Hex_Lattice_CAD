@@ -78,7 +78,7 @@
       },
       "b": 0.4
     },
-    "map_fiber.saturation": {
+    "map_fiber.sat": {
       "op": "sub",
       "a": 1.0,
       "b": "wipe1"
