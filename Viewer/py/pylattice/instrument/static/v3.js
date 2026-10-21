@@ -455,6 +455,107 @@ function leaveFormula(key) {
   formulaOpen.delete(key);
 }
 
+// ---- the parking lot -------------------------------------------------------
+// Parts of a formula can be lifted out and set aside, then put back somewhere
+// else. A part is a whole subtree - an operand or an operation with everything
+// under it. The lot is a habit of the person working, not part of any preset, so
+// it lives in the browser and follows you from slot to slot and preset to preset.
+let parked = (() => { try { return JSON.parse(localStorage.getItem('v3.parked') ?? '[]'); }
+                      catch { return []; } })();
+const saveParked = () => { try { localStorage.setItem('v3.parked', JSON.stringify(parked)); } catch {} };
+const newId = () => Math.random().toString(36).slice(2, 10);
+
+// What is being carried: the part itself, and where it came from - a place in a
+// formula ({key, path, tree}) or a spot in the lot ({lot: id}).
+let dragging = null;
+let overEl = null;
+
+const startsWith = (path, prefix) => prefix.every((step, i) => path[i] === step);
+
+function setOver(el) {
+  if (overEl === el) return;
+  overEl?.classList.remove('over');
+  overEl = el;
+  el.classList.add('over');
+}
+const clearOver = () => { overEl?.classList.remove('over'); overEl = null; };
+
+function park(tree) {
+  if (tree === null || tree === undefined) return;
+  parked.push({id: newId(), tree});
+  saveParked();
+}
+
+// Move a part: out of a formula into the lot, or out of a formula or the lot into
+// an operand. Whatever was sitting in that operand is parked, so nothing is lost.
+function moveSegment(from, to) {
+  const part = from.lot ? parked.find(p => p.id === from.lot)?.tree : at(from.tree, from.path);
+  if (part === undefined) return;
+
+  if (to.lot) {
+    if (from.lot) return;                       // already there
+    park(part);
+    setFormula(from.key, replace(from.tree, from.path, null));
+    drawParking();
+    return;
+  }
+
+  if (!from.lot && from.key === to.key) {
+    // One formula, two places in it: both edits land on the same tree.
+    if (startsWith(to.path, from.path)) return;           // onto itself, or inside itself
+    let t = replace(from.tree, from.path, null);
+    park(at(t, to.path));
+    t = replace(t, to.path, part);
+    setFormula(to.key, t);
+    drawParking();
+    return;
+  }
+
+  if (from.lot) parked = parked.filter(p => p.id !== from.lot);
+  else setFormula(from.key, replace(from.tree, from.path, null));
+
+  park(at(to.tree, to.path));
+  saveParked();
+  setFormula(to.key, replace(to.tree, to.path, part));
+  drawParking();
+}
+
+// The handle you pick a part up by, and where it can be put down.
+function grip(box, from) {
+  const g = document.createElement('span');
+  g.className = 'grip';
+  g.textContent = '\u283f';
+  g.draggable = true;
+  g.title = 'drag this part to the parking lot, or onto another operand';
+  g.ondragstart = (e) => {
+    dragging = {from, part: at(from.tree, from.path)};
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', 'part of a formula');
+    e.dataTransfer.setDragImage(box, 8, 8);
+    box.classList.add('lifted');
+  };
+  g.ondragend = () => { dragging = null; box.classList.remove('lifted'); clearOver(); drawEffects(); };
+  return g;
+}
+
+function dropTarget(el, to) {
+  el.ondragover = (e) => {
+    if (!dragging) return;
+    e.preventDefault();
+    e.stopPropagation();                        // the innermost one under the pointer wins
+    setOver(el);
+  };
+  el.ondrop = (e) => {
+    if (!dragging) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const carried = dragging;
+    dragging = null;
+    clearOver();
+    moveSegment(carried.from, to);
+  };
+}
+
 function setFormula(key, tree) {
   if (isLeaf(tree)) {            // down to one operand: no longer a formula
     leaveFormula(key);
@@ -483,24 +584,6 @@ function makeSeg(mode, parts, small) {
   return seg;
 }
 
-function numberBox(value, commit) {
-  const box = document.createElement('input');
-  box.className = 'num';
-  box.type = 'text';
-  box.inputMode = 'decimal';
-  box.spellcheck = false;
-  box.value = fmt(value);
-  box.title = 'type a value';
-  const typed = () => {
-    const v = parseFloat(box.value);
-    if (Number.isFinite(v)) commit(v); else box.value = fmt(value);
-  };
-  box.onchange = typed;
-  box.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); box.blur(); } };
-  box.onfocus = () => box.select();
-  return box;
-}
-
 function leafEditor(key, tree, path) {
   const node = at(tree, path);
   const row = document.createElement('div');
@@ -510,6 +593,9 @@ function leafEditor(key, tree, path) {
                            (v) => setFormula(key, replace(tree, path, v)));
   const mode = typeof node === 'number' ? 'value' : typeof node === 'string' ? 'field' : null;
 
+  dropTarget(row, {key, path, tree});
+  if (path.length && node !== null) row.append(grip(row, {key, path, tree}));
+
   row.append(makeSeg(mode, [
     {label: 'constant', id: 'value', title: 'a plain number',
      onclick: () => { if (mode !== 'value') setFormula(key, replace(tree, path, DEFAULT_CONSTANT)); }},
@@ -517,7 +603,7 @@ function leafEditor(key, tree, path) {
   ], true));
 
   if (typeof node === 'number') {
-    row.append(numberBox(node, (v) => setFormula(key, replace(tree, path, v))));
+    row.append(constantControl(node, (v) => setFormula(key, replace(tree, path, v))));
   } else if (typeof node === 'string') {
     const chip = document.createElement('button');
     chip.className = 'chip';
@@ -535,8 +621,8 @@ function leafEditor(key, tree, path) {
   if (node !== null) {
     const wrap = document.createElement('button');
     wrap.className = 'wrap';
-    wrap.textContent = '+ \u2212 \u00d7 \u00f7';
-    wrap.title = 'combine with something else';
+    wrap.textContent = 'combine';
+    wrap.title = 'make this the first half of a new operation, and choose the other half';
     wrap.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', a: node, b: null}));
     row.append(wrap);
   }
@@ -571,8 +657,11 @@ function nodeEditor(key, tree, path, depth = 0) {
   const box = document.createElement('div');
   box.className = `node d${depth % DEPTHS}`;
 
+  dropTarget(box, {key, path, tree});
+
   const head = document.createElement('div');
   head.className = 'ops';
+  if (path.length) head.append(grip(box, {key, path, tree}));
   for (const [name, glyph] of Object.entries(OPS)) {
     const b = document.createElement('button');
     b.className = name === node.op ? 'on' : '';
@@ -583,8 +672,8 @@ function nodeEditor(key, tree, path, depth = 0) {
   }
   const drop = document.createElement('button');
   drop.className = 'drop';
-  drop.textContent = 'unwrap';
-  drop.title = 'drop this operation and keep only its first operand';
+  drop.textContent = 'remove operation';
+  drop.title = 'remove this operation and keep only its first operand';
   drop.onclick = () => setFormula(key, replace(tree, path, node.a));
   head.append(drop);
 
@@ -923,6 +1012,74 @@ function drawEffects() {
   }
 }
 
+// ---- the parking lot, on the page ---------------------------------------------
+
+const lot = document.getElementById('parking');
+
+function drawParking() {
+  lot.innerHTML = '';
+
+  const head = document.createElement('div');
+  head.className = 'lot-head';
+  const title = document.createElement('b');
+  title.textContent = 'parking lot';
+  const hint = document.createElement('span');
+  hint.className = 'dim';
+  hint.textContent = parked.length ? '' : 'drag a part of a formula here to set it aside';
+  head.append(title, hint);
+
+  if (parked.length) {
+    const clear = document.createElement('button');
+    clear.className = 'discard';
+    clear.textContent = 'empty';
+    clear.title = 'throw everything in the lot away';
+    clear.onclick = () => { parked = []; saveParked(); drawParking(); };
+    head.append(clear);
+  }
+  lot.append(head);
+
+  const bay = document.createElement('div');
+  bay.className = 'bay';
+  for (const p of parked) {
+    const chip = document.createElement('div');
+    chip.className = 'parked';
+    chip.draggable = true;
+    chip.title = 'drag back onto an operand in a formula';
+    chip.append(groupedText(p.tree));
+
+    const x = document.createElement('button');
+    x.className = 'discard';
+    x.textContent = 'discard';
+    x.onclick = () => { parked = parked.filter(q => q.id !== p.id); saveParked(); drawParking(); };
+    chip.append(x);
+
+    chip.ondragstart = (e) => {
+      dragging = {from: {lot: p.id}, part: p.tree};
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', 'part of a formula');
+      chip.classList.add('lifted');
+    };
+    chip.ondragend = () => { dragging = null; chip.classList.remove('lifted'); clearOver(); drawEffects(); };
+    bay.append(chip);
+  }
+  lot.append(bay);
+
+  // A part from a formula can be put down anywhere on the lot.
+  lot.ondragover = (e) => {
+    if (!dragging || dragging.from.lot) return;
+    e.preventDefault();
+    setOver(lot);
+  };
+  lot.ondrop = (e) => {
+    if (!dragging || dragging.from.lot) return;
+    e.preventDefault();
+    const carried = dragging;
+    dragging = null;
+    clearOver();
+    moveSegment(carried.from, {lot: true});
+  };
+}
+
 // ---- keeping up ----------------------------------------------------------
 
 // Which preset the half-built formulas belong to. Another one has its own slots.
@@ -936,7 +1093,7 @@ async function refresh() {
     formulasFor = rig.selected;
   }
   drawPresets();
-  if (!adding && !picking && !inUse()) drawEffects();
+  if (!adding && !picking && !dragging && !inUse()) drawEffects();
 }
 
 async function drawStats() {
@@ -944,6 +1101,7 @@ async function drawStats() {
   document.getElementById('fps').textContent = `${s.fps.toFixed(0)} fps`;
 }
 
+drawParking();
 refresh(); drawStats();
 
 // The preset can change from the controller - a program change - so the bar
