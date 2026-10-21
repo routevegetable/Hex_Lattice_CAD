@@ -82,6 +82,18 @@ function drawPresets() {
   }
 }
 
+const fmt = (n) => (Math.round(n * 100) / 100).toFixed(2);
+const OPS = {add: '+', sub: '\u2212', mul: '\u00d7', div: '\u00f7', avg: '\u2248'};
+
+// A slot as text: what is plugged into it, however deep.
+function describe(node) {
+  if (node === null || node === undefined) return 'nothing';
+  if (typeof node === 'number') return fmt(node);
+  if (typeof node === 'string') return node;
+  if (node.gradient !== undefined) return `gradient ${node.gradient}(${describe(node.of)}).${node.ch ?? 'h'}`;
+  return `(${describe(node.a)} ${OPS[node.op]} ${describe(node.b)})`;
+}
+
 // ---- muting --------------------------------------------------------------
 
 // Silencing an effect is for looking at one thing at a time. It is not part of
@@ -132,6 +144,99 @@ async function setActive(names) {
   if (!r.ok) { alert((await r.json()).detail); return; }
   await refresh();
 }
+
+// ---- one slot ------------------------------------------------------------
+
+// Change one slot of the playing preset, and nothing else - read just now, as
+// with the chain, so the knobs in it are where they are.
+async function writeSlot(key, tree) {
+  const n = rig.selected;
+  if (n === null) return;
+
+  const fresh = await get(`/presets/${n}`);
+  const r = await put(`/presets/${n}`, {...fresh.live, slots: {...fresh.live.slots, [key]: tree}});
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  await refresh();
+}
+
+// A constant: a slider to drag and a box to type in, kept in step. The slider's
+// range stretches to hold whatever is typed (a constant can be 1.4 or -0.3), and
+// nothing is sent until you let go of the slider or leave the box.
+function constantControl(value, commit) {
+  const wrap = document.createElement('div');
+  wrap.className = 'const';
+
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.step = '0.01';
+
+  const box = document.createElement('input');
+  box.className = 'num';
+  box.type = 'text';
+  box.inputMode = 'decimal';
+  box.spellcheck = false;
+  box.title = 'type a value';
+
+  const fit = (v) => {
+    slider.min = String(Math.min(0, Math.floor(v)));
+    slider.max = String(Math.max(1, Math.ceil(v)));
+    slider.value = String(v);
+  };
+  fit(value);
+  box.value = fmt(value);
+
+  slider.oninput = () => { box.value = fmt(parseFloat(slider.value)); };
+  slider.onchange = () => commit(parseFloat(slider.value));
+
+  const typed = () => {
+    const v = parseFloat(box.value);
+    if (!Number.isFinite(v)) { box.value = fmt(parseFloat(slider.value)); return; }
+    fit(v);
+    box.value = fmt(v);
+    commit(v);
+  };
+  box.onchange = typed;
+  box.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); typed(); box.blur(); } };
+  box.onfocus = () => box.select();
+
+  wrap.append(slider, box);
+  return wrap;
+}
+
+function slotRow(key, tree) {
+  const row = document.createElement('div');
+  row.className = 'slot' + (tree === null ? ' empty' : '');
+
+  const name = document.createElement('span');
+  name.className = 'name';
+  name.textContent = key.split('.').slice(1).join('.');
+  row.append(name);
+
+  if (tree === null || typeof tree === 'number') {
+    row.append(constantControl(tree ?? 0, (v) => writeSlot(key, v)));
+  } else {
+    // A field or a formula: shown as what it is. Changing it comes later.
+    const expr = document.createElement('span');
+    expr.className = 'expr';
+    expr.textContent = describe(tree);
+    row.append(expr);
+  }
+
+  return row;
+}
+
+// Which effects are open is a habit of the person looking, not part of the
+// preset, so it is kept in the browser.
+const store = {
+  get() { try { return new Set(JSON.parse(localStorage.getItem('v3.expanded') ?? '[]')); }
+          catch { return new Set(); } },
+  put(set) { try { localStorage.setItem('v3.expanded', JSON.stringify([...set])); } catch {} },
+};
+const expanded = store.get();
+
+// A drag or a half-typed number lives in the page, and a redraw would take it away.
+const inUse = () => document.activeElement?.closest?.('#effects') != null &&
+                    document.activeElement.tagName === 'INPUT';
 
 // ---- the effects ---------------------------------------------------------
 
@@ -233,13 +338,25 @@ function drawEffects() {
     const wired = keys.filter(k => (view.live.slots[k] ?? null) !== null).length;
 
     const card = document.createElement('section');
-    card.className = 'effect' + (isMuted(name) ? ' off' : '');
+    card.className = 'effect' + (isMuted(name) ? ' off' : '') + (expanded.has(name) ? ' open' : '');
     card.dataset.effect = name;
 
     const head = document.createElement('div');
     head.className = 'effect-head';
-    const title = document.createElement('b');
-    title.textContent = name;
+    const open = expanded.has(name);
+    const title = document.createElement('button');
+    title.className = 'title';
+    const chev = document.createElement('span');
+    chev.className = 'chev';
+    chev.textContent = open ? '\u25be' : '\u25b8';
+    const label = document.createElement('b');
+    label.textContent = name;
+    title.append(chev, label);
+    title.onclick = () => {
+      open ? expanded.delete(name) : expanded.add(name);
+      store.put(expanded);
+      drawEffects();
+    };
     const count = document.createElement('span');
     count.className = 'dim';
     count.textContent = `${wired}/${keys.length}`;
@@ -263,6 +380,10 @@ function drawEffects() {
     head.append(title, count, sw, bin);
 
     card.append(head);
+
+    if (open) {
+      for (const key of keys) card.append(slotRow(key, view.live.slots[key] ?? null));
+    }
     list.append(card);
   }
 }
@@ -272,7 +393,7 @@ function drawEffects() {
 async function refresh() {
   [rig, views] = await Promise.all([get('/rig'), get('/presets')]);
   drawPresets();
-  if (!adding) drawEffects();
+  if (!adding && !inUse()) drawEffects();
 }
 
 async function drawStats() {
