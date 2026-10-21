@@ -232,6 +232,7 @@ function fieldMenu(box, current, onPick) {
     document.removeEventListener('pointerdown', away, true);
     box.querySelector('.fpick-list')?.remove();
     box.classList.remove('open');
+    box.closest('.slot')?.classList.remove('menu-open');
     picking = null;
   };
   const away = (ev) => { if (!box.contains(ev.target)) close(); };
@@ -314,6 +315,7 @@ function fieldMenu(box, current, onPick) {
     render();
     box.append(menu);
     box.classList.add('open');
+    box.closest('.slot')?.classList.add('menu-open');
     const now = body.querySelector('.on');
     if (now) { cursor = rows.indexOf(now); mark(); now.scrollIntoView({block: 'nearest'}); }
     search.focus({preventScroll: true});
@@ -791,12 +793,17 @@ const hueTree = (h) => ({op: 'add', a: {op: 'mul', a: h.field, b: Math.round(h.w
 function slotRow(key, saved) {
   // A formula half-built in the editor is what is on show, not what is saved.
   let tree = key in editing ? editing[key] : saved;
-  const open = formulaOpen.has(key) || key in editing;
 
   // A hue slot in a shape the wheel can show gets the wheel, and keeps it while
   // the formula editor is open below, for as long as the formula stays valid. An
   // empty one is a fixed hue of 0, like any other empty slot.
   const hue = isHueSlot(key) ? parseHue(tree ?? emptyValue(key)) : null;
+
+  // The editor is open for a half-built formula, or for one that is saved. A slot
+  // that has since turned back into a plain number or field - reverted, or changed
+  // from the desk - has nothing to edit, so it is not open any more.
+  const open = key in editing ||
+      (formulaOpen.has(key) && (hue ? hue.field !== null : !isLeaf(tree)));
 
   // The formula of a hue that has a field in it reads (field x squeeze) + start.
   const shown = hue && hue.field !== null && !(key in editing) ? hueTree(hue) : tree;
@@ -805,7 +812,7 @@ function slotRow(key, saved) {
   if (mode === 'value') lastValue[key] = hue ? hue.start : (tree ?? emptyValue(key));
 
   const row = document.createElement('div');
-  row.className = 'slot' + (tree === null ? ' empty' : '');
+  row.className = `slot mode-${mode}` + (tree === null ? ' empty' : '');
 
   const name = document.createElement('span');
   name.className = 'name';
@@ -850,7 +857,6 @@ function slotRow(key, saved) {
      }},
   ]);
 
-  ctl.append(seg);
 
   // A formula shows as arithmetic, with the editor under it when it is open. The
   // editor can be folded away, leaving only the arithmetic.
@@ -956,7 +962,14 @@ function slotRow(key, saved) {
     ctl.append(line, editor);
   }
 
-  row.append(name, ctl);
+  // Each slot is a box of its own: the name and how it is driven along the top,
+  // and everything that belongs to it - the control, the formula, the words about
+  // it - inside.
+  const head = document.createElement('div');
+  head.className = 'slot-head';
+  head.append(name, seg);
+
+  row.append(head, ctl);
   return row;
 }
 
