@@ -41,7 +41,7 @@
     "prob_zaps.value": 0.81,
     "map_fiber.value": 1.0,
     "map_fiber.hue": 0.0,
-    "map_fiber.saturation": 1.0,
+    "map_fiber.sat": 1.0,
     "map_fiber2.value": {
       "op": "mul",
       "a": "param_b",
@@ -52,7 +52,7 @@
       "a": "fire",
       "b": 0.68
     },
-    "map_fiber2.saturation": {
+    "map_fiber2.sat": {
       "op": "sub",
       "a": 1.0,
       "b": {
