@@ -492,10 +492,13 @@ function moveSegment(from, to) {
   const part = from.lot ? parked.find(p => p.id === from.lot)?.tree : at(from.tree, from.path);
   if (part === undefined) return;
 
+  // Picking up a whole formula copies it: the slot keeps what it has.
+  const whole = !from.lot && from.path.length === 0;
+
   if (to.lot) {
     if (from.lot) return;                       // already there
     park(part);
-    setFormula(from.key, replace(from.tree, from.path, null));
+    if (!whole) setFormula(from.key, replace(from.tree, from.path, null));
     drawParking();
     return;
   }
@@ -503,6 +506,7 @@ function moveSegment(from, to) {
   if (!from.lot && from.key === to.key) {
     // One formula, two places in it: both edits land on the same tree.
     if (startsWith(to.path, from.path)) return;           // onto itself, or inside itself
+    if (whole) return;                                    // the whole of it, into itself
     let t = replace(from.tree, from.path, null);
     park(at(t, to.path));
     t = replace(t, to.path, part);
@@ -512,7 +516,7 @@ function moveSegment(from, to) {
   }
 
   if (from.lot) parked = parked.filter(p => p.id !== from.lot);
-  else setFormula(from.key, replace(from.tree, from.path, null));
+  else if (!whole) setFormula(from.key, replace(from.tree, from.path, null));
 
   park(at(to.tree, to.path));
   saveParked();
@@ -520,22 +524,53 @@ function moveSegment(from, to) {
   drawParking();
 }
 
-// The handle you pick a part up by, and where it can be put down.
+// Picking a part up, whichever way it was grabbed.
+function beginDrag(e, box, from) {
+  dragging = {from, part: from.lot ? null : at(from.tree, from.path)};
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', 'part of a formula');
+  e.dataTransfer.setDragImage(box, 8, 8);
+  box.classList.add('lifted');
+}
+
+function endDrag(box) {
+  dragging = null;
+  box.classList.remove('lifted');
+  box.draggable = false;
+  clearOver();
+  drawEffects();
+}
+
+// The handle on a part. A whole operation can also be grabbed by its box - see
+// boxDrag - so this is how you pick up a single operand, or an operation by its
+// corner.
 function grip(box, from) {
   const g = document.createElement('span');
   g.className = 'grip';
   g.textContent = '\u283f';
   g.draggable = true;
   g.title = 'drag this part to the parking lot, or onto another operand';
-  g.ondragstart = (e) => {
-    dragging = {from, part: at(from.tree, from.path)};
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', 'part of a formula');
-    e.dataTransfer.setDragImage(box, 8, 8);
-    box.classList.add('lifted');
-  };
-  g.ondragend = () => { dragging = null; box.classList.remove('lifted'); clearOver(); drawEffects(); };
+  g.ondragstart = (e) => { e.stopPropagation(); beginDrag(e, box, from); };
+  g.ondragend = (e) => { e.stopPropagation(); endDrag(box); };
   return g;
+}
+
+// A whole operation, by its box: anywhere on it that is not a control. The
+// innermost box under the pointer is the one that moves. The outermost box is the
+// whole formula, and picking that up copies it rather than taking it out, since a
+// slot cannot be left without one.
+function boxDrag(box, from) {
+  box.onmousedown = (e) => {
+    e.stopPropagation();
+    box.draggable = !e.target.closest('input, button, select, textarea');
+  };
+  box.onmouseup = () => { box.draggable = false; };
+  box.ondragstart = (e) => {
+    if (e.target !== box) return;                // a grip or chip inside has its own
+    e.stopPropagation();
+    beginDrag(e, box, from);
+  };
+  box.ondragend = (e) => { if (e.target === box) endDrag(box); };
 }
 
 function dropTarget(el, to) {
@@ -658,6 +693,7 @@ function nodeEditor(key, tree, path, depth = 0) {
   box.className = `node d${depth % DEPTHS}`;
 
   dropTarget(box, {key, path, tree});
+  boxDrag(box, {key, path, tree});
 
   const head = document.createElement('div');
   head.className = 'ops';

@@ -184,3 +184,7 @@ aside { min-width: 0; position: sticky; top: 8px; align-self: start; max-height:
 
 .unapplied { flex: none; font-size: 11px; color: var(--dirty); border: 1px solid var(--dirty); border-radius: 9px;
               padding: 0 8px; white-space: nowrap; }
+.node { cursor: grab; }
+.node input, .node button { cursor: auto; }
+.node button { cursor: pointer; }
+.node input[type=text] { cursor: text; }
