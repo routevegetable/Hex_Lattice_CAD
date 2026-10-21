@@ -213,6 +213,16 @@ const GROUPS = ['fields', 'faders', 'pads', 'artnet'];
 // Where a slot's slider starts when it is switched to a constant and has not
 // been one before.
 const DEFAULT_CONSTANT = 0.5;
+
+// What the rig holds in a slot with nothing plugged in, where that is not 0 - a
+// saturation, say, which would draw white. A slot the preset says nothing about
+// shows as that, since that is what is playing.
+const slotDefault = (key) => {
+  const [effect, ...slot] = key.split('.');
+  return rig.effects[effect]?.defaults?.[slot.join('.')];
+};
+const emptyValue = (key) => slotDefault(key) ?? 0;
+const startValue = (key) => slotDefault(key) ?? DEFAULT_CONSTANT;
 const groupOf = (f) => f.group ?? 'fields';
 
 // The menu hangs off `box`, which the caller places and whatever opens it sits
@@ -575,13 +585,13 @@ function slotRow(key, saved) {
   // A hue slot in a shape the wheel can show gets the wheel, and keeps it while
   // the formula editor is open below, for as long as the formula stays valid. An
   // empty one is a fixed hue of 0, like any other empty slot.
-  const hue = isHueSlot(key) ? parseHue(tree ?? 0) : null;
+  const hue = isHueSlot(key) ? parseHue(tree ?? emptyValue(key)) : null;
 
   // The formula of a hue that has a field in it reads (field x squeeze) + start.
   const shown = hue && hue.field !== null && !(key in editing) ? hueTree(hue) : tree;
 
   const mode = hue ? (hue.field === null ? 'value' : 'field') : open ? 'formula' : modeOf(tree);
-  if (mode === 'value') lastValue[key] = hue ? hue.start : (tree ?? 0);
+  if (mode === 'value') lastValue[key] = hue ? hue.start : (tree ?? emptyValue(key));
 
   const row = document.createElement('div');
   row.className = 'slot' + (tree === null ? ' empty' : '');
@@ -605,7 +615,7 @@ function slotRow(key, saved) {
      onclick: () => {
        if (mode === 'value') return;
        leaveFormula(key);
-       writeSlot(key, lastValue[key] ?? DEFAULT_CONSTANT);
+       writeSlot(key, lastValue[key] ?? startValue(key));
      }},
     {label: 'field', id: 'field', title: 'follow a field', onclick: toggle},
     {label: '\u0192', id: 'formula',
@@ -623,7 +633,7 @@ function slotRow(key, saved) {
          editing[key] = {op: 'add', a: {op: 'mul', a: null, b: 1}, b: hue.start};
        } else if (!hue && isLeaf(tree)) {
          // A single operand becomes the first of two; the second is left to fill in.
-         editing[key] = {op: 'mul', a: tree ?? 0, b: null};
+         editing[key] = {op: 'mul', a: tree ?? emptyValue(key), b: null};
        }
        drawEffects();
      }},
@@ -666,7 +676,7 @@ function slotRow(key, saved) {
     box.onfocus = () => box.select();
     ctl.append(bar, box);
   } else if (mode === 'value') {
-    ctl.append(constantControl(tree ?? 0, (v) => writeSlot(key, v)));
+    ctl.append(constantControl(tree ?? emptyValue(key), (v) => writeSlot(key, v)));
   } else {
     const expr = document.createElement('span');
     expr.className = 'expr';
