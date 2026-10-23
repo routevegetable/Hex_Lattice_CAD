@@ -45,5 +45,7 @@ class BgWaves(Effect):
     value: Slot
     flow: Slot
 
+    slot_defaults = {"sat": 1}
+
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
         bg_waves(graph, lattice, now, self.hue, self.value, self.flow, self.sat)

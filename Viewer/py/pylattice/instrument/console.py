@@ -22,11 +22,25 @@ class Stats:
     gc_ms: float = 0.0
 
 
+def field_group(name: str, f) -> str:
+    """Where a field sits in a dropdown: the rest - rotary, scope, masks - then
+    faders (a CC read straight off a control), then pads (anything a note or a
+    pad's pressure drives), and artnet last. The page sets the order."""
+    if name.startswith("artnet"):
+        return "artnet"
+    if type(f).__name__ in ("CCField", "FaderField", "PolyTouchField"):
+        return "faders"
+    if hasattr(f, "_note") or type(f).__name__ == "FireField":
+        return "pads"
+    return "fields"
+
+
 @dataclass
 class FieldInfo:
     """A field a slot can be pointed at, and what kind it is."""
     name: str
     kind: str
+    group: str = "fields"       # for the UI's dropdowns: fields, faders, pads or artnet
 
 
 @dataclass
@@ -75,6 +89,8 @@ class Knob:
 class EffectInfo:
     """An effect, and the slots it has to plug fields into."""
     slots: list[str] = field(default_factory=list)
+    # What a slot holds with nothing in it, where that is not 0.
+    defaults: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -90,6 +106,7 @@ class Rig:
     fields: list[FieldInfo] = field(default_factory=list)
     effects: dict[str, EffectInfo] = field(default_factory=dict)
     presets: list[int] = field(default_factory=list)    # the ones with a file
+    muted: list[str] = field(default_factory=list)      # silenced, still in the patch
     selected: int | None = None
     size: int = 16
 
@@ -201,6 +218,27 @@ class Console:
             self._select(number)            # before applying, so it banks here
             self._apply(patch)
 
+            # A mute is for looking at the preset you are on. The next one
+            # starts out playing in full.
+            self._unmute()
+
+    def _unmute(self):
+        for effect in named(self._effects, Effect).values():
+            effect.muted = False
+
+    def set_muted(self, names: list[str]):
+        """Silence exactly these effects. A mute is not part of any patch: the
+        effects stay in the preset, and nothing is saved or goes dirty."""
+        with self.lock:
+            by_name = named(self._effects, Effect)
+
+            unknown = [n for n in names if n not in by_name]
+            if unknown:
+                raise ValueError(f"no effect {', '.join(map(repr, unknown))}")
+
+            for name, effect in by_name.items():
+                effect.muted = name in names
+
     def commit_preset(self, number: int):
         """Write a preset's live side out to its file."""
         with self.lock:
@@ -249,14 +287,16 @@ class Console:
 
     def describe(self) -> Rig:
         with self.lock:
-            effects = {name: EffectInfo(list(effect.get_slots()))
+            effects = {name: EffectInfo(list(effect.get_slots()), dict(effect.slot_defaults))
                        for name, effect in named(self._effects, Effect).items()}
 
             return Rig(
-                fields=[FieldInfo(name, type(f).__name__)
+                fields=[FieldInfo(name, type(f).__name__, field_group(name, f))
                         for name, f in named(self._fields, ScalarField).items()],
                 effects=effects,
                 presets=self._bank.saved(),
+                muted=[name for name, effect in named(self._effects, Effect).items()
+                       if effect.muted],
                 selected=self._selected,
                 size=self._bank.size,
             )

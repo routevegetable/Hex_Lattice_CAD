@@ -37,6 +37,11 @@ def make_app(console: Console) -> FastAPI:
         """The touch layout - same API, built for a small landscape screen."""
         return (STATIC / "mobile.html").read_text()
 
+    @app.get("/v3", response_class=HTMLResponse)
+    def v3() -> str:
+        """The desktop layout - same API, effects down the left."""
+        return (STATIC / "v3.html").read_text()
+
     @app.get("/stats")
     def stats() -> Stats:
         return console.get_stats()
@@ -116,6 +121,17 @@ def make_app(console: Console) -> FastAPI:
     @app.get("/rig")
     def rig() -> Rig:
         """What can be patched. Everything that *is* patched is in /current."""
+        return console.describe()
+
+    @app.put("/muted")
+    def mute(names: list[str]) -> Rig:
+        """Silence exactly these effects, and unsilence the rest. Muting is
+        for looking at one thing at a time: it is not part of a preset, and
+        selecting another preset clears it."""
+        try:
+            console.set_muted(names)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from None
         return console.describe()
 
     @app.get("/presets")
