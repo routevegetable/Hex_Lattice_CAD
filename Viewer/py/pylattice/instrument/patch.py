@@ -3,6 +3,7 @@ import copy
 import json
 from collections.abc import Callable
 import operator
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 import traceback
@@ -243,6 +244,11 @@ class Patch:
                    active=None if active is None else list(active))
 
 
+# Where preset names are kept, beside the presets they name.
+NAMES_FILE = "names.json"
+MAX_NAME = 32
+
+
 @dataclass
 class PresetBank:
     """A fixed set of preset slots, one file each, under `directory`.
@@ -256,7 +262,7 @@ class PresetBank:
     """
 
     directory: Path
-    size: int = 16
+    controller_presets: int = 16
 
     def __post_init__(self):
         self.directory = Path(self.directory)
@@ -274,12 +280,102 @@ class PresetBank:
         self.current: int | None = None
         self.live_ccs: Callable[[], dict[int, int]] = dict
 
+        # number -> name. Not part of any patch: a name says which preset a slot
+        # is, not what it looks like, so it is not copied with one, not undone
+        # by a revert, and renaming is never an unsaved edit.
+        self._names: dict[int, str] = self._read_names()
+
         self.reload()
 
     def _fold(self):
         """Put the knobs as they are into the preset that is playing."""
         if self.current is not None:
             self._cache[self.current].ccs.update(self.live_ccs())
+
+    # -- the names --------------------------------------------------------
+
+    @property
+    def names_path(self) -> Path:
+        return self.directory / NAMES_FILE
+
+    def _read_names(self) -> dict[int, str]:
+        if not self.names_path.exists():
+            return {}
+
+        # JSON keys are strings; preset numbers are not.
+        return {int(number): name
+                for number, name in json.loads(self.names_path.read_text()).items()}
+
+    def names(self) -> dict[int, str]:
+        """Every name there is, by preset number."""
+        return dict(self._names)
+
+    def name(self, number: int) -> str | None:
+        self.check(number)
+        return self._names.get(number)
+
+    def number_of(self, name: str) -> int:
+        """The preset with this name. Case does not matter."""
+        wanted = name.strip().lower()
+
+        for number, taken in self._names.items():
+            if taken.lower() == wanted:
+                return number
+
+        raise ValueError(f"no preset named {name!r}")
+
+    def check_name(self, name: str, number: int | None = None) -> str:
+        """A name as it will be kept, or why it cannot be.
+
+        `number` is the preset it is for, which is allowed to keep a name it
+        already has - saying it again is not a clash.
+        """
+        name = name.strip()
+
+        if not name:
+            raise ValueError("a name cannot be empty")
+
+        if len(name) > MAX_NAME:
+            raise ValueError(f"a name is at most {MAX_NAME} characters")
+
+        # Letters, digits and dashes: no spaces, and nothing that needs escaping
+        # in a URL.
+        if not re.fullmatch(r"[A-Za-z0-9-]+", name):
+            raise ValueError("a name can only use letters, digits and dashes")
+
+        # Starting with a letter also means "3" can never be both a name and a
+        # preset number.
+        if not name[0].isalpha():
+            raise ValueError("a name must begin with a letter")
+
+        if "--" in name:
+            raise ValueError("a name cannot have two dashes in a row")
+
+        for other, taken in self._names.items():
+            if other != number and taken.lower() == name.lower():
+                raise ValueError(f"preset {other} is already called {taken!r}")
+
+        return name
+
+    def set_name(self, number: int, name: str | None):
+        """Name a preset, or take its name away with an empty one. Only the
+        presets past the first sixteen have names: those are known by number."""
+        self.check(number)
+
+        if number < self.controller_presets:
+            raise ValueError(f"preset {number} is one of the first {self.controller_presets} - "
+                             "those are not named")
+
+        if name is None or not name.strip():
+            self._names.pop(number, None)
+        else:
+            self._names[number] = self.check_name(name, number)
+
+        self._write_names()
+
+    def _write_names(self):
+        ordered = {str(number): name for number, name in sorted(self._names.items())}
+        self.names_path.write_text(json.dumps(ordered, indent=2))
 
     # -- the files --------------------------------------------------------
 
@@ -288,15 +384,15 @@ class PresetBank:
         return self.directory / f"{number:02d}.json"
 
     def check(self, number: int):
-        if not 0 <= number < self.size:
-            raise ValueError(f"preset {number} is outside 0-{self.size - 1}")
+        if not 0 <= number < self.controller_presets:
+            raise ValueError(f"preset {number} is outside 0-{self.controller_presets - 1}")
 
     def exists(self, number: int) -> bool:
         return self.path(number).exists()
 
     def saved(self) -> list[int]:
         """Which slots have a file."""
-        return [n for n in range(self.size) if self.exists(n)]
+        return [n for n in range(self.controller_presets) if self.exists(n)]
 
     def reload(self):
         """Fill the cache from storage.
@@ -307,7 +403,7 @@ class PresetBank:
         """
         self._cache, self._stored = {}, {}
 
-        for number in range(self.size):
+        for number in range(self.controller_presets):
             stored = self._from_storage(number)
             self._stored[number] = stored
             self._cache[number] = stored.copy()
