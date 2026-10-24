@@ -124,6 +124,11 @@ class Patch:
     # every effect is taken as on.
     active: list[str] | None = None
 
+    # What the preset is called, if it has been given a name. It is part of the
+    # patch like anything else in it, so it is written with it and read back
+    # with it, and a change to it is an edit like any other.
+    name: str | None = None
+
     def apply(self, midi: MIDI, fields: type, effects: type):
         """Put the knobs back and re-patch the slots.
 
@@ -186,12 +191,18 @@ class Patch:
         patches must never share a dict, or editing one edits the other."""
         return Patch(ccs=dict(self.ccs), slots=copy.deepcopy(self.slots),
                      cc_map=dict(self.cc_map),
-                     active=None if self.active is None else list(self.active))
+                     active=None if self.active is None else list(self.active),
+                     name=self.name)
 
     def save(self, path: str):
         slots = {name: as_json(ref) for name, ref in self.slots.items()}
         out = {"ccs": self.ccs, "slots": slots, "cc_map": self.cc_map,
                "active": self.active}
+
+        # Only when there is one, so a preset that was never named reads as it did.
+        if self.name is not None:
+            out["name"] = self.name
+
         Path(path).write_text(json.dumps(out, indent=2))
 
     @classmethod
@@ -203,12 +214,20 @@ class Patch:
         return cls(ccs={int(cc): v for cc, v in saved["ccs"].items()},
                    slots={name: as_ref(raw) for name, raw in saved["slots"].items()},
                    cc_map=saved.get("cc_map", {}),
-                   active=None if active is None else list(active))
+                   active=None if active is None else list(active),
+                   name=saved.get("name"))
 
 
 @dataclass
 class PresetBank:
-    """A fixed set of preset slots, one file each, under `directory`.
+    """The presets, one file each, under `directory`.
+
+    The first `controller_presets` slots - the ones the controller's sixteen
+    projects pick - always exist, written or not. Past those, a preset exists
+    because somebody wrote one: a `put` to a number below `limit` (a program
+    change cannot say more than 127) makes it, `save` gives it a file, and
+    `delete` takes it away. A number that is none of these is not a preset at
+    all, rather than an empty one, so nothing can play it by accident.
 
     Every preset is held in memory as well as on disk. The cached copy is the
     live one - the instrument renders from the cached patch of whatever is
@@ -219,7 +238,8 @@ class PresetBank:
     """
 
     directory: Path
-    size: int = 16
+    controller_presets: int = 16
+    limit: int = 128
 
     def __post_init__(self):
         self.directory = Path(self.directory)
@@ -255,30 +275,44 @@ class PresetBank:
     # -- the files --------------------------------------------------------
 
     def path(self, number: int) -> Path:
-        self.check(number)
         return self.directory / f"{number:02d}.json"
 
     def check(self, number: int):
-        if not 0 <= number < self.size:
-            raise ValueError(f"preset {number} is outside 0-{self.size - 1}")
+        """Say so if there is no such preset."""
+        if number not in self._cache:
+            raise ValueError(f"no preset {number}")
 
     def exists(self, number: int) -> bool:
         return self.path(number).exists()
 
+    def numbers(self) -> list[int]:
+        """Every preset there is."""
+        return sorted(self._cache)
+
+    def custom(self) -> list[int]:
+        """The ones past the fixed slots, which somebody saved."""
+        return [n for n in self.numbers() if n >= self.controller_presets]
+
     def saved(self) -> list[int]:
-        """Which slots have a file."""
-        return [n for n in range(self.size) if self.exists(n)]
+        """Which presets have a file."""
+        return [n for n in self.numbers() if self.exists(n)]
+
+    def _on_disk(self) -> list[int]:
+        """The numbers of the custom presets with a file."""
+        found = (int(f.stem) for f in self.directory.glob("*.json") if f.stem.isdigit())
+        return sorted(n for n in found if self.controller_presets <= n < self.limit)
 
     def reload(self):
         """Fill the cache from storage.
 
-        Every slot gets a patch, file or no file - an unwritten one is a patch
-        that says nothing, which applies cleanly and changes nothing. There is
-        no such thing as an empty preset to guard against.
+        Every fixed slot gets a patch, file or no file - an unwritten one is a
+        patch that says nothing, which applies cleanly and changes nothing.
+        There is no such thing as an empty preset to guard against. A custom
+        one is here because it has a file.
         """
         self._cache, self._stored = {}, {}
 
-        for number in range(self.size):
+        for number in [*range(self.controller_presets), *self._on_disk()]:
             stored = self._from_storage(number)
             self._stored[number] = stored
             self._cache[number] = stored.copy()
@@ -311,8 +345,18 @@ class PresetBank:
 
     def put(self, number: int, patch: Patch):
         """Hold a patch as a preset's current state. Dirty from here if it
-        differs from the file."""
-        self.check(number)
+        differs from the file.
+
+        A number past the fixed slots that nothing holds yet is made by this:
+        the preset starts out with nothing on file, so it is dirty until it is
+        saved, and is gone after a restart if it never is.
+        """
+        if number not in self._cache:
+            if not self.controller_presets <= number < self.limit:
+                raise ValueError(f"no preset {number}")
+
+            self._stored[number] = Patch(ccs={}, slots={}, cc_map={})
+
         self._cache[number] = patch.copy()
 
     def save(self, number: int):
@@ -323,6 +367,19 @@ class PresetBank:
 
         patch.save(self.path(number))
         self._stored[number] = patch.copy()
+
+    def delete(self, number: int):
+        """Take a custom preset away, its file and its name with it."""
+        self.check(number)
+
+        if number < self.controller_presets:
+            raise ValueError(f"preset {number} is one of the first {self.controller_presets} - those stay")
+
+        if number == self.current:
+            raise ValueError(f"preset {number} is playing - play another one first")
+
+        self.path(number).unlink(missing_ok=True)
+        del self._cache[number], self._stored[number]
 
     def revert(self, number: int) -> Patch:
         """Throw a preset's edits away and read its file back - or empty it,

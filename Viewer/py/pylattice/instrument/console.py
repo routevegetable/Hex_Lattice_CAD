@@ -109,7 +109,7 @@ class Rig:
     presets: list[int] = field(default_factory=list)    # the ones with a file
     muted: list[str] = field(default_factory=list)      # silenced, still in the patch
     selected: int | None = None
-    size: int = 16
+    size: int = 16                                      # the ones that are always there
 
 
 class Console:
@@ -256,6 +256,11 @@ class Console:
             for name, effect in by_name.items():
                 effect.muted = name in names
 
+    def delete_preset(self, number: int):
+        """Take a saved preset away. The first sixteen, and the one playing, stay."""
+        with self.lock:
+            self._bank.delete(number)
+
     def commit_preset(self, number: int):
         """Write a preset's live side out to its file."""
         with self.lock:
@@ -284,7 +289,7 @@ class Console:
     def all_presets(self) -> dict[int, PresetView]:
         """Every preset the bank holds, each against its file."""
         with self.lock:
-            return {number: self._view(number) for number in range(self._bank.size)}
+            return {number: self._view(number) for number in self._bank.numbers()}
 
     def selected(self) -> int | None:
         with self.lock:
@@ -317,5 +322,5 @@ class Console:
                 muted=[name for name, effect in named(self._effects, Effect).items()
                        if effect.muted],
                 selected=self._selected,
-                size=self._bank.size,
+                size=self._bank.controller_presets,
             )

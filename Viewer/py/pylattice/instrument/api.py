@@ -156,6 +156,16 @@ def make_app(console: Console) -> FastAPI:
             raise HTTPException(status_code=400, detail=str(e)) from None
         return console.read_preset(number)
 
+    @app.delete("/presets/{number}")
+    def delete_preset(number: int) -> Rig:
+        """Take a preset past the first sixteen away. Those stay, and so does the
+        one that is playing."""
+        try:
+            console.delete_preset(number)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from None
+        return console.describe()
+
     @app.post("/presets/{number}/select")
     def select_preset(number: int) -> PresetView:
         """Play what is in this preset's live side."""

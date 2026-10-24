@@ -73,13 +73,22 @@ The whole patch is replaced on post by the UI, which sends every slot it
 knows about even when only one of them changed. A patch is the whole picture
 to whoever applies it: a slot it does not mention ends up empty.
 
-**Preset** — a numbered patch, 0–15, one `presets/NN.json` each. Every slot in
-the bank always holds a patch; one with no file holds a patch that says
-nothing, which applies cleanly and blanks the rig.
+**Preset** — a numbered patch, one `presets/NN.json` each. The first sixteen
+(0–15) always exist: such a slot with no file holds a patch that says nothing,
+which applies cleanly and blanks the rig. Past those, a preset exists because
+someone wrote one: a write to a number below 128 - all a program change can
+say - makes it, and committing it gives it a file. One that was never
+committed is gone after a restart. A number that is neither is not a preset at
+all, so a program change to it is refused.
+
+**Name** — what a preset is called, kept in the patch itself as `name` and
+written with it. It is an edit like any other: it shows as unsaved until
+committed, and a revert undoes it. Nothing on the server checks it or keeps it
+unique; whatever makes a copy is the one to pick the number and the name.
 
 **Bank** — `PresetBank`. Holds two copies of every preset: the **cache**, which
 is live and may have been edited, and the **stored** copy, which is what is on
-disk.
+disk. It holds only the presets that exist, not a slot for every number.
 
 **Dirty** — a preset whose cache differs from its file. Shown as an amber
 number in the preset list and an amber dot on the preset chip. Saving writes
