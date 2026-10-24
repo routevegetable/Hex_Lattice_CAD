@@ -15,13 +15,19 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 
 from pylattice.instrument.console import (Console, ControlInfo, Knob, PresetView,
                                           Rig, Stats)
 from pylattice.instrument.patch import Patch
 
 STATIC = Path(__file__).parent / "static"
+
+
+@dataclass
+class Naming:
+    """What a preset is to be called. An empty name takes the name away."""
+    name: str
 
 
 def make_app(console: Console) -> FastAPI:
@@ -160,6 +166,44 @@ def make_app(console: Console) -> FastAPI:
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from None
         return console.read_preset(number)
+
+    @app.post("/presets")
+    def save_copy(naming: Naming) -> Rig:
+        """Keep a copy of what is playing as a new preset of this name. The same
+        preset keeps playing; the rig's names say which number the copy got."""
+        try:
+            console.save_copy(naming.name)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from None
+        return console.describe()
+
+    @app.put("/presets/{number}/name")
+    def rename_preset(number: int, naming: Naming) -> Rig:
+        """Name a saved preset past the first sixteen - those are the only ones with names."""
+        try:
+            console.rename_preset(number, naming.name)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from None
+        return console.describe()
+
+    @app.delete("/presets/{number}")
+    def delete_preset(number: int) -> Rig:
+        """Take a saved preset away. The first sixteen stay, and so does the
+        one that is playing."""
+        try:
+            console.delete_preset(number)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from None
+        return console.describe()
+
+    @app.post("/presets/named/{name}/select")
+    def select_named(name: str) -> PresetView:
+        """Play a preset by what it is called."""
+        try:
+            console.select_named(name)
+            return console.read_preset(console.selected())
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from None
 
     @app.post("/presets/{number}/select")
     def select_preset(number: int) -> PresetView:
