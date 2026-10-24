@@ -24,6 +24,8 @@ from pylattice.instrument.patch import Patch
 from pylattice.instrument.preview import Preview
 
 STATIC = Path(__file__).parent / "static"
+# The rig's 3D model, which the preview draws. Lives with the viewer, not here.
+HINGE = Path(__file__).resolve().parents[3] / "hinge_obj"
 
 
 @dataclass
@@ -35,6 +37,8 @@ class Naming:
 def make_app(console: Console, preview: Callable[[object], Preview] | None = None) -> FastAPI:
     app = FastAPI(title="lattice")
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
+    if HINGE.is_dir():
+        app.mount("/hinge", StaticFiles(directory=HINGE), name="hinge")
 
     @app.get("/", response_class=HTMLResponse)
     def page() -> str:
