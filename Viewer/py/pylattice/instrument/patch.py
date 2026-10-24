@@ -246,12 +246,23 @@ class Patch:
 
 # Where preset names are kept, beside the presets they name.
 NAMES_FILE = "names.json"
+NEXT_FILE = "next.txt"
 MAX_NAME = 32
 
 
 @dataclass
 class PresetBank:
-    """A fixed set of preset slots, one file each, under `directory`.
+    """The presets, one file each, under `directory`.
+
+    The first `controller_presets` slots - the ones the controller's sixteen
+    projects pick - always exist, written or not. Past those, a preset
+    exists only because somebody saved one - `create` makes it, at the next
+    number past any used before (below `limit`, since a program change cannot
+    say more than 127), and `delete` takes it away. A number that is neither is
+    not a preset at all, rather than an empty one, so nothing can play it by
+    accident. A deleted preset's number is not handed out again, because
+    something upstream may still be sending it: only once every number has been
+    used does `create` take the lowest free one.
 
     Every preset is held in memory as well as on disk. The cached copy is the
     live one - the instrument renders from the cached patch of whatever is
@@ -263,6 +274,7 @@ class PresetBank:
 
     directory: Path
     controller_presets: int = 16
+    limit: int = 128
 
     def __post_init__(self):
         self.directory = Path(self.directory)
@@ -286,6 +298,14 @@ class PresetBank:
         self._names: dict[int, str] = self._read_names()
 
         self.reload()
+
+        # A name for a preset whose file has gone is not a name for anything, and
+        # the first sixteen are not named at all.
+        self._names = {n: name for n, name in self._names.items()
+                       if n in self._cache and n >= self.controller_presets}
+
+        # The number the next saved preset gets.
+        self._next: int = self._read_next()
 
     def _fold(self):
         """Put the knobs as they are into the preset that is playing."""
@@ -377,33 +397,61 @@ class PresetBank:
         ordered = {str(number): name for number, name in sorted(self._names.items())}
         self.names_path.write_text(json.dumps(ordered, indent=2))
 
+    # -- the next number --------------------------------------------------
+
+    @property
+    def next_path(self) -> Path:
+        return self.directory / NEXT_FILE
+
+    def _read_next(self) -> int:
+        """Past every number used before. It is kept in a file so that a number
+        that was deleted is not forgotten with it; a file that is missing, or
+        behind a preset someone copied in by hand, is covered by what is on
+        disk."""
+        remembered = int(self.next_path.read_text()) if self.next_path.exists() else 0
+        return max(remembered, self.controller_presets, *(n + 1 for n in self.custom()))
+
     # -- the files --------------------------------------------------------
 
     def path(self, number: int) -> Path:
-        self.check(number)
         return self.directory / f"{number:02d}.json"
 
     def check(self, number: int):
-        if not 0 <= number < self.controller_presets:
-            raise ValueError(f"preset {number} is outside 0-{self.controller_presets - 1}")
+        """Say so if there is no such preset."""
+        if number not in self._cache:
+            raise ValueError(f"no preset {number}")
 
     def exists(self, number: int) -> bool:
         return self.path(number).exists()
 
+    def numbers(self) -> list[int]:
+        """Every preset there is."""
+        return sorted(self._cache)
+
+    def custom(self) -> list[int]:
+        """The ones past the fixed slots, which somebody saved."""
+        return [n for n in self.numbers() if n >= self.controller_presets]
+
     def saved(self) -> list[int]:
-        """Which slots have a file."""
-        return [n for n in range(self.controller_presets) if self.exists(n)]
+        """Which presets have a file."""
+        return [n for n in self.numbers() if self.exists(n)]
+
+    def _on_disk(self) -> list[int]:
+        """The numbers of the custom presets with a file."""
+        found = (int(f.stem) for f in self.directory.glob("*.json") if f.stem.isdigit())
+        return sorted(n for n in found if self.controller_presets <= n < self.limit)
 
     def reload(self):
         """Fill the cache from storage.
 
-        Every slot gets a patch, file or no file - an unwritten one is a patch
-        that says nothing, which applies cleanly and changes nothing. There is
-        no such thing as an empty preset to guard against.
+        Every fixed slot gets a patch, file or no file - an unwritten one is a
+        patch that says nothing, which applies cleanly and changes nothing.
+        There is no such thing as an empty preset to guard against. A custom
+        one is here because it has a file.
         """
         self._cache, self._stored = {}, {}
 
-        for number in range(self.controller_presets):
+        for number in [*range(self.controller_presets), *self._on_disk()]:
             stored = self._from_storage(number)
             self._stored[number] = stored
             self._cache[number] = stored.copy()
@@ -448,6 +496,55 @@ class PresetBank:
 
         patch.save(self.path(number))
         self._stored[number] = patch.copy()
+
+    def create(self, patch: Patch, name: str) -> int:
+        """Save a patch as a new, named preset, and say which number it got.
+
+        It is written out at once: a custom preset exists because it has a
+        file, so there is no such thing as one that was never saved.
+        """
+        name = self.check_name(name)
+
+        if self._next < self.limit:
+            number = self._next
+        else:
+            # Every number has been used once. Only now are the deleted ones
+            # handed out again.
+            number = next((n for n in range(self.controller_presets, self.limit)
+                           if n not in self._cache), None)
+            if number is None:
+                raise ValueError(f"the bank is full - presets go up to {self.limit - 1}")
+
+        # The file first: if writing it fails, nothing else has changed, and there
+        # is no preset in the cache that has no file.
+        stored = patch.copy()
+        stored.save(self.path(number))
+
+        self._stored[number] = stored
+        self._cache[number] = stored.copy()
+        self._names[number] = name
+        self._write_names()
+
+        self._next = max(self._next, number + 1)
+        self.next_path.write_text(str(self._next))
+
+        return number
+
+    def delete(self, number: int):
+        """Take a custom preset away, its file and its name with it."""
+        self.check(number)
+
+        if number < self.controller_presets:
+            raise ValueError(f"preset {number} is one of the first {self.controller_presets} - those stay")
+
+        if number == self.current:
+            raise ValueError(f"preset {number} is playing - play another one first")
+
+        self.path(number).unlink()
+        del self._cache[number], self._stored[number]
+
+        if self._names.pop(number, None) is not None:
+            self._write_names()
 
     def revert(self, number: int) -> Patch:
         """Throw a preset's edits away and read its file back - or empty it,

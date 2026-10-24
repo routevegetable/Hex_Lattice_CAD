@@ -267,7 +267,7 @@ class Console:
     def all_presets(self) -> dict[int, PresetView]:
         """Every preset the bank holds, each against its file."""
         with self.lock:
-            return {number: self._view(number) for number in range(self._bank.size)}
+            return {number: self._view(number) for number in self._bank.numbers()}
 
     def selected(self) -> int | None:
         with self.lock:

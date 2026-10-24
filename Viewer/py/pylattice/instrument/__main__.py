@@ -109,8 +109,8 @@ def check_program():
 
     program_seen = chosen.when
 
-    if chosen.data >= BANK.size:
-        print(f"program {chosen.data}: only {BANK.size} presets")
+    if chosen.data not in BANK.numbers():
+        print(f"program {chosen.data}: no such preset")
         return
 
     load_preset(chosen.data)
