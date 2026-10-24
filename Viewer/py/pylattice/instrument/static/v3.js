@@ -260,9 +260,20 @@ const emptyValue = (key) => slotDefault(key) ?? 0;
 const startValue = (key) => slotDefault(key) ?? DEFAULT_CONSTANT;
 const groupOf = (f) => f.group ?? 'fields';
 
+// What the menu lists. Each entry has the group it sits under, the text to show
+// and a hint beside it, and the value that is handed back when it is chosen. The
+// order of the entries is the order shown; the search looks in all three words.
+const fieldSource = {
+  placeholder: 'search fields, faders, pads',
+  entries: () => GROUPS.flatMap(group =>
+      rig.fields.filter(f => groupOf(f) === group)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(f => ({group, text: f.name, hint: '', value: f.name}))),
+};
+
 // The menu hangs off `box`, which the caller places and whatever opens it sits
 // in. This returns the thing that opens it, or closes it if it is already up.
-function fieldMenu(box, current, onPick) {
+function fieldMenu(box, current, onPick, source = fieldSource) {
   const close = () => {
     document.removeEventListener('pointerdown', away, true);
     box.querySelector('.fpick-list')?.remove();
@@ -283,7 +294,7 @@ function fieldMenu(box, current, onPick) {
     const search = document.createElement('input');
     search.className = 'fpick-search';
     search.type = 'search';
-    search.placeholder = 'search fields, faders, pads';
+    search.placeholder = source.placeholder;
     const body = document.createElement('div');
     body.className = 'fpick-body';
     menu.append(search, body);
@@ -308,19 +319,19 @@ function fieldMenu(box, current, onPick) {
 
     const render = () => {
       const terms = search.value.toLowerCase().split(/\s+/).filter(Boolean);
-      const hit = (f) => terms.every(t => `${f.name} ${groupOf(f)}`.toLowerCase().includes(t));
+      const hit = (e) => terms.every(t => `${e.text} ${e.group} ${e.hint}`.toLowerCase().includes(t));
 
       body.replaceChildren();
-      for (const group of GROUPS) {
-        const mine = rig.fields.filter(f => groupOf(f) === group && hit(f))
-                               .sort((a, b) => a.name.localeCompare(b.name));
-        if (!mine.length) continue;
-
-        const head = document.createElement('div');
-        head.className = 'fpick-group';
-        head.textContent = group;
-        body.append(head);
-        for (const f of mine) body.append(item(f.name, '', f.name, f.name === current));
+      let group = null;
+      for (const e of source.entries().filter(hit)) {
+        if (e.group !== group) {
+          group = e.group;
+          const head = document.createElement('div');
+          head.className = 'fpick-group';
+          head.textContent = group;
+          body.append(head);
+        }
+        body.append(item(e.text, e.hint, e.value, e.value === current));
       }
 
       rows = [...body.querySelectorAll('.fpick-item')];
