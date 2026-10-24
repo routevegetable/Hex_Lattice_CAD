@@ -27,6 +27,7 @@ header { display: flex; align-items: center; gap: 12px; padding: 10px 16px;
 .preset-name { width: 200px; background: var(--panel); color: var(--text); font: inherit;
                border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; }
 .preset-name.dirty { border-color: var(--dirty); }
+#named { flex: none; }
 /* the same glyphs as the touch layout; the save one is a colour emoji, so
    `color` does nothing to it - dim the lot */
 .pcell.act { font-size: 1rem; line-height: 1; }

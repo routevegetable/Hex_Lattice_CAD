@@ -1,7 +1,9 @@
 // v3: effects down the left, whatever they hold on the right.
 
 const get = (p) => fetch(p).then(r => r.json());
-const post = (p) => fetch(p, {method: 'POST'});
+const post = (p, body) => fetch(p, body === undefined ? {method: 'POST'} :
+                                 {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                  body: JSON.stringify(body)});
 const put = (p, body) => fetch(p, {method: 'PUT', headers: {'Content-Type': 'application/json'},
                                    body: JSON.stringify(body)});
 
@@ -71,6 +73,8 @@ function buildPresets() {
 // is never an edit and the preset does not go dirty.
 const nameBox = document.getElementById('preset-name');
 const numBox = document.getElementById('preset-num');
+const namedBox = document.getElementById('named');
+const namedOpen = document.getElementById('named-open');
 
 async function rename(n, name) {
   const r = await put(`/presets/${n}/name`, {name});
@@ -93,6 +97,7 @@ function drawName() {
   nameBox.placeholder = n === null ? '' : nameable ? 'name this preset' : `no name for 0\u2013${rig.controller_presets - 1}`;
   nameBox.classList.toggle('dirty', n !== null && isDirty(views[n]));
   numBox.textContent = n === null ? '' : `#${n}`;
+  namedOpen.disabled = !Object.keys(rig.names).length;
 
   // Half-typed text is not for the poll to take away.
   if (document.activeElement !== nameBox) nameBox.value = rig.names[n] ?? '';
@@ -1294,6 +1299,41 @@ function drawParking() {
     moveSegment(carried.from, {lot: true});
   };
 }
+
+// ---- presets by name -------------------------------------------------------
+
+// Every preset with a name, in the menu the fields use. Only the ones saved
+// past the first sixteen have names, so the menu lists those, each by number.
+const presetSource = {
+  placeholder: 'search presets by name or number',
+  entries: () => Object.entries(rig.names)
+      .map(([n, text]) => ({n: Number(n), text}))
+      .sort((a, b) => a.n - b.n)
+      .map(({n, text}) => ({group: 'saved', text, hint: `#${n}`, value: n})),
+};
+
+// Playing one is what its cell does, so it is the same call.
+namedOpen.onclick = fieldMenu(namedBox, null, (n) => act(`/presets/${n}/select`), presetSource);
+
+// Keep a copy of what is playing under a name. The next number is the server's to
+// give, and this preset keeps playing - so a line beside the button says what the
+// copy was called and where it went, for a few seconds.
+const savedNote = document.getElementById('saved');
+let savedTimer = null;
+
+document.getElementById('save-copy').onclick = async () => {
+  const name = prompt('Name for the copy (begin with a letter; then letters, digits and single dashes)');
+  if (name === null || !name.trim()) return;
+
+  const r = await post('/presets', {name});
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  await refresh();
+
+  const number = Object.entries(rig.names).find(([, t]) => t.toLowerCase() === name.trim().toLowerCase())?.[0];
+  savedNote.textContent = `saved ${name.trim()} as #${number}`;
+  clearTimeout(savedTimer);
+  savedTimer = setTimeout(() => { savedNote.textContent = ''; }, 4000);
+};
 
 // ---- keeping up ----------------------------------------------------------
 
