@@ -65,6 +65,39 @@ function buildPresets() {
   [save, revert] = bar.querySelectorAll('.act');
 }
 
+// What the playing preset is called. It is a box rather than a button that opens
+// one, so there is nothing to open: type, and Enter or leaving it keeps the name.
+// Clearing it takes the name away. A name is not part of the patch, so renaming
+// is never an edit and the preset does not go dirty.
+const nameBox = document.getElementById('preset-name');
+const numBox = document.getElementById('preset-num');
+
+async function rename(n, name) {
+  const r = await put(`/presets/${n}/name`, {name});
+  if (!r.ok) alert((await r.json()).detail);
+  await refresh();                      // a name that was refused goes back to what it was
+}
+
+nameBox.onchange = () => { if (rig.selected !== null) rename(rig.selected, nameBox.value); };
+nameBox.onkeydown = (ev) => {
+  if (ev.key === 'Enter') nameBox.blur();
+  else if (ev.key === 'Escape') { nameBox.value = rig.names[rig.selected] ?? ''; nameBox.blur(); }
+};
+nameBox.onfocus = () => nameBox.select();
+
+function drawName() {
+  const n = rig.selected;
+  // The first sixteen are known by number; only the saved ones past them are named.
+  const nameable = n !== null && n >= rig.size;
+  nameBox.disabled = !nameable;
+  nameBox.placeholder = n === null ? '' : nameable ? 'name this preset' : `no name for 0\u2013${rig.size - 1}`;
+  nameBox.classList.toggle('dirty', n !== null && isDirty(views[n]));
+  numBox.textContent = n === null ? '' : `#${n}`;
+
+  // Half-typed text is not for the poll to take away.
+  if (document.activeElement !== nameBox) nameBox.value = rig.names[n] ?? '';
+}
+
 function drawPresets() {
   if (cells.length !== rig.size) buildPresets();
 
@@ -73,6 +106,8 @@ function drawPresets() {
                   (isDirty(views[n]) ? ' dirty' : '') +
                   (n === rig.selected ? ' on' : '');
   });
+
+  drawName();
 
   const n = rig.selected;
   const dirty = n !== null && isDirty(views[n]);
