@@ -150,7 +150,8 @@ that part out on a small 3D rig in a popup, one colour per end: red for 0,
 through purple, to blue for 1, the same whichever slot it came from. It runs on
 fields of its own, so it never touches what is playing. Knobs sit at 0.5; a pad
 is held for a second, then let go for a second, over and over. The popup has two
-layouts, Hex 60° (a ring) and Flat (a row).
+layouts, Hex 60° (a ring) and Flat (a row). Anything under 0.05 is dark. The popup follows edits to the formula it
+was opened on.
 
 **Picker** — the modal over the page, used to choose a field and to list
 presets.

@@ -686,7 +686,12 @@ function makeSeg(mode, parts, small) {
 
 // The visual cheatsheet: a button that plays this part of the formula out on a
 // small rig. The popup and its three.js are only loaded when one is asked for.
-function previewButton(node) {
+//
+// The popup follows the part it was opened on: when the formula is edited, the
+// same place in it is shown again (see syncPreview). `peeking` is that place.
+let peeking = null;         // {key, path, sent, update}
+
+function previewButton(node, key, path) {
   const b = document.createElement('button');
   b.className = 'peek';
   b.textContent = '\u25d0';
@@ -694,10 +699,24 @@ function previewButton(node) {
   b.onclick = async () => {
     try {
       const {openPreview} = await import('/static/preview.js');
-      openPreview(node, explain(node));
+      const mine = peeking = {key, path, sent: JSON.stringify(node), update: null};
+      mine.update = openPreview(node, explain(node), () => { if (peeking === mine) peeking = null; });
     } catch (e) { alert(`cannot open the preview: ${e.message}`); }
   };
   return b;
+}
+
+// After a redraw: if the popup is on part of this slot's formula, point it at
+// what is there now. A part that is half-built, or gone, leaves it as it was.
+function syncPreview(key, tree) {
+  if (!peeking || peeking.key !== key) return;
+  let node;
+  try { node = at(tree, peeking.path); } catch { return; }
+  if (node === undefined || node === null || !complete(node) || hasGradient(node)) return;
+  const sent = JSON.stringify(node);
+  if (sent === peeking.sent) return;
+  peeking.sent = sent;
+  peeking.update?.(node, explain(node));
 }
 
 function leafEditor(key, tree, path) {
@@ -733,7 +752,7 @@ function leafEditor(key, tree, path) {
     row.append(note);
   }
 
-  if (typeof node === 'string' || typeof node === 'number') row.append(previewButton(node));
+  if (typeof node === 'string' || typeof node === 'number') row.append(previewButton(node, key, path));
 
   // Whatever is here becomes the first operand, so this doubles as "wrap what I have".
   if (node !== null) {
@@ -865,7 +884,7 @@ function nodeEditor(key, tree, path, depth = 0) {
   flip.onclick = () => setFormula(key, replace(tree, path, {...node, a: node.b, b: node.a}));
   head.append(flip);
 
-  if (complete(node) && !hasGradient(node)) head.append(previewButton(node));
+  if (complete(node) && !hasGradient(node)) head.append(previewButton(node, key, path));
 
   const drop = document.createElement('button');
   drop.className = 'drop';
@@ -966,6 +985,7 @@ function slotRow(key, saved) {
   let summary = null, editor = null, words = null;
   const hueWords = (h) => `${h.field} sweeps the hue from ${fmt(h.start)} to ${fmt(h.start + h.width)}`;
   if (showsEditor) {
+    syncPreview(key, shown);
     summary = document.createElement('span');
     summary.className = 'expr';
     summary.append(groupedText(shown));

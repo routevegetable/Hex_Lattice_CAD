@@ -33,6 +33,7 @@ const MODES = {
 // range stays red-ish or blue-ish, and purple is only a thin band in the middle,
 // so values either side of it can be told apart. Pure red up to 0.10 and pure
 // blue from 0.90. [value, hue in degrees]:
+const OFF = 0.05;                   // below this an end is dark: nothing there
 const HUES = [[0.10, 360], [0.36, 335], [0.64, 265], [0.90, 240]];
 const hueOf = (v) => {
   if (v <= HUES[0][0]) return HUES[0][1];
@@ -43,6 +44,7 @@ const hueOf = (v) => {
   return HUES[HUES.length - 1][1];
 };
 export function colourOf(v, out = new THREE.Color()) {
+  if (v < OFF) return out.setRGB(0, 0, 0);
   return out.setHSL(hueOf(v) / 360, 1, 0.5, THREE.SRGBColorSpace);
 }
 
@@ -292,8 +294,9 @@ const el = (tag, cls, text) => {
 let open = null;        // the closer of the popup that is up
 
 // Open the popup on `tree`, a formula as a slot holds it. `title` is how it
-// reads in words.
-export function openPreview(tree, title) {
+// reads in words. `onClose` is called when the popup goes. Returns `update(tree,
+// title)`, which points the open popup at a changed formula.
+export function openPreview(tree, title, onClose = () => {}) {
   if (open) open();
 
   let mode = 'hex';
@@ -313,8 +316,8 @@ export function openPreview(tree, title) {
   const legend = el('div', 'preview-legend');
   const bar = el('div', 'preview-bar');
   // The same curve as the rig, so the bar is the key to what is drawn.
-  bar.style.background = `linear-gradient(to right, ${
-    Array.from({length: 21}, (_, i) => `hsl(${hueOf(i / 20).toFixed(1)} 100% 50%) ${i * 5}%`).join(', ')})`;
+  bar.style.background = `linear-gradient(to right, #000 ${OFF * 100 - 0.1}%, ${
+    Array.from({length: 21}, (_, i) => `hsl(${hueOf(Math.max(i / 20, OFF)).toFixed(1)} 100% 50%) ${Math.max(i * 5, OFF * 100)}%`).join(', ')})`;
   legend.append(el('span', 'dim', '0'), bar, el('span', 'dim', '1'));
   const pad = el('span', 'preview-pad dim');
   const foot = el('div', 'preview-foot');
@@ -447,29 +450,35 @@ export function openPreview(tree, title) {
   loop();
 
   // -- the values --
-  const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/preview`);
-  ws.binaryType = 'arraybuffer';
-  let usesPad = false;
-  ws.onopen = () => ws.send(JSON.stringify({tree}));
-  ws.onmessage = (ev) => {
-    if (typeof ev.data === 'string') {
-      const msg = JSON.parse(ev.data);
-      if (msg.error) { note.textContent = msg.error; note.classList.add('bad'); return; }
-      usesPad = msg.pad;
-      note.textContent = usesPad ? 'knobs at 0.5; pads held 1s, let go 1s' : 'knobs at 0.5';
-      return;
-    }
-    latest = new Uint8Array(ev.data);
-    pad.textContent = usesPad ? (latest[0] ? 'pad pressed' : 'pad released') : '';
-    dirty = true;
-  };
-  // A socket that never gave a frame or an error of its own: most likely a server
-  // started before the preview existed.
-  ws.onclose = () => {
-    if (latest || note.classList.contains('bad')) return;
-    note.textContent = 'no preview from the server - is it running the latest code? restart it';
-    note.classList.add('bad');
-  };
+  let ws = null, usesPad = false;
+  function connect(formula) {
+    if (ws) { ws.onclose = null; ws.close(); }
+    const mine = ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/preview`);
+    mine.binaryType = 'arraybuffer';
+    note.classList.remove('bad');
+    mine.onopen = () => mine.send(JSON.stringify({tree: formula}));
+    mine.onmessage = (ev) => {
+      if (typeof ev.data === 'string') {
+        const msg = JSON.parse(ev.data);
+        if (msg.error) { note.textContent = msg.error; note.classList.add('bad'); return; }
+        usesPad = msg.pad;
+        note.textContent = usesPad ? 'knobs at 0.5; pads held 1s, let go 1s' : 'knobs at 0.5';
+        if (!usesPad) pad.textContent = '';
+        return;
+      }
+      latest = new Uint8Array(ev.data);
+      pad.textContent = usesPad ? (latest[0] ? 'pad pressed' : 'pad released') : '';
+      dirty = true;
+    };
+    // A socket that never gave a frame or an error of its own: most likely a server
+    // started before the preview existed.
+    mine.onclose = () => {
+      if (latest || note.classList.contains('bad')) return;
+      note.textContent = 'no preview from the server - is it running the latest code? restart it';
+      note.classList.add('bad');
+    };
+  }
+  connect(tree);
 
   function closer() {
     gone = true;
@@ -477,6 +486,7 @@ export function openPreview(tree, title) {
     observer.disconnect();
     ws.onclose = null;
     ws.close();
+    onClose();
     controls.dispose();
     if (rig) { rig.geometry.dispose(); rig.lattice.children.forEach(m => m.dispose()); }
     cubeRT.dispose();
@@ -490,4 +500,12 @@ export function openPreview(tree, title) {
   document.addEventListener('keydown', onKey);
   close.onclick = closer;
   open = closer;
+
+  // The formula changed under the popup: show the new one, on the same rig, and
+  // keep the last picture up until its first frame arrives.
+  return (next, nextTitle) => {
+    if (gone) return;
+    heading.textContent = heading.title = nextTitle;
+    connect(next);
+  };
 }
