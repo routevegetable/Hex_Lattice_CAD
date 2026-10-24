@@ -1008,6 +1008,12 @@ function slotRow(key, saved) {
     chip.onclick = toggle;
     ctl.append(chip);
 
+    // The field on its own, as it would show on the rig. A hue slot's range is
+    // ignored by the preview, and the popup does not follow the slot here: it is
+    // the field that was asked for, not the slot.
+    const field = hue?.field ?? tree;
+    if (typeof field === 'string') ctl.append(previewButton(field, null, []));
+
     if (hue) {
       const readout = document.createElement('span');
       readout.className = 'dim';
