@@ -74,17 +74,70 @@ PAD_ALIASES: dict[int, int] = {note: 36 + (note - 60) % 16
                                for note in range(60, 87)}
 
 
+def _use_backend():
+    # mido reaches for python-rtmidi by default, which cannot build on
+    # PyPy. portmidi talks to CoreMIDI through ctypes instead, so it needs
+    # nothing compiled. An explicit MIDO_BACKEND still wins.
+    if sys.implementation.name == 'pypy' and not os.environ.get('MIDO_BACKEND'):
+        mido.set_backend('mido.backends.portmidi')
+
+
+def input_names() -> list[str]:
+    """The MIDI inputs this machine has right now."""
+    _use_backend()
+    return mido.get_input_names()
+
+
+@dataclass
+class Controller:
+    """What another box plays, as the BSP's notes and CCs.
+
+    The instrument only knows the BSP's numbers - presets record them - so a
+    box that sends others has them translated as they come in. Each table is
+    one lookup, never a chain: the numbers overlap (the Akai's CC 16 is a
+    different control from the BSP's), so what comes out is not looked up
+    again. Anything the box sends that is not in a table is dropped, since
+    passing it through would land it on whichever BSP control shares its number.
+    """
+
+    # What it plays -> the BSP pad it counts as.
+    pads: dict[int, int] = field(default_factory=dict)
+    # CC it sends -> the BSP CC it counts as.
+    ccs: dict[int, int] = field(default_factory=dict)
+    # For a control that does not read 0-127 as it is: BSP CC -> how to turn
+    # what the box sends into what that control wants.
+    values: dict[int, Callable[[int], int]] = field(default_factory=dict)
+
+    def translate(self, msg: mido.Message) -> mido.Message | None:
+        """The message as the BSP would have sent it, or None to drop it."""
+        match msg.type:
+            case "note_on" | "note_off" | "polytouch":
+                note = self.pads.get(msg.note)
+                return None if note is None else msg.copy(note=note)
+            case "control_change":
+                cc = self.ccs.get(msg.control)
+                if cc is None:
+                    return None
+                scale = self.values.get(cc)
+                return msg.copy(control=cc,
+                                value=msg.value if scale is None else scale(msg.value))
+            case _:
+                return msg      # a program change, say, means the same everywhere
+
+
 class MIDI:
-    def __init__(self, port: str | None = 'IAC Driver Bus 1'):
+    def __init__(self, port: str | list[str] | None = 'IAC Driver Bus 1',
+                 controllers: dict[str, Controller] | None = None):
         # No port: a box with nothing plugged in, which hears only what is put
         # into it. The preview plays its own fields against one.
-        # mido reaches for python-rtmidi by default, which cannot build on
-        # PyPy. portmidi talks to CoreMIDI through ctypes instead, so it needs
-        # nothing compiled. An explicit MIDO_BACKEND still wins.
-        if sys.implementation.name == 'pypy' and not os.environ.get('MIDO_BACKEND'):
-            mido.set_backend('mido.backends.portmidi')
+        _use_backend()
 
-        self._m = mido.open_input(port) if port else None
+        # Every input, with the translation for what is plugged into it (none
+        # for a port that already speaks the BSP's numbers, like the IAC bus).
+        controllers = controllers or {}
+        ports = [port] if isinstance(port, str) else port or []
+        self._inputs = [(controllers.get(name), mido.open_input(name))
+                        for name in ports]
         self._notes: dict[int, NoteState] = {}
 
         # Note number -> the pad it counts as. Applied on the way in and on
@@ -112,33 +165,14 @@ class MIDI:
         # Likewise the program, if one was selected this tick.
         chosen: int | None = None
         # Consume any pending MIDI messages
-        while self._m is not None and (msg := self._m.poll()):
-            match msg.type:
-                case "note_on":
-                    print(msg)
-                    note = self._notes.get(self.pad(msg.note))
-                    if note is not None:
-                        if msg.velocity == 0:
-                            note.off.put(0)             # a note-off in disguise
-                        else:
-                            note.off.clear()            # this press is not over
-                            note.on.put(msg.velocity)
-                            # How hard it was hit is where the pressure
-                            # starts; polytouch takes it from there.
-                            note.pressure = msg.velocity
-                case "note_off":
-                    note = self._notes.get(self.pad(msg.note))
-                    if note is not None:
-                        note.off.put(msg.velocity)
-                case "control_change":
-                    print(msg)
-                    moved[msg.control] = msg.value
-                case "polytouch":
-                    note = self._notes.get(self.pad(msg.note))
-                    if note is not None:
-                        note.pressure = msg.value
-                case "program_change":
-                    print(msg)
+        for controller, port in self._inputs:
+            while (msg := port.poll()):
+                if controller is not None:
+                    msg = controller.translate(msg)
+                    if msg is None:
+                        continue
+                self._hear(msg, moved)
+                if msg.type == "program_change":
                     chosen = msg.program
 
         for control, value in moved.items():
@@ -148,6 +182,36 @@ class MIDI:
 
         if chosen is not None:
             self._program.event.put(chosen)
+
+    def _hear(self, msg: mido.Message, moved: dict[int, int]):
+        """Take in one message, in the BSP's numbers. A program change is the
+        one thing left to tick(), which keeps only the last."""
+        match msg.type:
+            case "note_on":
+                print(msg)
+                note = self._notes.get(self.pad(msg.note))
+                if note is not None:
+                    if msg.velocity == 0:
+                        note.off.put(0)             # a note-off in disguise
+                    else:
+                        note.off.clear()            # this press is not over
+                        note.on.put(msg.velocity)
+                        # How hard it was hit is where the pressure
+                        # starts; polytouch takes it from there.
+                        note.pressure = msg.velocity
+            case "note_off":
+                note = self._notes.get(self.pad(msg.note))
+                if note is not None:
+                    note.off.put(msg.velocity)
+            case "control_change":
+                print(msg)
+                moved[msg.control] = msg.value
+            case "polytouch":
+                note = self._notes.get(self.pad(msg.note))
+                if note is not None:
+                    note.pressure = msg.value
+            case "program_change":
+                print(msg)
 
     def for_(self, prefix: str) -> "MIDIFor":
         """This same box, but everything asked of it says who asked.

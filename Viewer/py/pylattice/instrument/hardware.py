@@ -3,7 +3,10 @@
 These are module-level singletons because there is one of each per process -
 importing this opens the MIDI port.
 """
-from pylattice.examples.midi import MIDI
+import os
+
+from pylattice.examples.midi import MIDI, Controller, input_names
+from pylattice.instrument.akai import AKAI_CC_VALUES, AKAI_CCS, AKAI_PADS
 from pylattice.graph import Graph
 from pylattice.lattice_writer import LatticeWriter
 
@@ -15,7 +18,17 @@ graph = Graph(COLS, ROWS)
 
 lattice = LatticeWriter(COLS / 2, ROWS)
 #midi = MIDI('Arturia BeatStep Pro Arturia BeatStepPro')
-midi = MIDI()
+IAC = "IAC Driver Bus 1"
+
+# LATTICE_CONTROLLER=akai plays the MPD232 as if it were the BSP: whatever
+# arrives on its ports is translated to the BSP's numbers, which is all the
+# presets and fields know. Ableton, on the IAC bus, already speaks them.
+if os.environ.get("LATTICE_CONTROLLER") == "akai":
+    AKAI = Controller(pads=AKAI_PADS, ccs=AKAI_CCS, values=AKAI_CC_VALUES)
+    akai_ports = [name for name in input_names() if name.startswith("MPD232")]
+    midi = MIDI([IAC, *akai_ports], {name: AKAI for name in akai_ports})
+else:
+    midi = MIDI(IAC)
 
 # BSP control mode. Knobs KA1-KB8 are CCs, pads PA1-PB8 are notes; row A is
 # the top/upper one.
