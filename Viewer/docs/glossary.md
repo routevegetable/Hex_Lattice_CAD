@@ -145,6 +145,13 @@ opens the tree editor underneath.
 a field (𝑓(x)), a constant (a slider) or a `math` node with two operands of
 its own. It writes back only when every operand is filled.
 
+**Preview** — the ◐ button on each part of a formula in the v3 editor. It plays
+that part out on a small 3D rig in a popup, one colour per end: red for 0,
+through purple, to blue for 1, the same whichever slot it came from. It runs on
+fields of its own, so it never touches what is playing. Knobs sit at 0.5; a pad
+is held for a second, then let go for a second, over and over. The popup has two
+layouts, Hex 60° (a ring) and Flat (a row).
+
 **Picker** — the modal over the page, used to choose a field and to list
 presets.
 
