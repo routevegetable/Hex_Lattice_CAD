@@ -23,15 +23,17 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 const SEGMENTS = 6, LEVELS = 2;           // tiles across and up: the rig the fields are made for
 const STACK = 1.32;                       // a level up (index.html: 1320 mm at 1 unit per m)
 const MODES = {
-  hex:  {label: 'Hex 60°', angles: Array(SEGMENTS - 1).fill(60)},
-  flat: {label: 'Flat',         angles: Array(SEGMENTS - 1).fill(0)},
+  // `dim` darkens the hardware (hinges and clips), which in the ring stacks up
+  // in front of the filaments and pulls the eye off them.
+  hex:  {label: 'Hex 60°', angles: Array(SEGMENTS - 1).fill(60), dim: 0.3},
+  flat: {label: 'Flat',    angles: Array(SEGMENTS - 1).fill(0),  dim: 1},
 };
 
 // Red at 0 to blue at 1, the long way round through purple - but most of the
 // range stays red-ish or blue-ish, and purple is only a thin band in the middle,
 // so values either side of it can be told apart. Pure red up to 0.10 and pure
 // blue from 0.90. [value, hue in degrees]:
-const HUES = [[0.10, 360], [0.42, 338], [0.58, 262], [0.90, 240]];
+const HUES = [[0.10, 360], [0.36, 335], [0.64, 265], [0.90, 240]];
 const hueOf = (v) => {
   if (v <= HUES[0][0]) return HUES[0][1];
   for (let i = 1; i < HUES.length; i++) {
@@ -214,7 +216,13 @@ function buildRig(seg, mode) {
   const lattice = new THREE.Group();
   for (const part of seg.parts) {
     const list = part.legOnly ? placements.slice(SEGMENTS) : placements;
-    const inst = new THREE.InstancedMesh(part.geometry, part.material, list.length);
+    let material = part.material;
+    if (MODES[mode].dim !== 1 && material.color) {
+      material = material.clone();
+      material.color.multiplyScalar(MODES[mode].dim);
+      material.envMapIntensity = MODES[mode].dim;
+    }
+    const inst = new THREE.InstancedMesh(part.geometry, material, list.length);
     list.forEach((m, j) => inst.setMatrixAt(j, m));
     inst.instanceMatrix.needsUpdate = true;
     inst.frustumCulled = false;
@@ -390,7 +398,7 @@ export function openPreview(tree, title) {
     // Looking in from the front and a little above, far enough to take in all of it.
     const span = rig.reach * 2 + 1.8;
     const from = mode === 'flat' ? new THREE.Vector3(0.12, -1, 0.3) : new THREE.Vector3(0.5, -1, 0.42);
-    camera.position.copy(rig.centre).addScaledVector(from.normalize(), span * (mode === 'flat' ? 1.0 : 1.12));
+    camera.position.copy(rig.centre).addScaledVector(from.normalize(), span * (mode === 'flat' ? 1.0 : 1.3));
     controls.target.copy(rig.centre);
     controls.update();
     dirty = true;
