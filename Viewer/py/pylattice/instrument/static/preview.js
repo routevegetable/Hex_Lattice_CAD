@@ -231,7 +231,13 @@ export function openPreview(tree, title) {
     pad.textContent = usesPad ? (latest[0] ? 'pad pressed' : 'pad released') : '';
     paint();
   };
-  ws.onclose = () => { if (open === closer && !latest) note.textContent ||= 'closed'; };
+  // A socket that never gave a frame or an error of its own: most likely a server
+  // started before the preview existed.
+  ws.onclose = () => {
+    if (latest || note.classList.contains('bad')) return;
+    note.textContent = 'no preview from the server - is it running the latest code? restart it';
+    note.classList.add('bad');
+  };
 
   function closer() {
     cancelAnimationFrame(frame);
