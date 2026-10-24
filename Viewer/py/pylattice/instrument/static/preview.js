@@ -190,7 +190,8 @@ const FIL_HALF = 0.005;                   // filaments sit in a 10 mm square
 const FIL_OFFSETS = [[+1, +1], [+1, -1], [-1, +1], [-1, -1]];
 const FIL_SEGMENTS = 10, FIL_RADIAL = 5, FIL_RADIUS = 0.0045;
 const VPF = (FIL_SEGMENTS + 1) * (FIL_RADIAL + 1);       // vertices per filament
-const EMISSIVE_GAIN = 2.4, ALPHA_GAIN = 6;               // push past 1 so bloom lights them
+const BLOOM = 0;                          // glow round the filaments: 0 is none, index.html uses 0.28
+const EMISSIVE_GAIN = BLOOM > 0 ? 2.4 : 1, ALPHA_GAIN = 6;   // past 1 only so a bloom has something to light
 const VERT_T = Float32Array.from({length: VPF}, (_, i) => Math.floor(i / (FIL_RADIAL + 1)) / FIL_SEGMENTS);
 
 // Where each segment sits: each is the last one turned about the shared pin.
@@ -355,11 +356,11 @@ export function openPreview(tree, title, onClose = () => {}) {
   scene.environment = cubeRT.texture;
   let envTick = 0;
 
-  // Bloom, through a multisampled target so edges stay smooth.
+  // Through a multisampled target so edges stay smooth, and a bloom if there is one.
   const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, {type: THREE.HalfFloatType, samples: 4}));
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.45, 0.4, 0.75);
-  composer.addPass(bloom);
+  const bloom = BLOOM > 0 ? new UnrealBloomPass(new THREE.Vector2(1, 1), BLOOM, 0.4, 0.75) : null;
+  if (bloom) composer.addPass(bloom);
   composer.addPass(new OutputPass());
 
   let seg = null, rig = null, latest = null, dirty = false, gone = false;
@@ -429,7 +430,7 @@ export function openPreview(tree, title, onClose = () => {}) {
     if (!w || !h) return;
     renderer.setSize(w, h, false);
     composer.setSize(w, h);
-    bloom.setSize(w, h);
+    bloom?.setSize(w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   }
