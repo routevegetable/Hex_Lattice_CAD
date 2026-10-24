@@ -294,7 +294,7 @@ class PresetBank:
 
         # number -> name. Not part of any patch: a name says which preset a slot
         # is, not what it looks like, so it is not copied with one, not undone
-        # by a revert, and renaming is never an unsaved edit.
+        # by a revert, and never shows up as an unsaved edit.
         self._names: dict[int, str] = self._read_names()
 
         self.reload()
@@ -344,12 +344,9 @@ class PresetBank:
 
         raise ValueError(f"no preset named {name!r}")
 
-    def check_name(self, name: str, number: int | None = None) -> str:
-        """A name as it will be kept, or why it cannot be.
-
-        `number` is the preset it is for, which is allowed to keep a name it
-        already has - saying it again is not a clash.
-        """
+    def check_name(self, name: str) -> str:
+        """A name as it will be kept, or why it cannot be. A name is given once,
+        when a copy is saved, and never changed after."""
         name = name.strip()
 
         if not name:
@@ -372,26 +369,10 @@ class PresetBank:
             raise ValueError("a name cannot have two dashes in a row")
 
         for other, taken in self._names.items():
-            if other != number and taken.lower() == name.lower():
+            if taken.lower() == name.lower():
                 raise ValueError(f"preset {other} is already called {taken!r}")
 
         return name
-
-    def set_name(self, number: int, name: str | None):
-        """Name a preset, or take its name away with an empty one. Only the
-        presets past the first sixteen have names: those are known by number."""
-        self.check(number)
-
-        if number < self.controller_presets:
-            raise ValueError(f"preset {number} is one of the first {self.controller_presets} - "
-                             "those are not named")
-
-        if name is None or not name.strip():
-            self._names.pop(number, None)
-        else:
-            self._names[number] = self.check_name(name, number)
-
-        self._write_names()
 
     def _write_names(self):
         ordered = {str(number): name for number, name in sorted(self._names.items())}

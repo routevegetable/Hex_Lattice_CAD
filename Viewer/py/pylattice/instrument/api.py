@@ -26,7 +26,7 @@ STATIC = Path(__file__).parent / "static"
 
 @dataclass
 class Naming:
-    """What a preset is to be called. An empty name takes the name away."""
+    """What a copy of a preset is to be called."""
     name: str
 
 
@@ -173,15 +173,6 @@ def make_app(console: Console) -> FastAPI:
         preset keeps playing; the rig's names say which number the copy got."""
         try:
             console.save_copy(naming.name)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e)) from None
-        return console.describe()
-
-    @app.put("/presets/{number}/name")
-    def rename_preset(number: int, naming: Naming) -> Rig:
-        """Name a saved preset past the first sixteen - those are the only ones with names."""
-        try:
-            console.rename_preset(number, naming.name)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from None
         return console.describe()

@@ -77,8 +77,10 @@ is neither is not a preset at all, so a program change to it is refused.
 
 **Name** — what a preset is called, kept in `presets/names.json` by number
 rather than in the patch: it says which preset a slot is, not what it looks
-like, so copying a preset does not copy it and renaming is never an edit. Only
-the presets saved past the first sixteen have one; those stay known by number.
+like, so copying a preset does not copy it. It is given once, when a copy is
+saved, and not changed after: to call a preset something else, save another
+copy. Only the presets saved past the first sixteen have one; those stay known
+by number.
 Begins with a letter, then letters, digits and single dashes (no spaces, never
 two dashes in a row), and unique ignoring case. Beginning with a letter means a
 name can never be mistaken for a preset number. A preset can be played by name

@@ -246,11 +246,6 @@ class Console:
         with self.lock:
             self.select_preset(self._bank.number_of(name))
 
-    def rename_preset(self, number: int, name: str | None):
-        """Give a preset a name, or none. Nothing about what is playing changes."""
-        with self.lock:
-            self._bank.set_name(number, name)
-
     def save_copy(self, name: str) -> int:
         """Keep a copy of what is playing as a new preset of this name.
 
