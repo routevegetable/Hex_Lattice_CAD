@@ -677,7 +677,7 @@ function leafEditor(key, tree, path) {
     const wrap = document.createElement('button');
     wrap.className = 'wrap';
     wrap.textContent = '+';
-    wrap.title = 'add another term: this becomes the first half of a new operation, and you choose the other half';
+    wrap.title = 'add a term next to this value: it and the new term become one operation (to add a term around a whole operation, use + outer on its box)';
     wrap.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', a: node, b: null}));
     row.append(wrap);
   }
@@ -783,6 +783,17 @@ function nodeEditor(key, tree, path, depth = 0) {
     b.onclick = () => setFormula(key, replace(tree, path, {...node, op: name}));
     head.append(b);
   }
+  // The + on a single value pairs that value with another, which nests the new term
+  // inside. This is its counterpart for a whole operation: the operation, with
+  // everything in it, becomes the first half of a new one, so a term goes around
+  // the outside - at the top of the formula, around the lot.
+  const outer = document.createElement('button');
+  outer.className = 'outer';
+  outer.textContent = '+ outer';
+  outer.title = 'add a term outside this whole operation: all of it becomes the first half of a new operation, and you choose the other half';
+  outer.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', a: node, b: null}));
+  head.append(outer);
+
   // Which side is which matters for - and the others read left to right.
   const flip = document.createElement('button');
   flip.className = 'flip';
