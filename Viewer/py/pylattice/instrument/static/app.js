@@ -162,7 +162,7 @@ async function draw() {
 
   const box = document.getElementById('presets');
   box.innerHTML = '';
-  for (let n = 0; n < rig.size; n++) {
+  for (let n = 0; n < rig.controller_presets; n++) {
     const saved = rig.presets.includes(n);
     const d = document.createElement('div');
     d.className = 'preset' + (saved ? ' saved' : '') + (n === rig.selected ? ' on' : '');

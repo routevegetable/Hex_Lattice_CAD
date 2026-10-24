@@ -501,7 +501,7 @@ async function openPresets() {
   picker.className = 'picker presets';
   picker.innerHTML = '';
 
-  for (let n = 0; n < rig.size; n++) {
+  for (let n = 0; n < rig.controller_presets; n++) {
     // Every slot holds a patch, written or not, so every one can be switched
     // to. Saving and reverting are up in the header, on whatever is playing.
     const cell = document.createElement('div');
@@ -844,7 +844,7 @@ async function drawConfigPage() {
                        Object.keys(surfaces[surfaceId]?.ccs ?? {}).length));
     box.append(knobDiagram());
   } else {
-    box.append(infoRow('bank size', rig.size));
+    box.append(infoRow('controller presets', rig.controller_presets));
     box.append(infoRow('playing', rig.selected === null ? '\u2014' : `preset ${rig.selected}`));
     box.append(infoRow('written', rig.presets.join(', ') || 'none'));
     views = await get('/presets');

@@ -108,7 +108,7 @@ class Rig:
     presets: list[int] = field(default_factory=list)    # the ones with a file
     muted: list[str] = field(default_factory=list)      # silenced, still in the patch
     selected: int | None = None
-    size: int = 16                                      # the ones that are always there
+    controller_presets: int = 16                        # the ones the controller picks; always there
     names: dict[int, str] = field(default_factory=dict) # by number
     custom: list[int] = field(default_factory=list)     # saved past those, by number
 
@@ -328,7 +328,7 @@ class Console:
                 muted=[name for name, effect in named(self._effects, Effect).items()
                        if effect.muted],
                 selected=self._selected,
-                size=self._bank.controller_presets,
+                controller_presets=self._bank.controller_presets,
                 names=self._bank.names(),
                 custom=self._bank.custom(),
             )

@@ -45,7 +45,7 @@ function buildPresets() {
   bar.innerHTML = '';
   cells = [];
 
-  for (let n = 0; n < rig.size; n++) {
+  for (let n = 0; n < rig.controller_presets; n++) {
     const b = document.createElement('button');
     b.textContent = n;
     b.onclick = () => act(`/presets/${n}/select`);
@@ -88,9 +88,9 @@ nameBox.onfocus = () => nameBox.select();
 function drawName() {
   const n = rig.selected;
   // The first sixteen are known by number; only the saved ones past them are named.
-  const nameable = n !== null && n >= rig.size;
+  const nameable = n !== null && n >= rig.controller_presets;
   nameBox.disabled = !nameable;
-  nameBox.placeholder = n === null ? '' : nameable ? 'name this preset' : `no name for 0\u2013${rig.size - 1}`;
+  nameBox.placeholder = n === null ? '' : nameable ? 'name this preset' : `no name for 0\u2013${rig.controller_presets - 1}`;
   nameBox.classList.toggle('dirty', n !== null && isDirty(views[n]));
   numBox.textContent = n === null ? '' : `#${n}`;
 
@@ -99,7 +99,7 @@ function drawName() {
 }
 
 function drawPresets() {
-  if (cells.length !== rig.size) buildPresets();
+  if (cells.length !== rig.controller_presets) buildPresets();
 
   cells.forEach((b, n) => {
     b.className = 'pcell' + (rig.presets.includes(n) ? ' saved' : '') +
