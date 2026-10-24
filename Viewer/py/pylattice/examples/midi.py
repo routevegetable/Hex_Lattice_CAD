@@ -75,14 +75,16 @@ PAD_ALIASES: dict[int, int] = {note: 36 + (note - 60) % 16
 
 
 class MIDI:
-    def __init__(self, port: str = 'IAC Driver Bus 1'):
+    def __init__(self, port: str | None = 'IAC Driver Bus 1'):
+        # No port: a box with nothing plugged in, which hears only what is put
+        # into it. The preview plays its own fields against one.
         # mido reaches for python-rtmidi by default, which cannot build on
         # PyPy. portmidi talks to CoreMIDI through ctypes instead, so it needs
         # nothing compiled. An explicit MIDO_BACKEND still wins.
         if sys.implementation.name == 'pypy' and not os.environ.get('MIDO_BACKEND'):
             mido.set_backend('mido.backends.portmidi')
 
-        self._m = mido.open_input(port)
+        self._m = mido.open_input(port) if port else None
         self._notes: dict[int, NoteState] = {}
 
         # Note number -> the pad it counts as. Applied on the way in and on
@@ -110,7 +112,7 @@ class MIDI:
         # Likewise the program, if one was selected this tick.
         chosen: int | None = None
         # Consume any pending MIDI messages
-        while msg := self._m.poll():
+        while self._m is not None and (msg := self._m.poll()):
             match msg.type:
                 case "note_on":
                     print(msg)
