@@ -8,6 +8,7 @@ static/, read per request, so editing it only needs a browser reload.
 """
 import asyncio
 import threading
+from collections.abc import Callable
 from pathlib import Path
 
 import uvicorn
@@ -20,6 +21,7 @@ from dataclasses import asdict, dataclass
 from pylattice.instrument.console import (Console, ControlInfo, Knob, PresetView,
                                           Rig, Stats)
 from pylattice.instrument.patch import Patch
+from pylattice.instrument.preview import Preview
 
 STATIC = Path(__file__).parent / "static"
 
@@ -30,7 +32,7 @@ class Naming:
     name: str
 
 
-def make_app(console: Console) -> FastAPI:
+def make_app(console: Console, preview: Callable[[object], Preview] | None = None) -> FastAPI:
     app = FastAPI(title="lattice")
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
@@ -123,6 +125,37 @@ def make_app(console: Console) -> FastAPI:
             await asyncio.gather(push(), pull())
         except WebSocketDisconnect:
             pass
+
+    PREVIEW_HZ = 30
+
+    @app.websocket("/ws/preview")
+    async def preview_formula(socket: WebSocket):
+        """A formula played out on a rig of its own, for the cheatsheet.
+
+        In: `{"tree": ...}`, once - the formula, as a slot holds it. Out: a
+        `{"pad": bool}` saying whether it listens to any pad, then a binary
+        frame per tick (see Preview.frame). A formula the rig would refuse
+        comes back as `{"error": "..."}` and the socket closes.
+        """
+        await socket.accept()
+
+        try:
+            try:
+                if preview is None:
+                    raise ValueError("no preview on this rig")
+                played = preview((await socket.receive_json())["tree"])
+            except (KeyError, TypeError, ValueError) as e:
+                await socket.send_json({"error": str(e) or "not a formula"})
+                await socket.close()
+                return
+
+            await socket.send_json({"pad": played.uses_pad})
+
+            while True:
+                await socket.send_bytes(played.frame())
+                await asyncio.sleep(1 / PREVIEW_HZ)
+        except (WebSocketDisconnect, RuntimeError):
+            pass                # the popup was closed
 
     @app.get("/rig")
     def rig() -> Rig:
@@ -226,9 +259,10 @@ def make_app(console: Console) -> FastAPI:
     return app
 
 
-def serve(console: Console, host: str = "127.0.0.1", port: int = 8800) -> threading.Thread:
+def serve(console: Console, host: str = "127.0.0.1", port: int = 8800,
+          preview: Callable[[object], Preview] | None = None) -> threading.Thread:
     """Run the API on its own daemon thread, so the render loop keeps the main one."""
-    config = uvicorn.Config(make_app(console), host=host, port=port, log_level="warning")
+    config = uvicorn.Config(make_app(console, preview), host=host, port=port, log_level="warning")
     server = uvicorn.Server(config)
 
     thread = threading.Thread(target=server.run, name="lattice-api", daemon=True)
