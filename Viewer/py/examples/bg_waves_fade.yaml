@@ -1,0 +1,22 @@
+# Preset 17's bg_waves: fader_b fades in over two measures; wipe1 hits every
+# beat from the second measure on, dimmed by fader_b while it is still rising.
+#   python -m pylattice.lightingmidi examples/bg_waves_fade.yaml
+tempo: 120
+time_signature: [4, 4]
+length: 8
+presets: ../presets
+
+tracks:
+  - name: lighting
+    channel: 1
+    rules:
+      - {preset: 17, at: 1.1.1}
+
+      # Preset 17 stores fader_b at 0, but make the starting point explicit.
+      - {set: fader_b, value: 0.0, at: 1.2.1}
+
+      # Two measures of fade-in, starting a bar after the preset change.
+      - {ramp: fader_b, from: 0.0, to: 1.0, start: 2, end: 4}
+
+      # Wipes on every beat from bar 3 (the second measure of the fade).
+      - {fire: wipe1, direction: up, speed: 0.8, on: [1, 2, 3, 4], from: 3, to: 8}
