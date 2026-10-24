@@ -108,7 +108,9 @@ class Rig:
     presets: list[int] = field(default_factory=list)    # the ones with a file
     muted: list[str] = field(default_factory=list)      # silenced, still in the patch
     selected: int | None = None
-    size: int = 16
+    size: int = 16                                      # the ones that are always there
+    names: dict[int, str] = field(default_factory=dict) # by number
+    custom: list[int] = field(default_factory=list)     # saved past those, by number
 
 
 class Console:
@@ -239,6 +241,34 @@ class Console:
             for name, effect in by_name.items():
                 effect.muted = name in names
 
+    def select_named(self, name: str):
+        """Play a preset by what it is called."""
+        with self.lock:
+            self.select_preset(self._bank.number_of(name))
+
+    def rename_preset(self, number: int, name: str | None):
+        """Give a preset a name, or none. Nothing about what is playing changes."""
+        with self.lock:
+            self._bank.set_name(number, name)
+
+    def save_copy(self, name: str) -> int:
+        """Keep a copy of what is playing as a new preset of this name.
+
+        Nothing else moves: the same preset keeps playing, and the mutes and
+        the knobs stay as they are. The copy is the rig as it is - not the
+        playing preset's cached copy, which can have fallen behind - so it
+        looks like what was on show. Its number is the next one, past any used
+        before.
+        """
+        with self.lock:
+            return self._bank.create(Patch.capture(self._midi, self._fields, self._effects),
+                                     name)
+
+    def delete_preset(self, number: int):
+        """Take a saved preset away. The first sixteen, and the one playing, stay."""
+        with self.lock:
+            self._bank.delete(number)
+
     def commit_preset(self, number: int):
         """Write a preset's live side out to its file."""
         with self.lock:
@@ -298,5 +328,7 @@ class Console:
                 muted=[name for name, effect in named(self._effects, Effect).items()
                        if effect.muted],
                 selected=self._selected,
-                size=self._bank.size,
+                size=self._bank.controller_presets,
+                names=self._bank.names(),
+                custom=self._bank.custom(),
             )
