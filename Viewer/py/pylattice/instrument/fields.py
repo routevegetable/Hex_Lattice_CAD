@@ -24,127 +24,137 @@ from pylattice.instrument.hardware import (
 ARTNET = artnet_universes(graph, count=4)
 
 
+def build_fields(graph, midi, artnet):
+    """Every field, made against this graph and this MIDI.
 
-class FIELDS:
+    A function so the preview can make a set of its own: fields hold what they
+    last heard, and the preview must not touch what the rig is playing. Art-Net
+    is passed in rather than made, since each set of universes binds the port.
+    """
+    class FIELDS:
     
-    # CC fields
-    fader_a = CCField(
-        midi.for_("fader_a"),
-        value=KA1
-    )
-    fader_b = CCField(
-        midi.for_("fader_b"),
-        value=KA2
-    )
-    param_a = CCField(
-        midi.for_("param_a"),
-        value=KA3
-    )
-    param_b = CCField(
-        midi.for_("param_b"),
-        value=KA4
-    )
+        # CC fields
+        fader_a = CCField(
+            midi.for_("fader_a"),
+            value=KA1
+        )
+        fader_b = CCField(
+            midi.for_("fader_b"),
+            value=KA2
+        )
+        param_a = CCField(
+            midi.for_("param_a"),
+            value=KA3
+        )
+        param_b = CCField(
+            midi.for_("param_b"),
+            value=KA4
+        )
     
-    # Ripples
-    ripple = NoteRippleField(
-        graph, midi.for_("ripple"),
-        note=PB1,
-        speed=KB1
-    )
-    ripple2 = NoteRippleField(
-        graph, midi.for_("ripple2"),
-        note=PB2,
-        speed=KB2
-    )
+        # Ripples
+        ripple = NoteRippleField(
+            graph, midi.for_("ripple"),
+            note=PB1,
+            speed=KB1
+        )
+        ripple2 = NoteRippleField(
+            graph, midi.for_("ripple2"),
+            note=PB2,
+            speed=KB2
+        )
     
-    # Every edge jumps to a new random number
-    random = NoteRandomField(
-        midi.for_("random"),
-        note=PB6,
-        period=KA8
-    )
+        # Every edge jumps to a new random number
+        random = NoteRandomField(
+            midi.for_("random"),
+            note=PB6,
+            period=KA8
+        )
     
-    # Wipes
-    wipe1 = NoteWipeField(
-        midi.for_("wipe1"),
-        note=PB3,
-        speed=KB3
-    )
-    wipe2 = NoteWipeField(
-        midi.for_("wipe2"),
-        note=PB4,
-        speed=KB4
-    )
+        # Wipes
+        wipe1 = NoteWipeField(
+            midi.for_("wipe1"),
+            note=PB3,
+            speed=KB3
+        )
+        wipe2 = NoteWipeField(
+            midi.for_("wipe2"),
+            note=PB4,
+            speed=KB4
+        )
     
-    # A particle tracing a path of its own from wherever it spawned
-    trace = RandomTraceField(
-        graph, midi.for_("trace"),
-        note=PB5,
-        speed=KB5,
-        aim=KB6
-    )
+        # A particle tracing a path of its own from wherever it spawned
+        trace = RandomTraceField(
+            graph, midi.for_("trace"),
+            note=PB5,
+            speed=KB5,
+            aim=KB6
+        )
     
-    # A spot going round and round one flat line of the lattice
-    scope = ScopeFieldBetter(
-        graph, midi.for_("scope"),
-        speed=KB7,
-        pattern=KB8
-    )
+        # A spot going round and round one flat line of the lattice
+        scope = ScopeFieldBetter(
+            graph, midi.for_("scope"),
+            speed=KB7,
+            pattern=KB8
+        )
 
-    # Rotated versions of scope
-    scope180 = ScopeFieldBetter(
-        graph, midi.for_("scope"),
-        speed=KB7,
-        pattern=KB8,
-        phase_offset=0.5
-    )
-    scope120 = ScopeFieldBetter(
-        graph, midi.for_("scope"),
-        speed=KB7,
-        pattern=KB8,
-        phase_offset=0.3
-    )
-    scope240 = ScopeFieldBetter(
-        graph, midi.for_("scope"),
-        speed=KB7,
-        pattern=KB8,
-        phase_offset=0.6
-    )
+        # Rotated versions of scope
+        scope180 = ScopeFieldBetter(
+            graph, midi.for_("scope"),
+            speed=KB7,
+            pattern=KB8,
+            phase_offset=0.5
+        )
+        scope120 = ScopeFieldBetter(
+            graph, midi.for_("scope"),
+            speed=KB7,
+            pattern=KB8,
+            phase_offset=0.3
+        )
+        scope240 = ScopeFieldBetter(
+            graph, midi.for_("scope"),
+            speed=KB7,
+            pattern=KB8,
+            phase_offset=0.6
+        )
     
-    # Fire climbing from the bottom, as hard as PB7 is leaned on
-    fire = FireField(
-        graph, midi.for_("fire"),
-        note=PB7
-    )
+        # Fire climbing from the bottom, as hard as PB7 is leaned on
+        fire = FireField(
+            graph, midi.for_("fire"),
+            note=PB7
+        )
     
-    # Rotary
-    rotary = RotaryField(
-        graph, midi.for_("rotary"),
-        period=KA5,
-        parts=KA6,
-        shape=KA7
-    )
+        # Rotary
+        rotary = RotaryField(
+            graph, midi.for_("rotary"),
+            period=KA5,
+            parts=KA6,
+            shape=KA7
+        )
 
-    # The same rotation, half a turn round. Not a second field: it shares
-    # rotary's phase, so the two stay opposite whichever of them is in a slot.
-    rotary180 = rotary.turned(0.5)
+        # The same rotation, half a turn round. Not a second field: it shares
+        # rotary's phase, so the two stay opposite whichever of them is in a slot.
+        rotary180 = rotary.turned(0.5)
     
-    # Art-Net pixels, per universe: red, green, blue, and their average
-    artnet0_r, artnet0_g, artnet0_b, artnet0_v = ARTNET[0]
-    artnet1_r, artnet1_g, artnet1_b, artnet1_v = ARTNET[1]
-    artnet2_r, artnet2_g, artnet2_b, artnet2_v = ARTNET[2]
-    artnet3_r, artnet3_g, artnet3_b, artnet3_v = ARTNET[3]
+        # Art-Net pixels, per universe: red, green, blue, and their average
+        artnet0_r, artnet0_g, artnet0_b, artnet0_v = artnet[0]
+        artnet1_r, artnet1_g, artnet1_b, artnet1_v = artnet[1]
+        artnet2_r, artnet2_g, artnet2_b, artnet2_v = artnet[2]
+        artnet3_r, artnet3_g, artnet3_b, artnet3_v = artnet[3]
 
-    v_edges = EdgeMaskField({EdgeClass.C, EdgeClass.F})
-    h_edges = EdgeMaskField({EdgeClass.A, EdgeClass.B, EdgeClass.D, EdgeClass.E})
-    d1_edges = EdgeMaskField({EdgeClass.A, EdgeClass.C, EdgeClass.E, EdgeClass.F})
-    d2_edges = EdgeMaskField({EdgeClass.B, EdgeClass.C, EdgeClass.D, EdgeClass.F})
+        v_edges = EdgeMaskField({EdgeClass.C, EdgeClass.F})
+        h_edges = EdgeMaskField({EdgeClass.A, EdgeClass.B, EdgeClass.D, EdgeClass.E})
+        d1_edges = EdgeMaskField({EdgeClass.A, EdgeClass.C, EdgeClass.E, EdgeClass.F})
+        d2_edges = EdgeMaskField({EdgeClass.B, EdgeClass.C, EdgeClass.D, EdgeClass.F})
 
-    strobe0 = StrobeField(midi.for_("strobe0"), strobe=PA1)
-    strobe1 = StrobeField(midi.for_("strobe1"), strobe=PA2)
-    strobe2 = StrobeField(midi.for_("strobe2"), strobe=PA3)
+        strobe0 = StrobeField(midi.for_("strobe0"), strobe=PA1)
+        strobe1 = StrobeField(midi.for_("strobe1"), strobe=PA2)
+        strobe2 = StrobeField(midi.for_("strobe2"), strobe=PA3)
 
-    v_gradient = VGradientField(midi.for_("v_gradient"), origin=KA6)
+        v_gradient = VGradientField(midi.for_("v_gradient"), origin=KA6)
 
-    burst = BurstField(graph, midi.for_("burst"), note=PB8, decay=KA7)
+        burst = BurstField(graph, midi.for_("burst"), note=PB8, decay=KA7)
 
+    return FIELDS
+
+
+FIELDS = build_fields(graph, midi, ARTNET)
