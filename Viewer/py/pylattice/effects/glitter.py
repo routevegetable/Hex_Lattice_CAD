@@ -33,7 +33,7 @@ def glitter(
         actual_hue_1 = (hue_1.get(now, top) + hue_1.get(now, bottom)) / 2
         actual_hue_2 = (hue_2.get(now, top) + hue_2.get(now, bottom)) / 2
 
-        actual_value = (value.get(now, top) + value.get(now, top)) / 2
+        actual_value = (value.get(now, top) + value.get(now, bottom)) / 2
 
         π = math.pi
 
