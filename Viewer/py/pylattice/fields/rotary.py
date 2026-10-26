@@ -1,4 +1,4 @@
-"""A value sweeping round the lattice, left to right, for ever."""
+"""A value sweeping round the lattice, left to right or up to down, forever."""
 
 import copy
 import math
@@ -44,7 +44,8 @@ class Rotation:
 
 
 class RotaryField(ScalarField):
-    """A sine wave wrapped once round the lattice, turning.
+    """A sine wave wrapped once round the lattice, either vertically
+    or horizontally, rotating at a certain period.
 
     The phase is accumulated rather than worked out from the clock: each frame
     it moves on by however long that frame took, divided by the period the knob
@@ -62,9 +63,20 @@ class RotaryField(ScalarField):
         * period - 0.5s a rotation up to 16s
         * parts  - unused
         * shape  - unused
+
+    vert keyword: whether to loop up-to-down instead of left-to-right
     """
 
-    def __init__(self, graph: Graph, midi: MIDIFor, *, period: int, parts: int, shape: int):
+    def __init__(
+        self,
+        graph: Graph,
+        midi: MIDIFor,
+        *,
+        period: int,
+        parts: int,
+        shape: int,
+        vert: bool = False
+    ):
         self._width = graph.width
         self._height = graph.height
         self._rotation = Rotation(midi.cc(period, "period"))
@@ -73,6 +85,8 @@ class RotaryField(ScalarField):
 
         # How far round from the rotation itself this copy sits, 0-1.
         self._turn = 0.0
+
+        self._vert = vert
 
     def turned(self, turn: float) -> "RotaryField":
         """This same rotation, read a fraction of a turn further round.
@@ -89,7 +103,10 @@ class RotaryField(ScalarField):
         self._rotation.advance(now)
 
         # Where this end sits across the lattice, 0-1, which is its place in
-        # the wave: one whole turn spans the width.
-        offset = end.vertex().physical()[0] / (TileRef.WIDTH * self._width)
+        # the wave: one whole turn spans the width (or height, for vertical rotation)
+        if not self._vert:
+            offset = end.vertex().physical()[0] / (TileRef.WIDTH * self._width)
+        else:
+            offset = end.vertex().physical()[1] / (TileRef.HEIGHT * self._height)
 
         return math.sin(TAU * (self._rotation.phase + self._turn + offset)) / 2 + 0.5
