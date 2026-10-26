@@ -5,6 +5,7 @@ import math
 import time
 import traceback
 from typing import Callable
+from pylattice.effects.glitter import Glitter
 from pylattice.effects.map_tiles import MapTiles
 from pylattice.effects.pluck import Pluck, WobbleNet
 from pylattice.effects.boom_zaps import ProbZaps, init_boom_zaps, prob_zaps, run_boom_zaps
@@ -145,6 +146,7 @@ class EFFECTS:
     map_fiber = MapFiber()
     map_fiber2 = MapFiber()
     map_fiber3 = MapFiber()
+    glitter = Glitter()
     #map_tiles = MapTiles()
 
 
