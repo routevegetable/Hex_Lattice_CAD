@@ -109,7 +109,8 @@ class Rig:
     presets: list[int] = field(default_factory=list)    # the ones with a file
     muted: list[str] = field(default_factory=list)      # silenced, still in the patch
     selected: int | None = None
-    size: int = 16                                      # the ones that are always there
+    size: int = 16                                      # deprecated: same as controller_presets, kept for the pages that read it
+    controller_presets: int = 16                        # the ones the controller picks; always there
 
 
 class Console:
@@ -323,4 +324,5 @@ class Console:
                        if effect.muted],
                 selected=self._selected,
                 size=self._bank.controller_presets,
+                controller_presets=self._bank.controller_presets,
             )
