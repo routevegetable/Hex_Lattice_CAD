@@ -11,7 +11,7 @@ from pylattice.lattice_writer import LatticeWriter
 from pylattice.fields.types import Slot
 from pylattice.instrument.types import Effect
 
-def wobble(now: Event, lattice: LatticeWriter, edge: EdgeRef, p: int, amp: float, filament_offset: int, hue: float, value: float, sat: float = 0.7):
+def wobble(now: Event, lattice: LatticeWriter, edge: EdgeRef, p: int, amp: float, filament_offset: int, hue: float, value: float, sat: float):
     end, other = edge.ends()
     
     y = math.sin(psweep(now, p, 0, 2 * math.pi))
@@ -108,7 +108,7 @@ class Pluck(Effect):
                     p = (period.get(now, end) + period.get(now, other)) / 2
                     p = 120
                     
-                    wobble(now, lattice, end, p, amp, 0, a_amp.get(now, end), value.get(now, end))
+                    wobble(now, lattice, end, p, amp, 0, a_amp.get(now, end), value.get(now, end), 0.7)
                     
         # B: Right Strings
         for tx in range(0, graph.width):
@@ -128,7 +128,7 @@ class Pluck(Effect):
                     # Average period too, between 1 and 500ms
                     p = 120
                     
-                    wobble(now, lattice, end, p, amp, 1, 0.5, value.get(now, end))
+                    wobble(now, lattice, end, p, amp, 1, 0.5, value.get(now, end), 0.7)
                     
         # C: Left Strings
         for tx in range(0, graph.width):
@@ -148,7 +148,7 @@ class Pluck(Effect):
                     # Average period too, between 1 and 500ms
                     p = 120
                     
-                    wobble(now, lattice, end, p, amp, 1, a_amp.get(now, end), value.get(now, end))
+                    wobble(now, lattice, end, p, amp, 1, a_amp.get(now, end), value.get(now, end), 0.7)
             
             
 
