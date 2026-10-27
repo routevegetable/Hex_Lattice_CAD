@@ -31,10 +31,6 @@ class Effect(Protocol):
     """
 
     def __init__(self):
-        # Drawn unless a patch says otherwise. The UI's bin and plus are what
-        # move this; nothing else looks at it but the render loop.
-        self.active = True
-
         for name in self.declared_slots():
             setattr(self, name, Slot(name))
 
@@ -53,8 +49,6 @@ class Effect(Protocol):
                 if (annotation is Slot or annotation == "Slot") and name not in names:
                     names.append(name)
         return names
-
-    active: bool
 
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph): ...
 

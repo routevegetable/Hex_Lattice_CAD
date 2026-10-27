@@ -21,7 +21,7 @@ from pylattice.instrument.api import serve
 from pylattice.instrument.fields import FIELDS
 from pylattice.instrument.hardware import graph, lattice, midi
 from pylattice.instrument.console import Console
-from pylattice.instrument.patch import Patch, PresetBank, named
+from pylattice.instrument.patch import Patch, PresetBank
 from pylattice.instrument.types import Effect
 
 
@@ -150,13 +150,6 @@ class EFFECTS:
     #map_tiles = MapTiles()
 
 
-# Everything declared in EFFECTS, in the order written - so a preset patches
-# the same objects that render.
-effects: list[Effect] = list(named(EFFECTS, Effect).values())
-
-
-
-
 init_boom_zaps(graph, lattice)
 
 
@@ -224,9 +217,8 @@ while True:
         midi.tick()
         check_program()
 
-        for effect in effects:
-            if effect.active:
-                effect.render(now, lattice, graph)
+        for effect in CONSOLE.chain():
+            effect.render(now, lattice, graph)
         lattice.show()
 
     frames += 1

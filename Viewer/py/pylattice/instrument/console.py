@@ -104,6 +104,10 @@ class Console:
         self._effects = effects
         self._bank = bank
         bank.live_ccs = self._live_ccs      # so the bank can keep up with the knobs
+
+        # name -> the effect object, built once. The same objects a patch is
+        # applied to, indexed so the render loop can name them per frame.
+        self._by_effect: dict[str, Effect] = named(effects, Effect)
         self._stats = Stats()
         self._selected: int | None = None
 
@@ -164,15 +168,25 @@ class Console:
         self._selected = number
         self._bank.current = number
 
-    def read_settings(self) -> Patch:
-        """The patch as it stands.
+    def chain(self) -> list[Effect]:
+        """The effects that draw, in the order the patch that is playing names
+        them.
 
-        A plain read of the rig - nothing is banked. What a preset is holding
-        is the bank's business: slots get there through write_preset, and
-        knob positions through the bank's own fold.
+        Read off the patch every frame rather than kept anywhere: the list is
+        the record, and an effect chain is applied in sequence, so where a
+        thing sits in it changes what comes out. A patch with no list at all
+        was written before effects could be switched off, and means all of
+        them. A name the code no longer has is skipped - apply() has already
+        said so.
         """
         with self.lock:
-            return Patch.capture(self._midi, self._fields, self._effects)
+            patch = self._bank.playing()
+
+            if patch is None:
+                return []               # nothing selected, nothing to draw
+
+            names = list(self._by_effect) if patch.active is None else patch.active
+            return [self._by_effect[name] for name in names if name in self._by_effect]
 
     def _apply(self, patch: Patch):
         """Put a patch into the rig. Knobs it does not mention are left alone,
