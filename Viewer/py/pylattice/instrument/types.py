@@ -8,6 +8,21 @@ from pylattice.graph import Graph
 from pylattice.lattice_writer import LatticeWriter
 
 
+# The kinds of slot every effect lists first, in this order. The rest follow,
+# A to Z. A slot is of a kind if it is called that, or that and an underscore
+# and more: hue, hue_1 and hue_2 are all hue.
+SLOTS_FIRST = ("hue", "value", "sat")
+
+
+def slot_order(name: str) -> tuple[int, str]:
+    """Sort key for slot names: hue slots, value slots, sat slots, then
+    everything else by name. Within a kind, plain `hue` comes before `hue_1`."""
+    for rank, kind in enumerate(SLOTS_FIRST):
+        if name == kind or name.startswith(kind + "_"):
+            return rank, name
+    return len(SLOTS_FIRST), name
+
+
 @runtime_checkable
 class Effect(Protocol):
     """Draws onto the lattice, reading the fields plugged into its slots.
@@ -60,8 +75,10 @@ class Effect(Protocol):
 
     def get_slots(self) -> dict[str, Slot]:
         """The slots this effect owns, by name - and each Slot knows its own
-        name too, so it can say which one it is at runtime."""
-        return {name: value for name, value in vars(self).items() if isinstance(value, Slot)}
+        name too, so it can say which one it is at runtime. Always in the same
+        order whatever the effect declares: see slot_order."""
+        owned = {name: value for name, value in vars(self).items() if isinstance(value, Slot)}
+        return dict(sorted(owned.items(), key=lambda item: slot_order(item[0])))
 
     def bind(self, **fields: ScalarField | float) -> Self:
         """Attach fields to slots by name, and hand the effect back:
