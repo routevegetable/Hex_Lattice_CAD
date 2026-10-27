@@ -326,11 +326,13 @@ const folded = loadSet('v3.folded');
 
 // ---- hue ------------------------------------------------------------------
 // A hue slot is a position on a wheel that runs 0..2, so a range can wrap. It
-// is held as a number, or as a field squeezed into a stretch of the wheel:
+// is held as a number, or as a source squeezed into a stretch of the wheel. The
+// source is a field, or any formula that stays within 0..1:
 //
-//   0.4                       a fixed hue         no field
+//   0.4                       a fixed hue         no source
 //   param_a                   the field itself    start 0, width 1
-//   mul(f, k) / div(f, k)     squeezed            start 0, width k
+//   v_rotary x rotary         a formula           start 0, width 1
+//   mul(s, k) / div(s, k)     squeezed            start 0, width k
 //   add(<any of those>, c)    shifted             start c
 //
 // Anything else is a formula, which the hue control leaves alone.
@@ -338,29 +340,69 @@ const AXIS = 2;
 const clampAxis = (x) => Math.max(0, Math.min(AXIS, x));
 const isHueSlot = (key) => key.split('.').slice(1).join('.').includes('hue');
 
-function squeezed(t) {
-  if (typeof t === 'string') return {field: t, width: 1};
-  if (t && typeof t === 'object' && (t.op === 'mul' || t.op === 'div')) {
-    const [f, k] = [t.a, t.b];
-    if (typeof f === 'string' && typeof k === 'number' && (t.op === 'mul' || k !== 0))
-      return {field: f, width: t.op === 'mul' ? k : 1 / k};
-    if (t.op === 'mul' && typeof k === 'string' && typeof f === 'number')
-      return {field: k, width: f};
+// What a formula can reach, as [lowest, highest], taking every field to run 0..1.
+// It is null when that cannot be said: an operand left empty, a gradient, or a
+// division by anything but a fixed number.
+function reach(n) {
+  if (typeof n === 'number') return [n, n];
+  if (typeof n === 'string') return [0, 1];
+  if (n === null || typeof n !== 'object' || n.op === undefined) return null;
+
+  const a = reach(n.a), b = reach(n.b);
+  if (!a || !b) return null;
+
+  switch (n.op) {
+    case 'add': return [a[0] + b[0], a[1] + b[1]];
+    case 'sub': return [a[0] - b[1], a[1] - b[0]];
+    case 'avg': return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    case 'mul': {
+      const p = [a[0] * b[0], a[0] * b[1], a[1] * b[0], a[1] * b[1]];
+      return [Math.min(...p), Math.max(...p)];
+    }
+    case 'div': {
+      if (b[0] !== b[1] || b[0] === 0) return null;
+      const q = [a[0] / b[0], a[1] / b[0]];
+      return [Math.min(...q), Math.max(...q)];
+    }
   }
   return null;
 }
 
+const withinUnit = (n) => {
+  const r = reach(n);
+  return r !== null && r[0] >= -1e-9 && r[1] <= 1 + 1e-9;
+};
+
+// A source the wheel can speak for: a field, or a formula with a field in it that
+// cannot leave 0..1, so the thumbs say what it really sweeps.
+const usableSource = (src) => typeof src === 'string' ||
+    (src !== null && typeof src === 'object' && fieldsIn(src).length > 0 && withinUnit(src));
+
+// A source and the width it is squeezed into: x x k, x / k, or k x x. Anything
+// else is a source of its own, at width 1.
+function peelWidth(x) {
+  if (x && typeof x === 'object' && (x.op === 'mul' || x.op === 'div')) {
+    const [f, k] = [x.a, x.b];
+    if (typeof k === 'number' && (x.op === 'mul' || k !== 0))
+      return {field: f, width: x.op === 'mul' ? k : 1 / k};
+    if (x.op === 'mul' && typeof f === 'number') return {field: k, width: f};
+  }
+  return {field: x, width: 1};
+}
+
+// The most it can take off the outside wins: a start and a width, then a width,
+// then the whole of it as the source. The first whose source stays within 0..1.
 function parseHue(t) {
   if (typeof t === 'number') return {field: null, start: t, width: 0};
-  const core = squeezed(t);
-  if (core) return {...core, start: 0};
+
+  const options = [];
   if (t && typeof t === 'object' && t.op === 'add') {
-    for (const [x, c] of [[t.a, t.b], [t.b, t.a]]) {
-      const inner = squeezed(x);
-      if (inner && typeof c === 'number') return {...inner, start: c};
-    }
+    for (const [x, c] of [[t.a, t.b], [t.b, t.a]])
+      if (typeof c === 'number') options.push({...peelWidth(x), start: c});
   }
-  return null;
+  options.push({...peelWidth(t), start: 0}, {field: t, width: 1, start: 0});
+
+  return options.find(o => usableSource(o.field)) ?? null;
 }
 
 function buildHue({field, start, width}) {
@@ -792,16 +834,20 @@ function slotRow(key, saved) {
   // empty one is a fixed hue of 0, like any other empty slot.
   const hue = isHueSlot(key) ? parseHue(tree ?? 0) : null;
 
+  // The wheel can also speak for a source that is a formula (see parseHue). There
+  // is no single field to name then, and the formula is always on show.
+  const compound = hue !== null && hue.field !== null && typeof hue.field !== 'string';
+
   // The editor is open for a half-built formula, or for one that is saved. A slot
   // that has since turned back into a plain number or field - reverted, or changed
   // from the desk - has nothing to edit, so it is not open any more.
-  const open = key in editing ||
+  const open = key in editing || compound ||
       (formulaOpen.has(key) && (hue ? hue.field !== null : !isLeaf(tree)));
 
   // The formula of a hue that has a field in it reads (field x squeeze) + start.
   const shown = hue && hue.field !== null && !(key in editing) && !trimmed.has(key) ? hueTree(hue) : tree;
 
-  const mode = hue ? (hue.field === null ? 'value' : 'field') : open ? 'formula' : modeOf(tree);
+  const mode = hue ? (hue.field === null ? 'value' : compound ? 'formula' : 'field') : open ? 'formula' : modeOf(tree);
   if (mode === 'value') lastValue[key] = hue ? hue.start : (tree ?? 0);
 
   const row = document.createElement('div');
@@ -815,7 +861,8 @@ function slotRow(key, saved) {
   // hang off.
   const ctl = document.createElement('div');
   ctl.className = 'ctl fpick';
-  const toggle = fieldMenu(ctl, hue?.field ?? tree, (v) => {
+  const toggle = fieldMenu(ctl, compound ? null : (hue?.field ?? tree), (v) => {
+    if (compound && !confirm('Replace this formula with that field? The formula is lost.')) return;
     // A hue keeps its editor open across a new field; anything else is done with it.
     if (hue) delete editing[key]; else leaveFormula(key);
     writeSlot(key, !hue ? v : buildHue({field: v, start: hue.start, width: hue.field ? hue.width : 1}));
@@ -830,11 +877,11 @@ function slotRow(key, saved) {
      }},
     {label: 'field', id: 'field', title: 'follow a field', onclick: toggle},
     {label: '\u0192', id: 'formula',
-     title: open && hue ? 'close the formula' : 'combine fields and constants',
+     title: compound ? 'this hue is a formula' : open && hue ? 'close the formula' : 'combine fields and constants',
      onclick: () => {
        if (open) {
          // A hue the wheel can read can close it; any other formula has no way back.
-         if (hue) { leaveFormula(key); drawEffects(); }
+         if (hue && !compound) { leaveFormula(key); drawEffects(); }
          return;
        }
        if (mode === 'formula') return;
@@ -855,7 +902,7 @@ function slotRow(key, saved) {
   // editor can be folded away, leaving only the arithmetic.
   const showsEditor = mode === 'formula' || (open && hue);
   let summary = null, editor = null, words = null;
-  const hueWords = (h) => `${h.field} sweeps the hue from ${fmt(h.start)} to ${fmt(h.start + h.width)}`;
+  const hueWords = (h) => `${describe(h.field)} sweeps the hue from ${fmt(h.start)} to ${fmt(h.start + h.width)}`;
   if (showsEditor) {
     summary = document.createElement('span');
     summary.className = 'expr';
@@ -871,6 +918,27 @@ function slotRow(key, saved) {
     editor.append(nodeEditor(key, shown, []));
   }
 
+  // The wheel for a range: two thumbs, with the formula following them.
+  const addRangeBar = () => {
+    const readout = document.createElement('span');
+    readout.className = 'dim';
+    ctl.append(readout);
+    ctl.append(hueBar(hue.start, hue.start + hue.width, false,
+        (s0, e0) => {
+          readout.textContent = `${fmt(s0)} ${e0 >= s0 ? '\u2192' : '\u2190'} ${fmt(e0)}`;
+
+          // The formula follows the thumbs as they move, not when they are let go.
+          if (editor) {
+            const range = {field: hue.field, start: s0, width: e0 - s0};
+            const t = trimmed.has(key) ? buildHue(range) : hueTree(range);
+            summary.replaceChildren(groupedText(t));
+            words.textContent = hueWords({field: hue.field, start: s0, width: e0 - s0});
+            editor.replaceChildren(nodeEditor(key, t, []));
+          }
+        },
+        (s0, e0) => writeSlot(key, buildHue({field: hue.field, start: s0, width: e0 - s0}))));
+  };
+
   if (mode === 'field') {
     const chip = document.createElement('button');
     chip.className = 'chip';
@@ -879,25 +947,9 @@ function slotRow(key, saved) {
     chip.onclick = toggle;
     ctl.append(chip);
 
-    if (hue) {
-      const readout = document.createElement('span');
-      readout.className = 'dim';
-      ctl.append(readout);
-      ctl.append(hueBar(hue.start, hue.start + hue.width, false,
-          (s0, e0) => {
-            readout.textContent = `${fmt(s0)} ${e0 >= s0 ? '\u2192' : '\u2190'} ${fmt(e0)}`;
-
-            // The formula follows the thumbs as they move, not when they are let go.
-            if (editor) {
-              const range = {field: hue.field, start: s0, width: e0 - s0};
-              const t = trimmed.has(key) ? buildHue(range) : hueTree(range);
-              summary.replaceChildren(groupedText(t));
-              words.textContent = hueWords({field: hue.field, start: s0, width: e0 - s0});
-              editor.replaceChildren(nodeEditor(key, t, []));
-            }
-          },
-          (s0, e0) => writeSlot(key, buildHue({field: hue.field, start: s0, width: e0 - s0}))));
-    }
+    if (hue) addRangeBar();
+  } else if (compound) {
+    addRangeBar();
   } else if (mode === 'value' && hue) {
     const box = document.createElement('input');
     box.className = 'num';
