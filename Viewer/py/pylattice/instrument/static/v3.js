@@ -482,6 +482,107 @@ function makeSeg(mode, parts, small) {
   return seg;
 }
 
+// ---- moving parts of a formula ---------------------------------------------
+// A part is a whole subtree: an operand, or an operation with everything under
+// it. Drag one onto another operand of the same formula and the two trade
+// places, so nothing is lost and a part can be moved to the other side of an
+// operation. Moving a part to another slot is not here.
+let dragging = null;                    // {from: {key, path, tree}}
+let overEl = null;
+
+const startsWith = (path, prefix) => prefix.every((step, i) => path[i] === step);
+
+function setOver(el) {
+  if (overEl === el) return;
+  overEl?.classList.remove('over');
+  overEl = el;
+  el.classList.add('over');
+}
+const clearOver = () => { overEl?.classList.remove('over'); overEl = null; };
+
+// Whether a part can be put down here: in the same formula, and not onto itself,
+// inside itself, or onto a part that holds it (there would be no room for what
+// was there).
+function canTrade(from, to) {
+  return from.key === to.key
+      && !startsWith(to.path, from.path)
+      && !startsWith(from.path, to.path);
+}
+
+function moveSegment(from, to) {
+  if (!canTrade(from, to)) return;
+  const part = at(from.tree, from.path);
+  const there = at(from.tree, to.path);
+  setFormula(to.key, replace(replace(from.tree, from.path, there), to.path, part));
+}
+
+// Picking a part up, whichever way it was grabbed.
+function beginDrag(e, box, from) {
+  dragging = {from};
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', 'part of a formula');
+  e.dataTransfer.setDragImage(box, 8, 8);
+  box.classList.add('lifted');
+}
+
+function endDrag(box) {
+  dragging = null;
+  box.classList.remove('lifted');
+  box.draggable = false;
+  clearOver();
+  drawEffects();
+}
+
+// The handle on a part. A whole operation can also be grabbed by its box - see
+// boxDrag - so this is how you pick up a single operand, or an operation by its
+// corner.
+function grip(box, from) {
+  const g = document.createElement('span');
+  g.className = 'grip';
+  g.textContent = '\u283f';
+  g.draggable = true;
+  g.title = 'drag this part onto another operand to trade places';
+  g.ondragstart = (e) => { e.stopPropagation(); beginDrag(e, box, from); };
+  g.ondragend = (e) => { e.stopPropagation(); endDrag(box); };
+  return g;
+}
+
+// A whole operation, by its box: anywhere on it that is not a control. The
+// innermost box under the pointer is the one that moves. The outermost box is the
+// whole formula, which has nowhere to go, so it is not picked up.
+function boxDrag(box, from) {
+  if (!from.path.length) return;
+  box.onmousedown = (e) => {
+    e.stopPropagation();
+    box.draggable = !e.target.closest('input, button, select, textarea');
+  };
+  box.onmouseup = () => { box.draggable = false; };
+  box.ondragstart = (e) => {
+    if (e.target !== box) return;                // a grip or chip inside has its own
+    e.stopPropagation();
+    beginDrag(e, box, from);
+  };
+  box.ondragend = (e) => { if (e.target === box) endDrag(box); };
+}
+
+function dropTarget(el, to) {
+  el.ondragover = (e) => {
+    if (!dragging || !canTrade(dragging.from, to)) return;
+    e.preventDefault();
+    e.stopPropagation();                        // the innermost one under the pointer wins
+    setOver(el);
+  };
+  el.ondrop = (e) => {
+    if (!dragging || !canTrade(dragging.from, to)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const carried = dragging;
+    dragging = null;
+    clearOver();
+    moveSegment(carried.from, to);
+  };
+}
+
 // A constant that was swapped for a field, by where it was in the formula, so
 // switching that operand back to a constant puts the number back and not the
 // default.
@@ -498,6 +599,9 @@ function leafEditor(key, tree, path) {
     setFormula(key, replace(tree, path, v));
   });
   const mode = typeof node === 'number' ? 'value' : typeof node === 'string' ? 'field' : null;
+
+  dropTarget(row, {key, path, tree});
+  if (path.length && node !== null) row.append(grip(row, {key, path, tree}));
 
   row.append(makeSeg(mode, [
     {label: 'constant', id: 'value', title: 'a plain number',
@@ -530,7 +634,7 @@ function leafEditor(key, tree, path) {
     const wrap = document.createElement('button');
     wrap.className = 'wrap';
     wrap.textContent = '+';
-    wrap.title = 'add another term: this becomes the first half of a new operation, and you choose the other half';
+    wrap.title = 'add a term next to this value: it and the new term become one operation (to add a term around a whole operation, use + outer on its box)';
     wrap.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', a: node, b: null}));
     row.append(wrap);
   }
@@ -622,8 +726,12 @@ function nodeEditor(key, tree, path, depth = 0) {
   const box = document.createElement('div');
   box.className = `node d${depth % DEPTHS}`;
 
+  dropTarget(box, {key, path, tree});
+  boxDrag(box, {key, path, tree});
+
   const head = document.createElement('div');
   head.className = 'ops';
+  if (path.length) head.append(grip(box, {key, path, tree}));
   for (const [name, glyph] of Object.entries(OPS)) {
     const b = document.createElement('button');
     b.className = name === node.op ? 'on' : '';
@@ -632,6 +740,24 @@ function nodeEditor(key, tree, path, depth = 0) {
     b.onclick = () => setFormula(key, replace(tree, path, {...node, op: name}));
     head.append(b);
   }
+  // Which side is which matters for - and the others read left to right.
+  const flip = document.createElement('button');
+  flip.className = 'flip';
+  flip.textContent = '\u21c4';
+  flip.title = 'swap the two sides';
+  flip.onclick = () => setFormula(key, replace(tree, path, {...node, a: node.b, b: node.a}));
+
+  // The + on a single value pairs that value with another, which nests the new term
+  // inside. This is its counterpart for a whole operation: the operation, with
+  // everything in it, becomes the first half of a new one, so a term goes around
+  // the outside - at the top of the formula, around the lot.
+  const outer = document.createElement('button');
+  outer.className = 'outer';
+  outer.textContent = '+ outer';
+  outer.title = 'add a term outside this whole operation: all of it becomes the first half of a new operation, and you choose the other half';
+  outer.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', a: node, b: null}));
+  head.append(outer, flip);
+
   const drop = document.createElement('button');
   drop.className = 'drop';
   drop.textContent = '\u00d7';
@@ -1018,7 +1144,7 @@ async function refresh() {
     formulasFor = rig.selected;
   }
   drawPresets();
-  if (!adding && !picking && !inUse()) drawEffects();
+  if (!adding && !picking && !dragging && !inUse()) drawEffects();
 }
 
 async function drawStats() {
