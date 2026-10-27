@@ -42,7 +42,7 @@ def make_zap_edge(end: EndRef, lattice: LatticeWriter):
             trg = latches[idx].maybe(now, idx, 10 + end.__hash__() % 30, level)
 
             # Saturation envelope
-            s = sweep(now, trg, length, 0.2, 0.5)
+            s = sweep(now, trg, length, 0.5, 1)
             #s = sweep(now, trg, 30, 0.4, 1, 0.4)
 
             # Value envelope - the same length, so a zap fades and desaturates
@@ -50,7 +50,7 @@ def make_zap_edge(end: EndRef, lattice: LatticeWriter):
             v = sweep(now, trg, length, value, 0, 0)
             if trg:
                 hue = trg.rand(idx + end.__hash__()) % 4 / 4
-                hue = 0.8
+                hue = hues[0]
 
             if v > 0.001:
                 # This end

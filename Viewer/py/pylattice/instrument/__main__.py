@@ -238,6 +238,8 @@ while True:
         frames = 0
         counted_from = now
 
+    time.sleep(0.004)
+
     # Do GC every frame
     t1 = time.time_ns()
     gc_step()
@@ -245,7 +247,6 @@ while True:
     dt_render = t1 - t0
     
     
-    time.sleep(0.02)
     
     # To sec
     dt = (t1 - t0) / 1000000000

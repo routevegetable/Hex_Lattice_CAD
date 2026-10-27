@@ -8,7 +8,7 @@ from pylattice.graph import Graph
 from pylattice.lattice_writer import LatticeWriter
 
 
-COLS = 6
+COLS = 8
 ROWS = 2
 
 graph = Graph(COLS, ROWS)
