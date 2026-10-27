@@ -45,6 +45,10 @@ aside { min-width: 0; }
           padding: 6px 12px; }
 .effect-head { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
 .effect.off { opacity: .55; }
+.effect.moving { opacity: .4; }
+.effect.drop-before { box-shadow: 0 -3px 0 0 var(--accent); }
+.effect.drop-after { box-shadow: 0 3px 0 0 var(--accent); }
+.effect-head .card-grip { font-size: 16px; padding: 4px 2px; }
 .effect-head .title { flex: 1; display: flex; align-items: center; gap: 8px; border: none;
                       background: none; text-align: left; padding: 4px 0; font-size: 14px; }
 .effect-head .title b { font-weight: 600; }

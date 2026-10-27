@@ -162,7 +162,8 @@ async function setActive(names) {
   if (n === null) return;
 
   const fresh = await get(`/presets/${n}`);
-  const active = Object.keys(rig.effects).filter(e => names.includes(e));
+  // The order is the order they draw in, so it is kept as given.
+  const active = names.filter(e => e in rig.effects);
 
   const r = await put(`/presets/${n}`, {...fresh.live, active});
   if (!r.ok) { alert((await r.json()).detail); return; }
@@ -1301,11 +1302,83 @@ const list = document.getElementById('effects');
 // A patch with no `active` list says nothing about it. One with slots was
 // written before effects could be switched off, so everything it wires is on;
 // one with none is a preset nobody has written, and has no effects.
+//
+// An `active` list is also the order they are drawn in, one on top of the next, so
+// it is the order shown. Without one they are in the order the rig declares them.
 function chain(patch) {
-  const wired = new Set(Object.keys(patch.slots).map(k => k.split('.')[0]));
-  const on = patch.active === null ? wired : new Set(patch.active);
+  if (patch.active !== null) return patch.active.filter(n => n in rig.effects);
 
-  return Object.keys(rig.effects).filter(n => on.has(n));
+  const wired = new Set(Object.keys(patch.slots).map(k => k.split('.')[0]));
+  return Object.keys(rig.effects).filter(n => wired.has(n));
+}
+
+// Reordering: the cards are drawn in this order, so moving one is an edit to the
+// patch's `active` list and nothing else. Dragged by the grip on its header.
+let reordering = null;      // {name, names} while a card is in the air
+
+// `names` with `name` taken out and put before `before` - or last, for null.
+function moved(names, name, before) {
+  const rest = names.filter(n => n !== name);
+  const at = before === null ? rest.length : rest.indexOf(before);
+  return [...rest.slice(0, at), name, ...rest.slice(at)];
+}
+
+const clearMarks = () => {
+  for (const el of list.querySelectorAll('.drop-before, .drop-after, .moving'))
+    el.classList.remove('drop-before', 'drop-after', 'moving');
+};
+
+// Which half of a card the pointer is over says whether it lands before or after it.
+const lowerHalf = (e, card) => {
+  const r = card.getBoundingClientRect();
+  return e.clientY > r.top + r.height / 2;
+};
+
+function cardGrip(card, head, name, names) {
+  const g = document.createElement('span');
+  g.className = 'grip card-grip';
+  g.textContent = '\u283f';
+  g.draggable = true;
+  g.title = `drag to change when ${name} is drawn`;
+
+  g.ondragstart = (e) => {
+    reordering = {name, names};
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', name);
+    e.dataTransfer.setDragImage(head, 12, 12);
+    card.classList.add('moving');
+  };
+  g.ondragend = () => { reordering = null; clearMarks(); };
+  return g;
+}
+
+function cardDropTarget(card, name) {
+  card.ondragover = (e) => {
+    if (!reordering || reordering.name === name) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    const after = lowerHalf(e, card);
+    card.classList.toggle('drop-before', !after);
+    card.classList.toggle('drop-after', after);
+  };
+  card.ondragleave = (e) => {
+    if (!card.contains(e.relatedTarget)) card.classList.remove('drop-before', 'drop-after');
+  };
+  card.ondrop = (e) => {
+    if (!reordering || reordering.name === name) return;
+    e.preventDefault();
+
+    const {name: dragged, names} = reordering;
+    const after = lowerHalf(e, card);
+    reordering = null;
+    clearMarks();
+
+    // After this card is before the one that follows it, if there is one.
+    const next = names[names.indexOf(name) + 1] ?? null;
+    const order = moved(names, dragged, after ? next : name);
+    if (order.some((n, i) => n !== names[i])) setActive(order);
+  };
 }
 
 // The plus: what is not in the preset yet, to pick from.
@@ -1429,7 +1502,8 @@ function drawEffects() {
       setActive(names.filter(n => n !== name));
     };
 
-    head.append(title, count, sw, bin);
+    head.append(cardGrip(card, head, name, names), title, count, sw, bin);
+    cardDropTarget(card, name);
 
     card.append(head);
 
@@ -1535,7 +1609,7 @@ async function refresh() {
     formulasFor = rig.selected;
   }
   drawPresets();
-  if (!adding && !picking && !dragging && !turning && !inUse()) drawEffects();
+  if (!adding && !picking && !dragging && !reordering && !turning && !inUse()) drawEffects();
 }
 
 async function drawStats() {
