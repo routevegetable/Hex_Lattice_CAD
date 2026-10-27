@@ -2,6 +2,8 @@
 
 const get = (p) => fetch(p).then(r => r.json());
 const post = (p) => fetch(p, {method: 'POST'});
+const put = (p, body) => fetch(p, {method: 'PUT', headers: {'Content-Type': 'application/json'},
+                                   body: JSON.stringify(body)});
 
 let rig = null;             // what can be patched, and which preset is playing
 let views = {};             // every preset, live against what its file has
@@ -16,7 +18,13 @@ function same(a, b) {
   return keys.length === Object.keys(b).length && keys.every(k => same(a[k], b[k]));
 }
 
-const isDirty = (view) => !!view && !same(view.live, view.stored);
+// A knob the file does not list is not an edit. The live copy of a preset
+// records every knob the rig watches, so one added since the file was written
+// turns up in it as soon as the preset is played - nobody moved anything.
+const edited = (live, stored) =>
+    ({...live, ccs: Object.fromEntries(Object.entries(live.ccs).filter(([cc]) => cc in stored.ccs))});
+
+const isDirty = (view) => !!view && !same(edited(view.live, view.stored), view.stored);
 
 async function act(path) {
   const r = await post(path);
@@ -74,6 +82,38 @@ function drawPresets() {
   }
 }
 
+// ---- muting --------------------------------------------------------------
+
+// Silencing an effect is for looking at one thing at a time. It is not part of
+// the preset - the effect stays in it and nothing goes dirty - and the rig
+// clears it when another preset is selected.
+async function setMuted(names) {
+  const r = await put('/muted', names);
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  await refresh();
+}
+
+const isMuted = (name) => rig.muted.includes(name);
+
+// What "mute all" silenced, so "unmute all" brings back those and nothing else. The
+// rig clears every mute when a preset is selected, so this goes with it.
+let silenced = [];
+let silencedFor = null;
+
+function allOff(names) {
+  const anyOn = names.some(n => !isMuted(n));
+
+  if (anyOn) {
+    silenced = names.filter(n => !isMuted(n));
+    silencedFor = rig.selected;
+    return setMuted([...new Set([...rig.muted, ...names])]);
+  }
+
+  const back = silencedFor === rig.selected && silenced.length ? silenced : names;
+  silenced = [];
+  return setMuted(rig.muted.filter(n => !back.includes(n)));
+}
+
 // ---- the effects ---------------------------------------------------------
 
 const list = document.getElementById('effects');
@@ -98,6 +138,22 @@ function drawEffects() {
   if (!view) return;
 
   const names = chain(view.live);
+
+  const bar = document.createElement('div');
+  bar.className = 'effects-bar';
+  const anyOn = names.some(n => !isMuted(n));
+  const all = document.createElement('button');
+  all.textContent = anyOn ? 'mute all' : 'unmute all';
+  all.disabled = !names.length;
+  all.title = anyOn ? 'mute every effect, to look at them one at a time - they stay in the preset'
+                    : 'unmute the effects that mute all silenced';
+  all.onclick = () => allOff(names);
+  const tally = document.createElement('span');
+  tally.className = 'dim';
+  tally.textContent = `${names.filter(n => !isMuted(n)).length}/${names.length} on`;
+  bar.append(all, tally);
+  list.append(bar);
+
   if (!names.length) {
     const none = document.createElement('p');
     none.className = 'dim';
@@ -110,7 +166,7 @@ function drawEffects() {
     const wired = keys.filter(k => (view.live.slots[k] ?? null) !== null).length;
 
     const card = document.createElement('section');
-    card.className = 'effect';
+    card.className = 'effect' + (isMuted(name) ? ' off' : '');
     card.dataset.effect = name;
 
     const head = document.createElement('div');
@@ -120,7 +176,13 @@ function drawEffects() {
     const count = document.createElement('span');
     count.className = 'dim';
     count.textContent = `${wired}/${keys.length}`;
-    head.append(title, count);
+    const sw = document.createElement('button');
+    sw.className = 'switch' + (isMuted(name) ? '' : ' on');
+    sw.title = isMuted(name) ? `unmute ${name}` : `mute ${name}`;
+    sw.onclick = () => setMuted(isMuted(name) ? rig.muted.filter(n => n !== name)
+                                              : [...rig.muted, name]);
+
+    head.append(title, count, sw);
 
     card.append(head);
     list.append(card);
