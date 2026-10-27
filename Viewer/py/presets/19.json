@@ -102,9 +102,13 @@
     "glitter.hue_2": 0.0,
     "glitter.value": 1.0,
     "glitter.spin_rate": 0.22,
-    "sparks.value": 1.0,
+    "sparks.value": {
+      "op": "mul",
+      "a": 1.0,
+      "b": "strobe0"
+    },
     "sparks.sat": 0.25,
-    "sparks.prob": 0.02,
+    "sparks.prob": 50.0,
     "sparks.hue": 0.67
   },
   "cc_map": {
