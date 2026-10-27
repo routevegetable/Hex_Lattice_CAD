@@ -1,10 +1,34 @@
+from enum import StrEnum, auto
 import os
 import sys
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, Literal
 import mido
 
 from pylattice.examples.tempo import Event, EventLatch
+
+
+# What a control is, for whoever draws it. A tagged union.
+# Just for UI presentation - doesn't affect behavior.
+
+@dataclass(frozen=True)
+class FloatRange:
+    # Range start and end
+    start: float
+    end: float
+    kind: Literal["float_range"] = "float_range"
+
+@dataclass(frozen=True)
+class GradientChoice:
+    kind: Literal["gradient"] = "gradient"
+
+@dataclass(frozen=True)
+class CustomChoice:
+    # value on the wire -> what to call it
+    items: dict[int, str]
+    kind: Literal["custom"] = "custom"
+
+CCMeta = FloatRange | GradientChoice | CustomChoice
 
 @dataclass
 class CCMapping:
@@ -21,6 +45,8 @@ class CCMapping:
     # Plumbing rather than a knob - a preset selector, say. Still watched and
     # still latched, just not something to put in front of anyone.
     hidden: bool = False
+
+    meta: CCMeta = FloatRange(0, 127)
 
 
 @dataclass
@@ -157,6 +183,7 @@ class MIDI:
         return MIDIFor(prefix, self)
 
     def cc(self, default_id: int, comment: str,
+           meta: CCMeta = FloatRange(0, 127),
            hidden: bool = False) -> Callable[[], Event[int]]:
         """
         Watch a control by name. Returns a getter for the latest event - its
@@ -174,7 +201,7 @@ class MIDI:
         mapping = self._ccs.get(comment)
 
         if mapping is None:
-            mapping = CCMapping(default_cc=default_id, hidden=hidden)
+            mapping = CCMapping(default_cc=default_id, hidden=hidden, meta=meta)
             self._ccs[comment] = mapping
             self._attach(comment, default_id)
         elif hidden:
@@ -331,8 +358,9 @@ class MIDIFor:
     current_prefix: str
     midi: MIDI
 
-    def cc(self, id: int, comment: str = "cc") -> Callable[[], Event[int]]:
-        return self.midi.cc(id, f"{self.current_prefix}.{comment}")
+    def cc(self, id: int, comment: str = "cc",
+           meta: CCMeta = FloatRange(0, 127)) -> Callable[[], Event[int]]:
+        return self.midi.cc(id, f"{self.current_prefix}.{comment}", meta)
 
     def note(self, id: int, comment: str = "note") -> Callable[
             [], tuple[Event[int], Event[int] | None] | None]:

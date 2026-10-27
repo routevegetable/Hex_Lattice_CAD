@@ -7,7 +7,7 @@ frame, so nothing ever renders half a patch.
 import threading
 from dataclasses import dataclass, field
 
-from pylattice.examples.midi import MIDI
+from pylattice.examples.midi import CCMeta, MIDI
 from pylattice.examples.tempo import Event
 from pylattice.fields.types import ScalarField
 from pylattice.instrument.patch import Patch, PresetBank, named
@@ -89,6 +89,10 @@ class Rig:
     """
     fields: list[FieldInfo] = field(default_factory=list)
     effects: dict[str, EffectInfo] = field(default_factory=dict)
+
+    # Presentation metadata for controls
+    control_meta: dict[str, CCMeta] = field(default_factory=dict)
+
     presets: list[int] = field(default_factory=list)    # the ones with a file
     selected: int | None = None
     size: int = 16
@@ -270,6 +274,8 @@ class Console:
                 fields=[FieldInfo(name, type(f).__name__)
                         for name, f in named(self._fields, ScalarField).items()],
                 effects=effects,
+                control_meta={name: mapping.meta for name, mapping
+                              in self._midi.get_mappings().items()},
                 presets=self._bank.saved(),
                 selected=self._selected,
                 size=self._bank.size,

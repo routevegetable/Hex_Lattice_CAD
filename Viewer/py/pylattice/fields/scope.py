@@ -1,7 +1,7 @@
 """A spot going round and round one line of the lattice."""
 import itertools
 
-from pylattice.examples.midi import MIDIFor
+from pylattice.examples.midi import CustomChoice, MIDIFor
 from pylattice.examples.tempo import Event, ZERO, psweep
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EdgeClass, EndRef, Graph, TileRef
@@ -23,7 +23,13 @@ class ScopeFieldBetter(ScalarField):
         self._graph = graph
 
         self._speed_cc = midi.cc(speed, "speed")
-        self._pattern_cc = midi.cc(pattern, "pattern")
+        # Not a sweep: the value indexes PATTERNS directly, so the UI is
+        # better off listing them than offering 0-127 of which only five mean
+        # anything.
+        self._pattern_cc = midi.cc(
+            pattern, "pattern",
+            meta=CustomChoice({index: path
+                               for index, (_, _, path) in enumerate(self.PATTERNS)}))
         self._phase_offset = phase_offset
 
         self._phases: dict[EndRef, list[float]] = {} # 0 to 1
