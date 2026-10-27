@@ -11,13 +11,12 @@ from pylattice.lattice_writer import LatticeWriter
 class Sparks(Effect):
     """Every edge's 4 fibers independently self-trigger a flash - full
     brightness held briefly, then a linear fade - gated by `value` so a
-    strobe pad switches the whole thing on and off. `prob` is literally the
-    probability that something, somewhere on the whole rig, is lit at any
-    given instant: 0.25 means a one-in-four chance. There are many
-    independent rolls happening (every fiber, every end, every edge, every
-    period) - solved by inverting "P(at least one of N rolls hits)" for the
-    single-roll rate that makes the whole-rig probability come out to
-    `prob`.
+    strobe pad switches the whole thing on and off. `prob` is the expected
+    number of ends lit at any given instant, anywhere on the rig - set it
+    to 20 for "about 20 ends lit", or to 0.25 for "about a 1-in-4 chance
+    any end is lit at all" (at small values, expected-count and chance-of-
+    at-least-one converge to the same number - the classic rare-event
+    approximation - so one knob reads naturally as either).
 
     The two ends of a fiber flicker on fully independent schedules rather
     than mirroring each other, so it reads as individual points sparking
@@ -33,8 +32,6 @@ class Sparks(Effect):
     DECAY_MS = 1500  # then a linear fade to 0 over this long
     PERIOD_MS = HOLD_MS + DECAY_MS
 
-    TRIALS_PER_EDGE = 4 * 2  # fibers x ends, each an independent roll
-
     def __init__(self):
         super().__init__()
         self._latches: dict[tuple[EdgeRef, int, int], EventLatch] = {}
@@ -43,9 +40,10 @@ class Sparks(Effect):
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
 
         if self._total_trials is None:
-            # Sized off the actual graph, so it tracks whatever COLS/ROWS
-            # hardware.py is set to rather than a number baked in here.
-            self._total_trials = sum(1 for _ in graph.edges()) * self.TRIALS_PER_EDGE
+            # 2 ends x 4 fibers, independently rolling, per edge - sized off
+            # the actual graph, so it tracks whatever COLS/ROWS hardware.py
+            # is set to rather than a number baked in here.
+            self._total_trials = sum(1 for _ in graph.edges()) * 4 * 2
 
         for edge in graph.edges():
             end = edge.ends()[0]
@@ -67,11 +65,14 @@ class Sparks(Effect):
                     salt = edge.__hash__() + fiber * 2 + side
                     offset = salt % self.PERIOD_MS
 
-                    prob = self.prob.get(now, side_end)
-                    # Invert P(something lit anywhere) = 1 - (1-likelihood)**total_trials
-                    # for the single-roll likelihood that makes the whole-rig
-                    # probability come out to `prob`.
-                    likelihood = 1 - (1 - prob) ** (1 / self._total_trials)
+                    # Each roll stays lit for ~one whole period once it
+                    # fires, so its share of time spent lit equals its
+                    # per-roll likelihood - summed over all rolls, that's
+                    # the expected simultaneous count. Dividing the target
+                    # count by the roll count gives the per-roll likelihood
+                    # that produces it.
+                    desired_count = self.prob.get(now, side_end)
+                    likelihood = min(1.0, desired_count / self._total_trials)
                     trg = latch.maybe(now, salt, self.PERIOD_MS, likelihood, offset)
 
                     if trg is None or not now.after(trg):
