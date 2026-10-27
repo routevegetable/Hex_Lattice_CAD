@@ -114,6 +114,25 @@ function allOff(names) {
   return setMuted(rig.muted.filter(n => !back.includes(n)));
 }
 
+// ---- which effects are in the preset ------------------------------------
+
+// The chain is the patch's `active` list, so adding or removing is an edit to
+// the preset like any other: it goes into the live side, and shows as edited
+// until it is saved. Everything else in the patch is sent back as it is - and
+// read just now, because a patch carries where the knobs are, and sending a
+// stale one back would move them.
+async function setActive(names) {
+  const n = rig.selected;
+  if (n === null) return;
+
+  const fresh = await get(`/presets/${n}`);
+  const active = Object.keys(rig.effects).filter(e => names.includes(e));
+
+  const r = await put(`/presets/${n}`, {...fresh.live, active});
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  await refresh();
+}
+
 // ---- the effects ---------------------------------------------------------
 
 const list = document.getElementById('effects');
@@ -131,6 +150,54 @@ function chain(patch) {
 
   return Object.keys(rig.effects).filter(n => on.has(n));
 }
+
+// The plus: what is not in the preset yet, to pick from.
+let adding = false;         // the menu is up, so the page must not redraw under it
+
+function plusButton(names) {
+  const box = document.createElement('div');
+  box.className = 'plus';
+
+  const b = document.createElement('button');
+  b.textContent = '+';
+  b.title = 'add an effect to this preset';
+  b.onclick = (ev) => {
+    ev.stopPropagation();
+    if (adding) { closeMenu(); return; }
+    adding = true;
+
+    const menu = document.createElement('div');
+    menu.className = 'menu';
+    menu.onclick = (e) => e.stopPropagation();
+    const rest = Object.keys(rig.effects).filter(e => !names.includes(e));
+
+    for (const name of rest) {
+      const item = document.createElement('button');
+      item.className = 'item';
+      item.textContent = name;
+      item.onclick = () => { closeMenu(); setActive([...names, name]); };
+      menu.append(item);
+    }
+    if (!rest.length) {
+      const none = document.createElement('div');
+      none.className = 'dim';
+      none.textContent = 'every effect is in this preset';
+      menu.append(none);
+    }
+    box.append(menu);
+  };
+
+  box.append(b);
+  return box;
+}
+
+function closeMenu() {
+  adding = false;
+  drawEffects();
+}
+
+document.addEventListener('click', () => { if (adding) closeMenu(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && adding) closeMenu(); });
 
 function drawEffects() {
   list.innerHTML = '';
@@ -151,7 +218,7 @@ function drawEffects() {
   const tally = document.createElement('span');
   tally.className = 'dim';
   tally.textContent = `${names.filter(n => !isMuted(n)).length}/${names.length} on`;
-  bar.append(all, tally);
+  bar.append(all, tally, plusButton(names));
   list.append(bar);
 
   if (!names.length) {
@@ -182,7 +249,18 @@ function drawEffects() {
     sw.onclick = () => setMuted(isMuted(name) ? rig.muted.filter(n => n !== name)
                                               : [...rig.muted, name]);
 
-    head.append(title, count, sw);
+    // Taking it out of the preset is the real edit; the switch only mutes. Its
+    // wiring stays in the patch, so adding it again finds it as it was.
+    const bin = document.createElement('button');
+    bin.className = 'bin';
+    bin.textContent = '\u2715';
+    bin.title = `take ${name} out of this preset`;
+    bin.onclick = async () => {
+      if (isMuted(name)) await setMuted(rig.muted.filter(n => n !== name));
+      setActive(names.filter(n => n !== name));
+    };
+
+    head.append(title, count, sw, bin);
 
     card.append(head);
     list.append(card);
@@ -194,7 +272,7 @@ function drawEffects() {
 async function refresh() {
   [rig, views] = await Promise.all([get('/rig'), get('/presets')]);
   drawPresets();
-  drawEffects();
+  if (!adding) drawEffects();
 }
 
 async function drawStats() {
