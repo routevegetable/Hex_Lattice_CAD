@@ -242,6 +242,7 @@ const groupOf = (f) => f.group ?? 'fields';
 // What the menu lists. Each entry has the group it sits under, the text to show
 // and a hint beside it, and the value that is handed back when it is chosen. The
 // order of the entries is the order shown; the search looks in all three words.
+// An entry can also carry `remove`, to be called when its bin is pressed.
 const fieldSource = {
   placeholder: 'search fields, faders, pads',
   entries: () => GROUPS.flatMap(group =>
@@ -280,7 +281,7 @@ function fieldMenu(box, current, onPick, source = fieldSource) {
 
     let rows = [], cursor = 0;
 
-    const item = (text, hint, value, on) => {
+    const item = (text, hint, value, on, remove) => {
       const row = document.createElement('div');
       row.className = 'fpick-item' + (on ? ' on' : '');
       const t = document.createElement('span');
@@ -293,6 +294,17 @@ function fieldMenu(box, current, onPick, source = fieldSource) {
         row.append(h);
       }
       row.onclick = () => choose(value);
+
+      // An entry that can be taken away has a bin of its own, which does not
+      // also choose it.
+      if (remove) {
+        const bin = document.createElement('button');
+        bin.className = 'bin';
+        bin.textContent = '\u2715';
+        bin.title = 'delete';
+        bin.onclick = (ev) => { ev.stopPropagation(); close(); remove(); };
+        row.append(bin);
+      }
       return row;
     };
 
@@ -310,7 +322,7 @@ function fieldMenu(box, current, onPick, source = fieldSource) {
           head.textContent = group;
           body.append(head);
         }
-        body.append(item(e.text, e.hint, e.value, e.value === current));
+        body.append(item(e.text, e.hint, e.value, e.value === current, e.remove));
       }
 
       rows = [...body.querySelectorAll('.fpick-item')];
@@ -1224,8 +1236,19 @@ function drawEffects() {
 const presetSource = {
   placeholder: 'search presets by name or number',
   entries: () => namedNumbers()
-      .map(n => ({group: 'saved', text: nameOf(n), hint: `#${n}`, value: n})),
+      .map(n => ({group: 'saved', text: nameOf(n), hint: `#${n}`, value: n,
+                  // The one playing stays.
+                  remove: n === rig.selected ? null : () => deletePreset(n, nameOf(n))})),
 };
+
+// Deleting takes the file with it, so it asks first.
+async function deletePreset(n, name) {
+  if (!confirm(`Delete preset ${n}, "${name}"? Its file goes with it.`)) return;
+
+  const r = await fetch(`/presets/${n}`, {method: 'DELETE'});
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  await refresh();
+}
 
 // Playing one is what its cell does, so it is the same call.
 namedOpen.onclick = fieldMenu(namedBox, null, (n) => act(`/presets/${n}/select`), presetSource);
