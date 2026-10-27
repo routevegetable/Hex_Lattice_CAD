@@ -890,10 +890,14 @@ const fieldsIn = (n) => typeof n === 'string' ? [n]
       ? (n.gradient !== undefined ? fieldsIn(n.of) : [...fieldsIn(n.a), ...fieldsIn(n.b)])
       : [];
 
+// A turned copy of a rotary (rotary180, v_rotary90...) is the same rotation
+// seen from elsewhere and shares its knobs, which are named for the original.
+const knobOwner = (name) => name.replace(/^((?:v_)?rotary)\d+$/, '$1');
+
 // The knobs behind a formula: a control's comment is `field.role`, so it
 // belongs to a field when it begins with that field's name.
 const controlsFor = (tree) => {
-  const names = fieldsIn(tree);
+  const names = fieldsIn(tree).map(knobOwner);
   return controls.filter(c => c.kind === 'cc' && !c.hidden &&
       c.comments.some(t => names.some(n => t.startsWith(n + '.'))));
 };
