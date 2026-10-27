@@ -222,6 +222,7 @@ function fieldMenu(box, current, onPick) {
     document.removeEventListener('pointerdown', away, true);
     box.querySelector('.fpick-list')?.remove();
     box.classList.remove('open');
+    box.closest('.slot')?.classList.remove('menu-open');
     picking = null;
   };
   const away = (ev) => { if (!box.contains(ev.target)) close(); };
@@ -304,6 +305,7 @@ function fieldMenu(box, current, onPick) {
     render();
     box.append(menu);
     box.classList.add('open');
+    box.closest('.slot')?.classList.add('menu-open');
     const now = body.querySelector('.on');
     if (now) { cursor = rows.indexOf(now); mark(); now.scrollIntoView({block: 'nearest'}); }
     search.focus({preventScroll: true});
@@ -439,13 +441,20 @@ function replace(tree, path, value) {
   return {...tree, [step]: replace(tree[step], rest, value)};
 }
 
+// Hue slots opened as a formula read (field x squeeze) + start in full. Once a
+// section has been taken out by hand the formula is shown as it is, so the section
+// stays gone instead of coming back at 1 and 0.
+const trimmed = new Set();
+
 // Take the editor away, and whatever half-built formula it was holding.
 function leaveFormula(key) {
   delete editing[key];
   formulaOpen.delete(key);
+  trimmed.delete(key);
 }
 
 function setFormula(key, tree) {
+  trimmed.add(key);                     // edited by hand: show it as it is from here on
   if (isLeaf(tree)) {            // down to one operand: no longer a formula
     leaveFormula(key);
     if (tree === null) drawEffects(); else writeSlot(key, tree);
@@ -528,6 +537,63 @@ function leafEditor(key, tree, path) {
   return row;
 }
 
+// ---- what a formula says, in words --------------------------------------------
+// A plain reading of the arithmetic, built from its shape and the names in it. It
+// does not know what a field does beyond its name, so a rotary is just "rotary".
+const MASKS = {v_edges: 'the vertical edges', h_edges: 'the horizontal edges',
+               d1_edges: 'the first diagonal edges', d2_edges: 'the second diagonal edges'};
+
+const isNum = (n) => typeof n === 'number';
+const isMask = (n) => typeof n === 'string' && n in MASKS;
+const pct = (k) => `${Math.round(k * 100)}%`;
+
+// A leaf as a phrase, or an operation in brackets so it can sit inside another.
+function operand(n) {
+  if (n === null || n === undefined) return '(empty)';
+  if (isNum(n)) return fmt(n);
+  if (typeof n === 'string') return n;
+  if (n.gradient !== undefined) return describe(n);
+  return `(${explain(n)})`;
+}
+
+function explain(n) {
+  if (n === null || n === undefined) return 'nothing yet';
+  if (isNum(n)) return `the constant ${fmt(n)}`;
+  if (typeof n === 'string') return n;
+  if (n.gradient !== undefined) return describe(n);
+
+  const {op, a, b} = n;
+  const inverse = (x) => x && typeof x === 'object' && x.op === 'sub' && x.a === 1 ? x.b : null;
+
+  if (op === 'mul') {
+    for (const [x, y] of [[a, b], [b, a]]) {
+      if (isMask(y)) return `${operand(x)}, only on ${MASKS[y]}`;
+      if (isNum(y) && y === 0) return 'always 0';
+      if (isNum(y) && y > 0 && y < 1) return `${operand(x)} at ${pct(y)} strength`;
+      if (isNum(y) && y > 1) return `${operand(x)} boosted ${fmt(y)} times`;
+      if (isNum(y) && y < 0) return `${operand(x)} flipped and scaled by ${fmt(-y)}`;
+      if (inverse(y) !== null) return `${operand(x)}, fading out as ${operand(inverse(y))} rises`;
+    }
+    return `${operand(a)} scaled by ${operand(b)}`;
+  }
+  if (op === 'add') {
+    for (const [x, y] of [[a, b], [b, a]])
+      if (isNum(y)) return y >= 0 ? `${operand(x)}, lifted by ${fmt(y)}` : `${operand(x)}, lowered by ${fmt(-y)}`;
+    return `${operand(a)} plus ${operand(b)}`;
+  }
+  if (op === 'sub') {
+    if (a === 1) return `the opposite of ${operand(b)} (high where it is low)`;
+    if (isNum(b)) return `${operand(a)}, lowered by ${fmt(b)}`;
+    return `${operand(a)} minus ${operand(b)}`;
+  }
+  if (op === 'div') {
+    if (isNum(b) && b !== 0) return `${operand(a)} divided by ${fmt(b)}`;
+    return `${operand(a)} divided by ${operand(b)} (0 where that is 0)`;
+  }
+  if (op === 'avg') return `halfway between ${operand(a)} and ${operand(b)}`;
+  return describe(n);
+}
+
 // A formula as text, with each level's brackets in the colour of its box in the
 // editor, so the two can be matched up at a glance.
 function groupedText(node, depth = 0) {
@@ -594,21 +660,26 @@ const hueTree = (h) => ({op: 'add', a: {op: 'mul', a: h.field, b: Math.round(h.w
 function slotRow(key, saved) {
   // A formula half-built in the editor is what is on show, not what is saved.
   let tree = key in editing ? editing[key] : saved;
-  const open = formulaOpen.has(key) || key in editing;
 
   // A hue slot in a shape the wheel can show gets the wheel, and keeps it while
   // the formula editor is open below, for as long as the formula stays valid. An
   // empty one is a fixed hue of 0, like any other empty slot.
   const hue = isHueSlot(key) ? parseHue(tree ?? 0) : null;
 
+  // The editor is open for a half-built formula, or for one that is saved. A slot
+  // that has since turned back into a plain number or field - reverted, or changed
+  // from the desk - has nothing to edit, so it is not open any more.
+  const open = key in editing ||
+      (formulaOpen.has(key) && (hue ? hue.field !== null : !isLeaf(tree)));
+
   // The formula of a hue that has a field in it reads (field x squeeze) + start.
-  const shown = hue && hue.field !== null && !(key in editing) ? hueTree(hue) : tree;
+  const shown = hue && hue.field !== null && !(key in editing) && !trimmed.has(key) ? hueTree(hue) : tree;
 
   const mode = hue ? (hue.field === null ? 'value' : 'field') : open ? 'formula' : modeOf(tree);
   if (mode === 'value') lastValue[key] = hue ? hue.start : (tree ?? 0);
 
   const row = document.createElement('div');
-  row.className = 'slot' + (tree === null ? ' empty' : '');
+  row.className = `slot mode-${mode}` + (tree === null ? ' empty' : '');
 
   const name = document.createElement('span');
   name.className = 'name';
@@ -653,16 +724,20 @@ function slotRow(key, saved) {
      }},
   ]);
 
-  ctl.append(seg);
 
   // A formula shows as arithmetic, with the editor under it when it is open. The
   // editor can be folded away, leaving only the arithmetic.
   const showsEditor = mode === 'formula' || (open && hue);
-  let summary = null, editor = null;
+  let summary = null, editor = null, words = null;
+  const hueWords = (h) => `${h.field} sweeps the hue from ${fmt(h.start)} to ${fmt(h.start + h.width)}`;
   if (showsEditor) {
     summary = document.createElement('span');
     summary.className = 'expr';
     summary.append(groupedText(shown));
+
+    words = document.createElement('div');
+    words.className = 'words';
+    words.textContent = hue && hue.field !== null ? hueWords(hue) : explain(shown);
 
     editor = document.createElement('div');
     editor.className = 'tree';
@@ -688,8 +763,10 @@ function slotRow(key, saved) {
 
             // The formula follows the thumbs as they move, not when they are let go.
             if (editor) {
-              const t = hueTree({field: hue.field, start: s0, width: e0 - s0});
+              const range = {field: hue.field, start: s0, width: e0 - s0};
+              const t = trimmed.has(key) ? buildHue(range) : hueTree(range);
               summary.replaceChildren(groupedText(t));
+              words.textContent = hueWords({field: hue.field, start: s0, width: e0 - s0});
               editor.replaceChildren(nodeEditor(key, t, []));
             }
           },
@@ -737,7 +814,10 @@ function slotRow(key, saved) {
       mark();
     };
 
-    line.append(fold, summary);
+    const lines = document.createElement('div');
+    lines.className = 'lines';
+    lines.append(summary, words);
+    line.append(fold, lines);
 
     // A formula with an empty operand is held here and not sent to the rig.
     if (key in editing) {
@@ -750,7 +830,14 @@ function slotRow(key, saved) {
     ctl.append(line, editor);
   }
 
-  row.append(name, ctl);
+  // Each slot is a box of its own: the name and how it is driven along the top,
+  // and everything that belongs to it - the control, the formula, the words about
+  // it - inside.
+  const head = document.createElement('div');
+  head.className = 'slot-head';
+  head.append(name, seg);
+
+  row.append(head, ctl);
   return row;
 }
 
@@ -927,6 +1014,7 @@ async function refresh() {
   if (rig.selected !== formulasFor) {
     editing = {};
     formulaOpen.clear();
+    trimmed.clear();
     formulasFor = rig.selected;
   }
   drawPresets();

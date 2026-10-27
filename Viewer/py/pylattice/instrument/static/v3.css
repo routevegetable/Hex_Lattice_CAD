@@ -71,9 +71,13 @@ aside { min-width: 0; }
 .bin:hover { color: var(--text); }
 
 /* one slot: its name, then what drives it */
-.slot { display: grid; grid-template-columns: 90px 1fr; gap: 8px; align-items: center;
-        padding: 3px 4px; border-radius: 4px; }
-.slot .name { color: var(--dim); }
+.slot { background: var(--bg); border: 1px solid var(--line); border-left: 3px solid var(--line);
+         border-radius: 6px; padding: 6px 10px 8px; margin: 6px 0; }
+.slot.mode-value { border-left-color: #5a616c; }
+.slot.mode-field { border-left-color: #4fb3a9; }
+.slot.mode-formula { border-left-color: #b08cf0; }
+.slot-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.slot-head .name { color: var(--text); font-weight: 600; font-size: 13px; min-width: 44px; }
 .slot .expr { color: var(--dim); font-family: ui-monospace, monospace; font-size: 12px;
               overflow-wrap: anywhere; }
 .slot.empty .name { opacity: .5; }
@@ -112,8 +116,8 @@ aside { min-width: 0; }
                color: var(--dim); }
 
 /* with the field menu up, field is what is being chosen, whatever it was before */
-.ctl.open .seg button.on { background: none; color: var(--dim); }
-.ctl.open .seg button[data-id=field] { background: #24334d; color: #fff; }
+.slot.menu-open .slot-head .seg button.on { background: none; color: var(--dim); }
+.slot.menu-open .slot-head .seg button[data-id=field] { background: #24334d; color: #fff; }
 
 /* hue: one or two thumbs on a 0..2 axis, the band between them */
 .ctl { flex-wrap: wrap; }
@@ -167,3 +171,8 @@ aside { min-width: 0; }
 
 .unapplied { flex: none; font-size: 11px; color: var(--dirty); border: 1px solid var(--dirty); border-radius: 9px;
               padding: 0 8px; white-space: nowrap; }
+
+/* a formula in words, under the arithmetic */
+.words { color: var(--dim); font-family: var(--font-sans, system-ui, sans-serif); font-size: 12px; margin-top: 1px; }
+.lines { min-width: 0; flex: 1; }
+.lines .expr { display: block; }
