@@ -158,6 +158,54 @@ turned.
 **Preset chip** — the top-right button showing which preset is playing, amber
 with a dot when it has unsaved edits. Tapping it opens the preset list.
 
+### The v3 page
+
+`/v3` is a second page onto the same rig, laid out for a desktop. Its parts:
+
+**Preset bar** — the row across the top: a cell for each of the first sixteen
+presets, save and revert for the one playing, a label for its name, a *named*
+menu to play a preset by name, and *save copy as…*, which reads the playing
+preset, picks the lowest free number past the first sixteen, writes it there
+with the name and commits it - the page does all of it, with the same writes as
+any other edit.
+
+**Effect card** — one effect in the playing preset. Its switch **mutes** it, its
+bin takes it out of the preset, and opening it shows its slots. Cards run down
+the left half; a plus adds an effect, at the end. The order of the cards is the
+order the effects are drawn in, one on top of the next: drag a card by its grip
+to move it, which is an edit to the preset like any other. A button at the right
+of the preset bar lets the cards take the whole width of the window, or puts them
+back in the left half; it is kept in the browser and is not part of any preset.
+
+**Slot box** — one slot of an open card, with a header that says how it is
+driven.
+
+**Drive** — how a slot gets its value: a *constant* (a plain number), a *field*
+it follows, or a *formula*.
+
+**Knob** — a dial under a slot for a control that one of its fields asks for,
+named `field.role` (for example `param_a.value`) with its cc beside it. Drag it
+up and down to turn that knob from the page; it follows the desk when the knob
+is turned there. Turning one edits the preset, as a hand on the desk does. Tap
+one instead and it waits for you to turn a knob at the desk, then listens to
+that one from then on; tap it again to let go. That is an edit too, kept or
+dropped with the save and revert buttons in the preset bar.
+A turned copy of a rotary, such as `rotary180`, shows the dials of the rotary it copies, since they share the knobs.
+
+**Field menu** — the searchable list for plugging a field into a slot. Fields
+come in groups: the rest, faders, pads and artnet.
+
+**Hue wheel** — how a hue slot is set: one thumb for a constant, two for the
+range of a field, or of a formula that cannot leave 0–1 (fields count as 0–1). Any slot called `hue`, or `hue_` and something, gets it.
+
+**Formula editor** — opened by a slot's ƒ. A formula is made of **operations**,
+each of two **operands**; an operand is a field or a constant. Each level is a
+nested coloured box. A formula is not applied until every operand is filled in.
+In an operation, *swap* exchanges its two sides, *+ outer* makes the whole of it
+the first half of a new operation, and × removes it, keeping its first operand;
+a *+* on a single operand pairs it with a new one. A part can be dragged onto
+another operand of the same formula, and the two **trade places**.
+
 ## Running
 
 **Frame** — one pass of the render loop: clear the lattice, read MIDI, let
