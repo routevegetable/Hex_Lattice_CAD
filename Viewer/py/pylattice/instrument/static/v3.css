@@ -206,3 +206,5 @@ aside { min-width: 0; }
 .knob b { font-weight: 600; }
 .knob .now { min-width: 1.8em; text-align: right; font-variant-numeric: tabular-nums; }
 .knob .at { color: var(--dim); font-variant-numeric: tabular-nums; }
+.knob.waiting { border-color: var(--accent); }
+.knob.waiting .at { color: var(--accent); }

@@ -882,6 +882,7 @@ let controls = [];          // every knob and pad the instrument watches
 let knobs = {};             // every cc as the socket last said
 let wire = null;            // the socket, for sending a turn back the other way
 let turning = null;         // {cc, value} while a dial is being dragged
+let mapping = null;         // {name, since}: a control waiting for a knob to be turned at it
 
 // The fields a formula names, however deep.
 const fieldsIn = (n) => typeof n === 'string' ? [n]
@@ -960,7 +961,8 @@ function knobList(found) {
     const row = document.createElement('div');
     row.className = 'knob';
     row.dataset.cc = c.number;
-    row.title = `drag up and down to turn - ${c.comments.join(', ')}`;
+    row.dataset.name = c.comments[0];
+    row.title = `drag up and down to turn, tap to put ${c.comments[0]} on another knob`;
 
     const label = document.createElement('b');
     label.textContent = name;
@@ -969,12 +971,12 @@ function knobList(found) {
     now.textContent = liveValue(c);
     const at = document.createElement('span');
     at.className = 'at';
-    at.textContent = `cc ${c.number}`;
+    at.dataset.was = `cc ${c.number}${c.number === c.default ? '' : ' \u00b7 moved'}`;
     row.append(makeDial(liveValue(c)), label, now, at);
 
     let from = null;
     row.onpointerdown = (e) => {
-      from = {y: e.clientY, value: liveValue(c)};
+      from = {y: e.clientY, value: liveValue(c), turned: false};
       row.setPointerCapture(e.pointerId);
       e.preventDefault();
     };
@@ -982,6 +984,7 @@ function knobList(found) {
       if (from === null) return;
       const want = clampCC(Math.round(from.value + (from.y - e.clientY) * DRAG_PER_PX));
       if (want === liveValue(c)) return;
+      from.turned = true;
       turnKnob(c.number, want);
       setDial(row.querySelector('.dial'), want);
       now.textContent = want;
@@ -992,12 +995,57 @@ function knobList(found) {
       from = null;
       setTimeout(() => { if (turning?.cc === c.number) turning = null; }, 300);
     };
-    row.onpointerup = done;
+    row.onpointerup = () => {
+      const tapped = from !== null && !from.turned;
+      done();
+
+      // A tap that went nowhere is the assign gesture: the next knob moved
+      // at the desk is the one this control listens to. Tapping again lets go.
+      if (!tapped) return;
+      const name = c.comments[0];
+      mapping = mapping?.name === name ? null : {name, since: Date.now()};
+      paintWaiting();
+    };
     row.onpointercancel = done;
 
     box.append(row);
   }
+  paintWaiting(box);
   return box;
+}
+
+// Whichever control is waiting says so; the rest show where they are.
+function paintWaiting(within = document) {
+  for (const el of within.querySelectorAll('.knob')) {
+    const waiting = mapping !== null && el.dataset.name === mapping.name;
+    el.classList.toggle('waiting', waiting);
+    const at = el.querySelector('.at');
+    at.textContent = waiting ? 'turn a knob\u2026' : at.dataset.was;
+  }
+}
+
+// The first knob moved since the asking is the one: the whole patch goes back
+// with the control pointed at it, the same write the touch layout makes.
+async function assign(name, cc) {
+  mapping = null;
+  paintWaiting();
+
+  const n = rig.selected;
+  if (n === null) return;
+
+  const fresh = await get(`/presets/${n}`);
+  const r = await put(`/presets/${n}`,
+                      {...fresh.live, cc_map: {...fresh.live.cc_map, [name]: Number(cc)}});
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  await refresh();
+}
+
+// Whichever knob moved most recently.
+function lastMoved() {
+  let best = null;
+  for (const [cc, knob] of Object.entries(knobs))
+    if (best === null || knob.age_ms < best.knob.age_ms) best = {cc, knob};
+  return best;
 }
 
 // After a frame from the socket: every dial on the page follows the desk.
@@ -1019,6 +1067,9 @@ function listen() {
     knobs = JSON.parse(e.data);
     if (turning && knobs[turning.cc]) knobs[turning.cc].value = turning.value;
     syncKnobs();
+
+    const moved = mapping && lastMoved();
+    if (moved && moved.knob.age_ms < Date.now() - mapping.since) assign(mapping.name, moved.cc);
   };
   wire.onclose = () => setTimeout(listen, 1000);      // the app restarts; so do we
 }
