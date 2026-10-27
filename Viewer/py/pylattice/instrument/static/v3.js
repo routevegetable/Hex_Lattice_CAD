@@ -315,6 +315,13 @@ function fieldMenu(box, current, onPick) {
 // it as it was rather than at 0. Per session, and per page - it is not a setting.
 const lastValue = {};
 
+// Which slots have their formula folded to just the arithmetic - a habit of the
+// person looking, so it is kept in the browser rather than in the preset.
+const loadSet = (k) => { try { return new Set(JSON.parse(localStorage.getItem(k) ?? '[]')); }
+                         catch { return new Set(); } };
+const saveSet = (k, set) => { try { localStorage.setItem(k, JSON.stringify([...set])); } catch {} };
+const folded = loadSet('v3.folded');
+
 // ---- hue ------------------------------------------------------------------
 // A hue slot is a position on a wheel that runs 0..2, so a range can wrap. It
 // is held as a number, or as a field squeezed into a stretch of the wheel:
@@ -415,15 +422,207 @@ function hueBar(start, end, single, onInput, onCommit) {
   return bar;
 }
 
+// ---- formulas --------------------------------------------------------------
+// A slot can hold a tree: an operation over two operands, each a number, a field
+// or another operation. An edit that leaves an operand empty is held here until
+// every one is filled, since the rig will not take half a formula.
+let editing = {};                       // "effect.slot" -> a formula with an empty operand
+const formulaOpen = new Set();          // slots showing the formula editor
+
+const at = (tree, path) => path.reduce((n, step) => n[step], tree);
+const isLeaf = (n) => n === null || typeof n !== 'object' || n.gradient !== undefined;
+const complete = (n) => n === null ? false : isLeaf(n) ? true : complete(n.a) && complete(n.b);
+
+function replace(tree, path, value) {
+  if (path.length === 0) return value;
+  const [step, ...rest] = path;
+  return {...tree, [step]: replace(tree[step], rest, value)};
+}
+
+// Take the editor away, and whatever half-built formula it was holding.
+function leaveFormula(key) {
+  delete editing[key];
+  formulaOpen.delete(key);
+}
+
+function setFormula(key, tree) {
+  if (isLeaf(tree)) {            // down to one operand: no longer a formula
+    leaveFormula(key);
+    if (tree === null) drawEffects(); else writeSlot(key, tree);
+    return;
+  }
+
+  editing[key] = tree;
+  if (complete(tree)) { delete editing[key]; writeSlot(key, tree); }
+  else drawEffects();
+}
+
+// A small constant | field switch, the same idea as a slot's own.
+function makeSeg(mode, parts, small) {
+  const seg = document.createElement('span');
+  seg.className = 'seg' + (small ? ' small' : '');
+  for (const {label, id, title, onclick} of parts) {
+    const b = document.createElement('button');
+    b.className = [].concat(mode).includes(id) ? 'on' : '';
+    b.dataset.id = id;
+    b.textContent = label;
+    b.title = title;
+    if (onclick) b.onclick = onclick; else b.disabled = true;
+    seg.append(b);
+  }
+  return seg;
+}
+
+function numberBox(value, commit) {
+  const box = document.createElement('input');
+  box.className = 'num';
+  box.type = 'text';
+  box.inputMode = 'decimal';
+  box.spellcheck = false;
+  box.value = fmt(value);
+  box.title = 'type a value';
+  const typed = () => {
+    const v = parseFloat(box.value);
+    if (Number.isFinite(v)) commit(v); else box.value = fmt(value);
+  };
+  box.onchange = typed;
+  box.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); box.blur(); } };
+  box.onfocus = () => box.select();
+  return box;
+}
+
+// A constant that was swapped for a field, by where it was in the formula, so
+// switching that operand back to a constant puts the number back and not the
+// default.
+const swappedOut = new Map();
+
+function leafEditor(key, tree, path) {
+  const node = at(tree, path);
+  const row = document.createElement('div');
+  row.className = 'leaf fpick';
+  const spot = `${key}|${path.join('.')}`;
+
+  const toggle = fieldMenu(row, typeof node === 'string' ? node : null, (v) => {
+    if (typeof node === 'number') swappedOut.set(spot, node);
+    setFormula(key, replace(tree, path, v));
+  });
+  const mode = typeof node === 'number' ? 'value' : typeof node === 'string' ? 'field' : null;
+
+  row.append(makeSeg(mode, [
+    {label: 'constant', id: 'value', title: 'a plain number',
+     onclick: () => {
+       if (mode === 'value') return;
+       const back = swappedOut.get(spot) ?? DEFAULT_CONSTANT;
+       swappedOut.delete(spot);
+       setFormula(key, replace(tree, path, back));
+     }},
+    {label: 'field', id: 'field', title: 'follow a field', onclick: toggle},
+  ], true));
+
+  if (typeof node === 'number') {
+    row.append(numberBox(node, (v) => setFormula(key, replace(tree, path, v))));
+  } else if (typeof node === 'string') {
+    const chip = document.createElement('button');
+    chip.className = 'chip';
+    chip.textContent = `${node} \u25be`;
+    chip.onclick = toggle;
+    row.append(chip);
+  } else {
+    const note = document.createElement('span');
+    note.className = 'dim';
+    note.textContent = node === null ? 'choose one' : describe(node);
+    row.append(note);
+  }
+
+  // Whatever is here becomes the first operand, so this doubles as "wrap what I have".
+  if (node !== null) {
+    const wrap = document.createElement('button');
+    wrap.className = 'wrap';
+    wrap.textContent = '+ \u2212 \u00d7 \u00f7';
+    wrap.title = 'combine with something else';
+    wrap.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', a: node, b: null}));
+    row.append(wrap);
+  }
+  return row;
+}
+
+// A formula as text, with each level's brackets in the colour of its box in the
+// editor, so the two can be matched up at a glance.
+function groupedText(node, depth = 0) {
+  const out = document.createElement('span');
+  if (isLeaf(node)) { out.textContent = describe(node); return out; }
+
+  const paren = (c) => {
+    const p = document.createElement('span');
+    p.className = `paren d${depth % DEPTHS}`;
+    p.textContent = c;
+    return p;
+  };
+  out.append(paren('('), groupedText(node.a, depth + 1), ` ${OPS[node.op]} `,
+             groupedText(node.b, depth + 1), paren(')'));
+  return out;
+}
+
+// Each level of a formula is a box of its own, coloured by how deep it is. There
+// is no limit to how deep: any operand can be wrapped in another operation.
+const DEPTHS = 4;
+
+function nodeEditor(key, tree, path, depth = 0) {
+  const node = at(tree, path);
+  if (isLeaf(node)) return leafEditor(key, tree, path);
+
+  const box = document.createElement('div');
+  box.className = `node d${depth % DEPTHS}`;
+
+  const head = document.createElement('div');
+  head.className = 'ops';
+  for (const [name, glyph] of Object.entries(OPS)) {
+    const b = document.createElement('button');
+    b.className = name === node.op ? 'on' : '';
+    b.textContent = glyph;
+    b.title = name;
+    b.onclick = () => setFormula(key, replace(tree, path, {...node, op: name}));
+    head.append(b);
+  }
+  const drop = document.createElement('button');
+  drop.className = 'drop';
+  drop.textContent = 'unwrap';
+  drop.title = 'drop this operation and keep only its first operand';
+  drop.onclick = () => setFormula(key, replace(tree, path, node.a));
+  head.append(drop);
+
+  const kids = document.createElement('div');
+  kids.className = 'kids';
+  kids.append(nodeEditor(key, tree, [...path, 'a'], depth + 1),
+              nodeEditor(key, tree, [...path, 'b'], depth + 1));
+  box.append(head, kids);
+  return box;
+}
+
 // Which way a slot is driven: a number, a field, or a formula.
 const modeOf = (tree) => typeof tree === 'string' ? 'field'
                        : tree === null || typeof tree === 'number' ? 'value' : 'formula';
 
-function slotRow(key, tree) {
-  // A hue slot in a shape the wheel can show gets the wheel; an empty one is a
-  // fixed hue of 0, like any other empty slot.
+// What the wheel says, as the formula it stands for: the field squeezed into a
+// width, then moved to a start. Spelled out in full even when the width is 1
+// and the start is 0, so the editor always shows the same three things.
+const hueTree = (h) => ({op: 'add', a: {op: 'mul', a: h.field, b: Math.round(h.width * 1000) / 1000},
+                         b: Math.round(h.start * 1000) / 1000});
+
+function slotRow(key, saved) {
+  // A formula half-built in the editor is what is on show, not what is saved.
+  let tree = key in editing ? editing[key] : saved;
+  const open = formulaOpen.has(key) || key in editing;
+
+  // A hue slot in a shape the wheel can show gets the wheel, and keeps it while
+  // the formula editor is open below, for as long as the formula stays valid. An
+  // empty one is a fixed hue of 0, like any other empty slot.
   const hue = isHueSlot(key) ? parseHue(tree ?? 0) : null;
-  const mode = hue ? (hue.field === null ? 'value' : 'field') : modeOf(tree);
+
+  // The formula of a hue that has a field in it reads (field x squeeze) + start.
+  const shown = hue && hue.field !== null && !(key in editing) ? hueTree(hue) : tree;
+
+  const mode = hue ? (hue.field === null ? 'value' : 'field') : open ? 'formula' : modeOf(tree);
   if (mode === 'value') lastValue[key] = hue ? hue.start : (tree ?? 0);
 
   const row = document.createElement('div');
@@ -437,26 +636,57 @@ function slotRow(key, tree) {
   // hang off.
   const ctl = document.createElement('div');
   ctl.className = 'ctl fpick';
-  const toggle = fieldMenu(ctl, hue?.field ?? tree, (v) => writeSlot(key, !hue ? v : buildHue(
-      {field: v, start: hue.start, width: hue.field ? hue.width : 1})));
+  const toggle = fieldMenu(ctl, hue?.field ?? tree, (v) => {
+    // A hue keeps its editor open across a new field; anything else is done with it.
+    if (hue) delete editing[key]; else leaveFormula(key);
+    writeSlot(key, !hue ? v : buildHue({field: v, start: hue.start, width: hue.field ? hue.width : 1}));
+  });
 
-  const seg = document.createElement('span');
-  seg.className = 'seg';
-  const part = (label, id, title, onclick) => {
-    const b = document.createElement('button');
-    b.className = id === mode ? 'on' : '';
-    b.dataset.id = id;
-    b.textContent = label;
-    b.title = title;
-    if (onclick) b.onclick = onclick; else b.disabled = true;
-    seg.append(b);
-  };
-  part('constant', 'value', 'a plain number',
-       () => { if (mode !== 'value') writeSlot(key, lastValue[key] ?? DEFAULT_CONSTANT); });
-  part('field', 'field', 'follow a field', toggle);
-  part('\u0192', 'formula', mode === 'formula' ? 'a formula' : 'formulas come later');
+  const seg = makeSeg(open && hue ? [mode, 'formula'] : mode, [
+    {label: 'constant', id: 'value', title: 'a plain number',
+     onclick: () => {
+       if (mode === 'value') return;
+       leaveFormula(key);
+       writeSlot(key, lastValue[key] ?? DEFAULT_CONSTANT);
+     }},
+    {label: 'field', id: 'field', title: 'follow a field', onclick: toggle},
+    {label: '\u0192', id: 'formula',
+     title: open && hue ? 'close the formula' : 'combine fields and constants',
+     onclick: () => {
+       if (open) {
+         // A hue the wheel can read can close it; any other formula has no way back.
+         if (hue) { leaveFormula(key); drawEffects(); }
+         return;
+       }
+       if (mode === 'formula') return;
+       formulaOpen.add(key);
+       if (hue && hue.field === null) {
+         // A fixed hue becomes the start; the field is left to choose.
+         editing[key] = {op: 'add', a: {op: 'mul', a: null, b: 1}, b: hue.start};
+       } else if (!hue && isLeaf(tree)) {
+         // A single operand becomes the first of two; the second is left to fill in.
+         editing[key] = {op: 'mul', a: tree ?? 0, b: null};
+       }
+       drawEffects();
+     }},
+  ]);
 
   ctl.append(seg);
+
+  // A formula shows as arithmetic, with the editor under it when it is open. The
+  // editor can be folded away, leaving only the arithmetic.
+  const showsEditor = mode === 'formula' || (open && hue);
+  let summary = null, editor = null;
+  if (showsEditor) {
+    summary = document.createElement('span');
+    summary.className = 'expr';
+    summary.append(groupedText(shown));
+
+    editor = document.createElement('div');
+    editor.className = 'tree';
+    editor.hidden = folded.has(key);
+    editor.append(nodeEditor(key, shown, []));
+  }
 
   if (mode === 'field') {
     const chip = document.createElement('button');
@@ -471,7 +701,16 @@ function slotRow(key, tree) {
       readout.className = 'dim';
       ctl.append(readout);
       ctl.append(hueBar(hue.start, hue.start + hue.width, false,
-          (s0, e0) => { readout.textContent = `${fmt(s0)} ${e0 >= s0 ? '\u2192' : '\u2190'} ${fmt(e0)}`; },
+          (s0, e0) => {
+            readout.textContent = `${fmt(s0)} ${e0 >= s0 ? '\u2192' : '\u2190'} ${fmt(e0)}`;
+
+            // The formula follows the thumbs as they move, not when they are let go.
+            if (editor) {
+              const t = hueTree({field: hue.field, start: s0, width: e0 - s0});
+              summary.replaceChildren(groupedText(t));
+              editor.replaceChildren(nodeEditor(key, t, []));
+            }
+          },
           (s0, e0) => writeSlot(key, buildHue({field: hue.field, start: s0, width: e0 - s0}))));
     }
   } else if (mode === 'value' && hue) {
@@ -494,11 +733,30 @@ function slotRow(key, tree) {
     ctl.append(bar, box);
   } else if (mode === 'value') {
     ctl.append(constantControl(tree ?? 0, (v) => writeSlot(key, v)));
-  } else {
-    const expr = document.createElement('span');
-    expr.className = 'expr';
-    expr.textContent = describe(tree);
-    ctl.append(expr);
+  }
+
+  // The arithmetic, then the editor: always for a formula, and below the hue
+  // slider when it opens one.
+  if (showsEditor) {
+    const line = document.createElement('div');
+    line.className = 'formula-line';
+
+    const fold = document.createElement('button');
+    fold.className = 'fold';
+    const mark = () => {
+      fold.textContent = editor.hidden ? '\u25b8' : '\u25be';
+      fold.title = editor.hidden ? 'show the editor' : 'show only the arithmetic';
+    };
+    mark();
+    fold.onclick = () => {
+      editor.hidden = !editor.hidden;
+      if (editor.hidden) folded.add(key); else folded.delete(key);
+      saveSet('v3.folded', folded);
+      mark();
+    };
+
+    line.append(fold, summary);
+    ctl.append(line, editor);
   }
 
   row.append(name, ctl);
@@ -670,8 +928,16 @@ function drawEffects() {
 
 // ---- keeping up ----------------------------------------------------------
 
+// Which preset the half-built formulas belong to. Another one has its own slots.
+let formulasFor = null;
+
 async function refresh() {
   [rig, views] = await Promise.all([get('/rig'), get('/presets')]);
+  if (rig.selected !== formulasFor) {
+    editing = {};
+    formulaOpen.clear();
+    formulasFor = rig.selected;
+  }
   drawPresets();
   if (!adding && !picking && !inUse()) drawEffects();
 }
