@@ -51,15 +51,15 @@ class CCMapping:
 
 @dataclass
 class CCState:
-    """One CC number: what it last read, and what is listening to it.
+    """One CC number: what it last read.
 
     The state belongs to the knob, not to whatever is plugged into it, so a
-    value is a knob position rather than a control's memory of one. Several
-    names can sit on the same number and all of them read it.
+    value is a knob position rather than a control's memory of one. What is
+    listening is not here: a CCMapping already says which number its control
+    is on, and watched_ccs() reads that the other way round.
     """
 
     event: EventLatch[int] = field(default_factory=EventLatch)
-    comments: set[str] = field(default_factory=set)
 
     def __post_init__(self):
         # Seeded, so a knob nobody has touched reads 0 rather than None. Its
@@ -213,14 +213,21 @@ class MIDI:
 
     def _attach(self, comment: str, number: int):
         """Point a named control at a CC number, off whatever it was on."""
-        mapping = self._ccs[comment]
-        old = mapping.midi_cc
+        self._ccs[comment].midi_cc = number
 
-        if old is not None and old in self._cc_by_id:
-            self._cc_by_id[old].comments.discard(comment)
+        # Make sure the knob has a state, so a control that has been mapped
+        # can always be read even if that number has never said anything.
+        self._cc_state(number)
 
-        mapping.midi_cc = number
-        self._cc_state(number).comments.add(comment)
+    def watched_ccs(self) -> set[int]:
+        """The CC numbers a named control is pointed at.
+
+        Read off the mappings each time rather than kept alongside them: they
+        are the same fact the other way round. Which *names* are on a number
+        is nobody's question here - whoever is drawing has the mappings.
+        """
+        return {mapping.midi_cc for mapping in self._ccs.values()
+                if mapping.midi_cc is not None}
 
     def cc_map(self) -> dict[str, int]:
         """Where every named control is plugged in, by name."""
@@ -242,7 +249,7 @@ class MIDI:
             if wanted is not None and wanted != m.midi_cc:
                 self._attach(name, wanted)
 
-    def program(self, comment: str | None = None) -> Callable[[], Event[int]]:
+    def program(self) -> Callable[[], Event[int]]:
         """
         Watch the program. Returns a getter for the latest program change -
         its `data` is the 0-127 program number, its `when` is when it arrived.
@@ -251,9 +258,6 @@ class MIDI:
         program change, though: it carries `when` 0, which nothing that watches
         for the number changing will mistake for a selection.
         """
-        if comment:
-            self._program.comments.add(comment)
-
         return self._program.event.read
 
     def get_mappings(self) -> dict[str, CCMapping]:

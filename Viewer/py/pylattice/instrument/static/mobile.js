@@ -95,6 +95,12 @@ const controlsOwnedBy = (name) => controls.filter(
 // The CC numbers one of them listens to.
 const knobsOf = (name) => new Set(controlsOwnedBy(name).map(c => c.number));
 
+// What a CC number is for. /controls says, one entry per named control, so a
+// number two things listen to turns up twice. The socket carries values only:
+// a name changes when a patch moves a mapping, not ten times a second.
+const commentsOn = (cc) => controls.filter(c => c.kind === 'cc' && c.number === cc)
+                                   .flatMap(c => c.comments);
+
 // The effects in the chain that took knobs of their own. They earn a place on
 // the controls screen for the same reason a field does - something on the desk
 // moves them - so they are listed beside the fields rather than only being
@@ -144,7 +150,7 @@ function replace(tree, path, value) {
 // is in the store too, and a preset is a set of settings rather than a log of
 // what came down the wire.
 const liveCCs = () => Object.fromEntries(
-    Object.entries(knobs).filter(([, k]) => k.comments.length)
+    Object.entries(knobs).filter(([cc]) => commentsOn(Number(cc)).length)
                          .map(([cc, k]) => [cc, k.value]));
 
 // A patch as the page holds it: everything the server said about it except the
@@ -160,7 +166,6 @@ const heldPatch = ({ccs, ...rest}) => rest;
 const seedKnobs = () => Object.fromEntries(
     controls.filter(c => c.kind === 'cc')
             .map(c => [String(c.number), {cc: c.number, value: c.value,
-                                          comments: c.comments,
                                           age_ms: Infinity}]));
 
 // Send the whole patch, not just the slot that changed: a write replaces a
@@ -992,8 +997,9 @@ function drawKnob(k) {
 
   ccNum.textContent = `cc ${k.cc}`;
   ccVal.textContent = k.value;
-  ccComments.textContent = k.comments.length ? k.comments.join(' · ') : 'not mapped';
-  ccComments.className = k.comments.length ? '' : 'none';
+  const what = commentsOn(k.cc);
+  ccComments.textContent = what.length ? what.join(' · ') : 'not mapped';
+  ccComments.className = what.length ? '' : 'none';
   ccbar.hidden = false;
 }
 

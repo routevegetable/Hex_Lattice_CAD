@@ -67,7 +67,6 @@ class Knob:
     """
     cc: int
     value: int
-    comments: list[str] = field(default_factory=list)
     age_ms: int = 0
 
 
@@ -154,17 +153,19 @@ class Console:
             now = Event.for_now().when
 
             return {number: Knob(cc=number, value=state.value,
-                                 comments=sorted(state.comments),
                                  age_ms=now - state.event.read().when)
                     for number, state in self._midi.get_ccs_by_number().items()}
 
     # -- settings ---------------------------------------------------------
 
     def _live_ccs(self) -> dict[int, int]:
-        """Where every watched knob is sitting now."""
+        """Where every watched knob is sitting now - the ones a control is
+        pointed at, not every stray that has turned up on the wire."""
+        watched = self._midi.watched_ccs()
+
         return {number: state.value
                 for number, state in self._midi.get_ccs_by_number().items()
-                if state.comments}
+                if number in watched}
 
     def _select(self, number: int | None):
         """Say which preset is playing. The bank needs to know too, so it can

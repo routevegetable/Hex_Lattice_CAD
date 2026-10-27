@@ -101,6 +101,8 @@ Fields are handed one of these rather than the MIDI object itself.
 **Watched** — a control something actually asked for. A stray that merely
 turned up on the wire (a bank select, an all-notes-off) still gets recorded so
 it can be seen arriving, but it is not a setting and never enters a preset.
+That filter is what keeps **dirty** meaningful: the fold only merges, never
+prunes, so folding strays would re-dirty a just-committed preset.
 
 **Hidden** — plumbing rather than a knob. The 16 step buttons are hidden: they
 are watched and saved, but picking a preset is not someone turning a knob, so
