@@ -9,9 +9,15 @@ from pylattice.effects.glitter import Glitter
 from pylattice.effects.bisexual_spin import BisexualSpin
 from pylattice.effects.map_fiber import MapFiber
 from pylattice.effects.map_tiles import MapTiles
+from pylattice.effects.sparks import Sparks
 from pylattice.effects.sunrise import Sunrise
 from pylattice.effects.pluck import Pluck, WobbleNet
-from pylattice.effects.boom_zaps import ProbZaps, init_boom_zaps, prob_zaps, run_boom_zaps
+from pylattice.effects.boom_zaps import (
+    ProbZaps,
+    init_boom_zaps,
+    prob_zaps,
+    run_boom_zaps,
+)
 from pylattice.effects.waves import BgWaves, bg_waves
 from pylattice.examples.colors import hsv, vary
 from pylattice.fields.types import Slot
@@ -28,12 +34,9 @@ from pylattice.instrument.patch import Patch, PresetBank
 from pylattice.instrument.types import Effect
 
 
-
-
-
-
 class DumbEffect(Effect):
     value: Slot
+
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
 
         for end in graph.ends():
@@ -63,7 +66,8 @@ class EFFECTS:
     map_fiber2 = MapFiber()
     map_fiber3 = MapFiber()
     glitter = Glitter()
-    #map_tiles = MapTiles()
+    sparks = Sparks()
+    # map_tiles = MapTiles()
 
 
 init_boom_zaps(graph, lattice)
@@ -72,6 +76,7 @@ init_boom_zaps(graph, lattice)
 BANK = PresetBank(Path("presets"))
 CONSOLE = Console(midi, FIELDS, EFFECTS, BANK)
 serve(CONSOLE)
+
 
 def load_preset(number: int):
     """Switch the bank to a preset, saying so either way."""
@@ -98,7 +103,7 @@ def check_program():
     chosen = program()
 
     if chosen.when == program_seen:
-        return              # nothing new - the seed included
+        return  # nothing new - the seed included
 
     program_seen = chosen.when
 
@@ -107,7 +112,6 @@ def check_program():
         return
 
     load_preset(chosen.data)
-
 
 
 # PyPy collects incrementally, so a bounded step per frame is what its GC
@@ -158,25 +162,23 @@ while True:
     
     # To sec
     dt = (t1 - t0) / 1000000000
-    
+
     PERIOD = 0.001
     if dt < PERIOD:
         time.sleep(PERIOD - dt)
-        
+
     continue
 
-
     # Background effects
-    
+
     # Note effects
-    
+
     # Impulse effects
-    
-    
+
     bg_waves(graph, lattice, now, param_field, note_wipe)
-    
-    #run_boom_zaps(now)
+
+    # run_boom_zaps(now)
     prob_zaps(now, polytouch_field * note_wipe)
-    
+
     lattice.show()
     time.sleep(0.05)

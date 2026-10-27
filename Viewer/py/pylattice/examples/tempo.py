@@ -188,7 +188,11 @@ class EventLatch(Generic[TData]):
 
         trigger = periodic(now, period, offset)
 
-        rfloat = (trigger.rand(salt) % 100) / 100
+        # A wide modulus, not % 100: likelihood is often much finer than 1%
+        # once enough independent callers share one likelihood value (many
+        # edges/fibers each rolling their own chance against it) - % 100
+        # would floor anything below 1% up to 1%, silently.
+        rfloat = (trigger.rand(salt) % 1_000_000) / 1_000_000
 
         return self.latch(Event(trigger.when, None), rfloat < likelihood)
 
