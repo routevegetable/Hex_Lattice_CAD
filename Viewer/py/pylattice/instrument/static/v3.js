@@ -473,24 +473,6 @@ function makeSeg(mode, parts, small) {
   return seg;
 }
 
-function numberBox(value, commit) {
-  const box = document.createElement('input');
-  box.className = 'num';
-  box.type = 'text';
-  box.inputMode = 'decimal';
-  box.spellcheck = false;
-  box.value = fmt(value);
-  box.title = 'type a value';
-  const typed = () => {
-    const v = parseFloat(box.value);
-    if (Number.isFinite(v)) commit(v); else box.value = fmt(value);
-  };
-  box.onchange = typed;
-  box.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); box.blur(); } };
-  box.onfocus = () => box.select();
-  return box;
-}
-
 // A constant that was swapped for a field, by where it was in the formula, so
 // switching that operand back to a constant puts the number back and not the
 // default.
@@ -520,7 +502,7 @@ function leafEditor(key, tree, path) {
   ], true));
 
   if (typeof node === 'number') {
-    row.append(numberBox(node, (v) => setFormula(key, replace(tree, path, v))));
+    row.append(constantControl(node, (v) => setFormula(key, replace(tree, path, v))));
   } else if (typeof node === 'string') {
     const chip = document.createElement('button');
     chip.className = 'chip';
@@ -538,8 +520,8 @@ function leafEditor(key, tree, path) {
   if (node !== null) {
     const wrap = document.createElement('button');
     wrap.className = 'wrap';
-    wrap.textContent = '+ \u2212 \u00d7 \u00f7';
-    wrap.title = 'combine with something else';
+    wrap.textContent = '+';
+    wrap.title = 'add another term: this becomes the first half of a new operation, and you choose the other half';
     wrap.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', a: node, b: null}));
     row.append(wrap);
   }
@@ -586,8 +568,8 @@ function nodeEditor(key, tree, path, depth = 0) {
   }
   const drop = document.createElement('button');
   drop.className = 'drop';
-  drop.textContent = 'unwrap';
-  drop.title = 'drop this operation and keep only its first operand';
+  drop.textContent = '\u00d7';
+  drop.title = 'remove this operation and keep only its first operand';
   drop.onclick = () => setFormula(key, replace(tree, path, node.a));
   head.append(drop);
 
@@ -756,6 +738,15 @@ function slotRow(key, saved) {
     };
 
     line.append(fold, summary);
+
+    // A formula with an empty operand is held here and not sent to the rig.
+    if (key in editing) {
+      const note = document.createElement('span');
+      note.className = 'unapplied';
+      note.textContent = 'not applied yet';
+      note.title = 'fill in every empty operand and it goes to the rig';
+      line.append(note);
+    }
     ctl.append(line, editor);
   }
 

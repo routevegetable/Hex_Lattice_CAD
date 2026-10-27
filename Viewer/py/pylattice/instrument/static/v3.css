@@ -152,11 +152,11 @@ aside { min-width: 0; }
 .ops { display: flex; gap: 3px; margin: 2px 0; }
 .ops button { padding: 0 8px; min-width: 26px; }
 .ops button.on { border-color: var(--g); color: var(--g); }
-.ops .drop { margin-left: auto; color: var(--dim); font-size: 12px; padding: 0 8px; }
+.ops .drop { margin-left: auto; color: var(--dim); font-size: 16px; line-height: 1; padding: 0 8px; }
 .leaf { display: flex; align-items: center; gap: 6px; margin: 3px 0; flex-wrap: wrap; position: relative; }
 .leaf .num { flex: none; width: 58px; background: var(--panel); color: var(--text);
              border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; font: inherit; }
-.leaf .wrap { font-size: 11px; padding: 0 6px; color: var(--dim); white-space: nowrap; }
+.leaf .wrap { font-size: 14px; line-height: 1; padding: 0 7px; color: var(--dim); }
 .seg.small button { font-size: 12px; padding: 1px 7px; }
 
 /* the arithmetic of a formula, with a fold for the editor under it */
@@ -164,3 +164,6 @@ aside { min-width: 0; }
 .fold { padding: 0; width: 20px; height: 20px; line-height: 1; border: none; background: none;
         color: var(--dim); font-size: 14px; }
 .tree[hidden] { display: none; }
+
+.unapplied { flex: none; font-size: 11px; color: var(--dirty); border: 1px solid var(--dirty); border-radius: 9px;
+              padding: 0 8px; white-space: nowrap; }
