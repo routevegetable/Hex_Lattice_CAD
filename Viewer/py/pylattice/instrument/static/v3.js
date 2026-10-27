@@ -872,6 +872,159 @@ const modeOf = (tree) => typeof tree === 'string' ? 'field'
 const hueTree = (h) => ({op: 'add', a: {op: 'mul', a: h.field, b: Math.round(h.width * 1000) / 1000},
                          b: Math.round(h.start * 1000) / 1000});
 
+// ---- turning a field's knobs ----------------------------------------------
+// A field takes its values from knobs on the desk, and its slot can show them:
+// a dial for each control one of its fields asks for. Drag a dial up and down
+// to turn it - the preset that is playing takes it up as if a hand had - and it
+// follows the desk when the knob is turned there. Both go over /ws/knobs, which
+// sends every cc ten times a second and takes {cc, value} to move one.
+let controls = [];          // every knob and pad the instrument watches
+let knobs = {};             // every cc as the socket last said
+let wire = null;            // the socket, for sending a turn back the other way
+let turning = null;         // {cc, value} while a dial is being dragged
+
+// The fields a formula names, however deep.
+const fieldsIn = (n) => typeof n === 'string' ? [n]
+    : n !== null && typeof n === 'object'
+      ? (n.gradient !== undefined ? fieldsIn(n.of) : [...fieldsIn(n.a), ...fieldsIn(n.b)])
+      : [];
+
+// The knobs behind a formula: a control's comment is `field.role`, so it
+// belongs to a field when it begins with that field's name.
+const controlsFor = (tree) => {
+  const names = fieldsIn(tree);
+  return controls.filter(c => c.kind === 'cc' && !c.hidden &&
+      c.comments.some(t => names.some(n => t.startsWith(n + '.'))));
+};
+
+const CC_MAX = 127;
+const DRAG_PER_PX = 0.8;            // a touch over 150px for the whole range
+const clampCC = (v) => Math.max(0, Math.min(CC_MAX, v));
+const liveValue = (c) => knobs[c.number]?.value ?? c.value;
+
+// A rev counter: three quarters of a turn with the gap at the bottom.
+const DIAL_FROM = Math.PI * 0.75, DIAL_SWEEP = Math.PI * 1.5, DIAL_R = 15;
+const dialAt = (r, a) => [20 + r * Math.cos(a), 20 + r * Math.sin(a)];
+
+function arc(from, to) {
+  const [x0, y0] = dialAt(DIAL_R, from), [x1, y1] = dialAt(DIAL_R, to);
+  const big = to - from > Math.PI ? 1 : 0;
+  return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${DIAL_R} ${DIAL_R} 0 ${big} 1 ` +
+         `${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+
+function makeDial(value) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 40 40');
+  svg.setAttribute('class', 'dial');
+
+  const track = document.createElementNS(ns, 'path');
+  track.setAttribute('class', 'track');
+  track.setAttribute('d', arc(DIAL_FROM, DIAL_FROM + DIAL_SWEEP));
+  const fill = document.createElementNS(ns, 'path');
+  fill.setAttribute('class', 'fill');
+  const pin = document.createElementNS(ns, 'line');
+  pin.setAttribute('class', 'pin');
+  svg.append(track, fill, pin);
+
+  setDial(svg, value);
+  return svg;
+}
+
+function setDial(svg, value) {
+  const frac = Math.max(0, Math.min(1, value / CC_MAX));
+  const a = DIAL_FROM + DIAL_SWEEP * frac;
+  svg.querySelector('.fill').setAttribute('d', frac > 0.002 ? arc(DIAL_FROM, a) : '');
+
+  const [x1, y1] = dialAt(5, a), [x2, y2] = dialAt(13, a);
+  const pin = svg.querySelector('.pin');
+  pin.setAttribute('x1', x1.toFixed(2)); pin.setAttribute('y1', y1.toFixed(2));
+  pin.setAttribute('x2', x2.toFixed(2)); pin.setAttribute('y2', y2.toFixed(2));
+}
+
+// Turn a knob from here: it shows at once, and goes out over the socket.
+function turnKnob(cc, value) {
+  turning = {cc, value};
+  if (knobs[cc]) knobs[cc].value = value;
+  if (wire && wire.readyState === WebSocket.OPEN) wire.send(JSON.stringify({cc: Number(cc), value}));
+}
+
+function knobList(found) {
+  const box = document.createElement('div');
+  box.className = 'knobs';
+
+  for (const c of found) {
+    const name = c.comments[0] ?? `cc ${c.number}`;
+
+    const row = document.createElement('div');
+    row.className = 'knob';
+    row.dataset.cc = c.number;
+    row.title = `drag up and down to turn - ${c.comments.join(', ')}`;
+
+    const label = document.createElement('b');
+    label.textContent = name;
+    const now = document.createElement('span');
+    now.className = 'now';
+    now.textContent = liveValue(c);
+    const at = document.createElement('span');
+    at.className = 'at';
+    at.textContent = `cc ${c.number}`;
+    row.append(makeDial(liveValue(c)), label, now, at);
+
+    let from = null;
+    row.onpointerdown = (e) => {
+      from = {y: e.clientY, value: liveValue(c)};
+      row.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    };
+    row.onpointermove = (e) => {
+      if (from === null) return;
+      const want = clampCC(Math.round(from.value + (from.y - e.clientY) * DRAG_PER_PX));
+      if (want === liveValue(c)) return;
+      turnKnob(c.number, want);
+      setDial(row.querySelector('.dial'), want);
+      now.textContent = want;
+    };
+    // A frame already on its way may still carry the value from before the last
+    // turn, so the dial is left to the drag for a moment after letting go.
+    const done = () => {
+      from = null;
+      setTimeout(() => { if (turning?.cc === c.number) turning = null; }, 300);
+    };
+    row.onpointerup = done;
+    row.onpointercancel = done;
+
+    box.append(row);
+  }
+  return box;
+}
+
+// After a frame from the socket: every dial on the page follows the desk.
+function syncKnobs() {
+  for (const el of document.querySelectorAll('#effects .knob')) {
+    const k = knobs[el.dataset.cc];
+    if (!k) continue;
+    setDial(el.querySelector('.dial'), k.value);
+    el.querySelector('.now').textContent = k.value;
+  }
+}
+
+// Pushed, not polled: the knobs move continuously.
+function listen() {
+  const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
+  wire = new WebSocket(`${scheme}://${location.host}/ws/knobs`);
+
+  wire.onmessage = (e) => {
+    knobs = JSON.parse(e.data);
+    if (turning && knobs[turning.cc]) knobs[turning.cc].value = turning.value;
+    syncKnobs();
+  };
+  wire.onclose = () => setTimeout(listen, 1000);      // the app restarts; so do we
+}
+
+listen();
+
 function slotRow(key, saved) {
   // A formula half-built in the editor is what is on show, not what is saved.
   let tree = key in editing ? editing[key] : saved;
@@ -1063,6 +1216,9 @@ function slotRow(key, saved) {
   head.append(name, seg);
 
   row.append(head, ctl);
+
+  const found = controlsFor(shown);
+  if (found.length) row.append(knobList(found));
   return row;
 }
 
@@ -1316,7 +1472,7 @@ document.getElementById('save-copy').onclick = async () => {
 let formulasFor = null;
 
 async function refresh() {
-  [rig, views] = await Promise.all([get('/rig'), get('/presets')]);
+  [rig, views, controls] = await Promise.all([get('/rig'), get('/presets'), get('/controls')]);
   if (rig.selected !== formulasFor) {
     editing = {};
     formulaOpen.clear();
@@ -1324,7 +1480,7 @@ async function refresh() {
     formulasFor = rig.selected;
   }
   drawPresets();
-  if (!adding && !picking && !dragging && !inUse()) drawEffects();
+  if (!adding && !picking && !dragging && !turning && !inUse()) drawEffects();
 }
 
 async function drawStats() {
