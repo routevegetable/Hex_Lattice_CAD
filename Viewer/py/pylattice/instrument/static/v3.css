@@ -23,6 +23,11 @@ header { display: flex; align-items: center; gap: 12px; padding: 10px 16px;
 .pcell.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 /* edits that are not on disk */
 .pcell.dirty { border-color: var(--dirty); color: var(--dirty); }
+/* the playing preset's name, amber while it has unsaved edits - a saved preset has
+   no cell on the bar to show that */
+.preset-name { min-width: 160px; font-weight: 600; }
+.preset-name.dirty { color: var(--dirty); }
+#named { flex: none; }
 /* the same glyphs as the touch layout; the save one is a colour emoji, so
    `color` does nothing to it - dim the lot */
 .pcell.act { font-size: 1rem; line-height: 1; }

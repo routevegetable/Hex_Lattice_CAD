@@ -1,7 +1,9 @@
 // v3: effects down the left, whatever they hold on the right.
 
 const get = (p) => fetch(p).then(r => r.json());
-const post = (p) => fetch(p, {method: 'POST'});
+const post = (p, body) => fetch(p, body === undefined ? {method: 'POST'} :
+                                 {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                  body: JSON.stringify(body)});
 const put = (p, body) => fetch(p, {method: 'PUT', headers: {'Content-Type': 'application/json'},
                                    body: JSON.stringify(body)});
 
@@ -65,6 +67,26 @@ function buildPresets() {
   [save, revert] = bar.querySelectorAll('.act');
 }
 
+// What a preset is called, if it has a name: it is a field of the patch, so it
+// comes with the preset like anything else in it. The page gives one when it makes
+// a copy and offers no way to change it after - to call a preset something else,
+// save another copy.
+const nameOf = (n) => views[n]?.live.name ?? null;
+const namedNumbers = () => Object.keys(views).map(Number).filter(nameOf).sort((a, b) => a - b);
+
+const nameBox = document.getElementById('preset-name');
+const numBox = document.getElementById('preset-num');
+const namedBox = document.getElementById('named');
+const namedOpen = document.getElementById('named-open');
+
+function drawName() {
+  const n = rig.selected;
+  nameBox.textContent = nameOf(n) ?? '';
+  nameBox.classList.toggle('dirty', n !== null && isDirty(views[n]));
+  numBox.textContent = n === null ? '' : `#${n}`;
+  namedOpen.disabled = !namedNumbers().length;
+}
+
 function drawPresets() {
   if (cells.length !== rig.size) buildPresets();
 
@@ -73,6 +95,8 @@ function drawPresets() {
                   (isDirty(views[n]) ? ' dirty' : '') +
                   (n === rig.selected ? ' on' : '');
   });
+
+  drawName();
 
   const n = rig.selected;
   const dirty = n !== null && isDirty(views[n]);
@@ -215,9 +239,20 @@ const GROUPS = ['fields', 'faders', 'pads', 'artnet'];
 const DEFAULT_CONSTANT = 0.5;
 const groupOf = (f) => f.group ?? 'fields';
 
+// What the menu lists. Each entry has the group it sits under, the text to show
+// and a hint beside it, and the value that is handed back when it is chosen. The
+// order of the entries is the order shown; the search looks in all three words.
+const fieldSource = {
+  placeholder: 'search fields, faders, pads',
+  entries: () => GROUPS.flatMap(group =>
+      rig.fields.filter(f => groupOf(f) === group)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(f => ({group, text: f.name, hint: '', value: f.name}))),
+};
+
 // The menu hangs off `box`, which the caller places and whatever opens it sits
 // in. This returns the thing that opens it, or closes it if it is already up.
-function fieldMenu(box, current, onPick) {
+function fieldMenu(box, current, onPick, source = fieldSource) {
   const close = () => {
     document.removeEventListener('pointerdown', away, true);
     box.querySelector('.fpick-list')?.remove();
@@ -238,7 +273,7 @@ function fieldMenu(box, current, onPick) {
     const search = document.createElement('input');
     search.className = 'fpick-search';
     search.type = 'search';
-    search.placeholder = 'search fields, faders, pads';
+    search.placeholder = source.placeholder;
     const body = document.createElement('div');
     body.className = 'fpick-body';
     menu.append(search, body);
@@ -263,19 +298,19 @@ function fieldMenu(box, current, onPick) {
 
     const render = () => {
       const terms = search.value.toLowerCase().split(/\s+/).filter(Boolean);
-      const hit = (f) => terms.every(t => `${f.name} ${groupOf(f)}`.toLowerCase().includes(t));
+      const hit = (e) => terms.every(t => `${e.text} ${e.group} ${e.hint}`.toLowerCase().includes(t));
 
       body.replaceChildren();
-      for (const group of GROUPS) {
-        const mine = rig.fields.filter(f => groupOf(f) === group && hit(f))
-                               .sort((a, b) => a.name.localeCompare(b.name));
-        if (!mine.length) continue;
-
-        const head = document.createElement('div');
-        head.className = 'fpick-group';
-        head.textContent = group;
-        body.append(head);
-        for (const f of mine) body.append(item(f.name, '', f.name, f.name === current));
+      let group = null;
+      for (const e of source.entries().filter(hit)) {
+        if (e.group !== group) {
+          group = e.group;
+          const head = document.createElement('div');
+          head.className = 'fpick-group';
+          head.textContent = group;
+          body.append(head);
+        }
+        body.append(item(e.text, e.hint, e.value, e.value === current));
       }
 
       rows = [...body.querySelectorAll('.fpick-item')];
@@ -1181,6 +1216,76 @@ function drawEffects() {
     list.append(card);
   }
 }
+
+// ---- presets by name -------------------------------------------------------
+
+// Every preset with a name, in the menu the fields use. Only the ones saved
+// past the first sixteen have names, so the menu lists those, each by number.
+const presetSource = {
+  placeholder: 'search presets by name or number',
+  entries: () => namedNumbers()
+      .map(n => ({group: 'saved', text: nameOf(n), hint: `#${n}`, value: n})),
+};
+
+// Playing one is what its cell does, so it is the same call.
+namedOpen.onclick = fieldMenu(namedBox, null, (n) => act(`/presets/${n}/select`), presetSource);
+
+// A name begins with a letter, then letters, digits and single dashes, and is not
+// one another preset has, ignoring case. Beginning with a letter means a name can
+// never be mistaken for a preset number. Returns why not, or null.
+const MAX_NAME = 32;
+function nameProblem(name) {
+  if (!name) return 'a name cannot be empty';
+  if (name.length > MAX_NAME) return `a name is at most ${MAX_NAME} characters`;
+  if (!/^[A-Za-z0-9-]+$/.test(name)) return 'a name can only use letters, digits and dashes';
+  if (!/^[A-Za-z]/.test(name)) return 'a name must begin with a letter';
+  if (name.includes('--')) return 'a name cannot have two dashes in a row';
+
+  const taken = namedNumbers().find(n => nameOf(n).toLowerCase() === name.toLowerCase());
+  return taken === undefined ? null : `preset ${taken} is already called "${nameOf(taken)}"`;
+}
+
+// The lowest number past the first sixteen that nothing holds. A program change
+// cannot say more than 127, so that is where they stop.
+const PROGRAM_LIMIT = 128;
+function freeNumber() {
+  for (let n = rig.size; n < PROGRAM_LIMIT; n++) if (!(n in views)) return n;
+  return null;
+}
+
+// Keep a copy of what is playing under a name: read it, write it to a number of
+// its own with the name in it, and commit that. The server only holds what it is
+// given. This preset keeps playing, so a line beside the button says what the copy
+// was called and where it went, for a few seconds.
+const savedNote = document.getElementById('saved');
+let savedTimer = null;
+
+document.getElementById('save-copy').onclick = async () => {
+  if (rig.selected === null) { alert('Nothing is playing to copy.'); return; }
+
+  const name = prompt('Name for the copy (begin with a letter; then letters, digits and single dashes)')?.trim();
+  if (!name) return;
+
+  // What is on the page may be a second old; the problems below are about what is there now.
+  views = await get('/presets');
+  const problem = nameProblem(name);
+  if (problem) { alert(problem); return; }
+
+  const number = freeNumber();
+  if (number === null) { alert(`The bank is full - presets go up to ${PROGRAM_LIMIT - 1}`); return; }
+
+  const playing = await get(`/presets/${rig.selected}`);
+  let r = await put(`/presets/${number}`, {...playing.live, name});
+  if (!r.ok) { alert((await r.json()).detail); return; }
+
+  r = await post(`/presets/${number}/commit`);
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  await refresh();
+
+  savedNote.textContent = `saved ${name} as #${number}`;
+  clearTimeout(savedTimer);
+  savedTimer = setTimeout(() => { savedNote.textContent = ''; }, 4000);
+};
 
 // ---- keeping up ----------------------------------------------------------
 
