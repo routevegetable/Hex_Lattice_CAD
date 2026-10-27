@@ -1,6 +1,6 @@
 """Which edges count: a field that is 1 on the edge classes it names."""
 
-from pylattice.examples.midi import FloatRange, MIDIFor, at
+from pylattice.examples.midi import FloatRange, MIDIFor
 from pylattice.examples.tempo import Event, EventLatch, sweep
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EdgeClass, EndRef, Graph
@@ -36,7 +36,7 @@ class BurstField(ScalarField):
             #latch.latch(n, press)
             #print("latch")
 
-        decay = at(self.DECAY, self._decay().data)
+        decay = self.DECAY.at(self._decay().data)
         
 
         v = sweep(now, latch.read(), decay, 1, 0, 0)

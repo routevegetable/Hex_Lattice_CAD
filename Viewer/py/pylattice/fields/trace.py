@@ -2,7 +2,7 @@
 import math
 from collections.abc import Iterator
 
-from pylattice.examples.midi import FloatRange, MIDIFor, at
+from pylattice.examples.midi import FloatRange, MIDIFor
 from pylattice.examples.tempo import Event, History
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EndRef, Graph, TileRef
@@ -215,11 +215,11 @@ class RandomTraceField(ScalarField):
         self._state = {}
 
         # ms the head takes to cross one edge.
-        step = at(self.SPEED, self._speed_cc().data)
+        step = self.SPEED.at(self._speed_cc().data)
 
         # Read once a frame, so a knob turn steers the paths already in flight
         # as one - they are re-traced from scratch anyway.
-        aim = at(self.AIM, self._aim_cc().data)
+        aim = self.AIM.at(self._aim_cc().data)
 
         for ev in self._queue.events():
             if ev is None:

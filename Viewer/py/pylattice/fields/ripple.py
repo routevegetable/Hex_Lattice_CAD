@@ -1,7 +1,7 @@
 """A front spreading outwards from wherever a note landed."""
 import math
 
-from pylattice.examples.midi import FloatRange, MIDIFor, at
+from pylattice.examples.midi import FloatRange, MIDIFor
 from pylattice.examples.tempo import Event, EventLatch, sweep
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EndRef, Graph, TileRef
@@ -95,7 +95,7 @@ class NoteRippleField(ScalarField):
         v = end.vertex()
 
         # How long the front takes to cross the whole lattice.
-        crossing = at(self.SPEED, self._speed_cc().data)
+        crossing = self.SPEED.at(self._speed_cc().data)
 
         # What a vertex holds at once it has finished ramping up.
         pressure = self._poly() / 127

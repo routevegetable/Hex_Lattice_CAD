@@ -1,6 +1,6 @@
 """A random number per edge, re-rolled on a note."""
 
-from pylattice.examples.midi import FloatRange, MIDIFor, at
+from pylattice.examples.midi import FloatRange, MIDIFor
 from pylattice.examples.tempo import Event, ZERO, sweep
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EndRef
@@ -59,6 +59,6 @@ class NoteRandomField(ScalarField):
         # Both ends of an edge answer with the edge's own number.
         edge = end if end.top else end.other()
 
-        period = at(self.PERIOD, self._period_cc().data)
+        period = self.PERIOD.at(self._period_cc().data)
         return sweep(now, self._to, period,
                      self._value(self._from, edge), self._value(self._to, edge))

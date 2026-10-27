@@ -4,7 +4,7 @@ import copy
 import math
 from typing import Callable
 
-from pylattice.examples.midi import FloatRange, MIDIFor, at
+from pylattice.examples.midi import FloatRange, MIDIFor
 from pylattice.examples.tempo import Event
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EndRef, Graph, TileRef
@@ -37,7 +37,7 @@ class Rotation:
         if now.when == self._when:
             return
 
-        period = at(self.PERIOD, self._period().data)
+        period = self.PERIOD.at(self._period().data)
 
         if self._when is not None:
             self.phase = (self.phase + (now.when - self._when) / period) % 1.0

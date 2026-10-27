@@ -25,6 +25,13 @@ class FloatRange:
     geometric: bool = False
     kind: Literal["float_range"] = "float_range"
 
+    def at(self, value: int) -> float:
+        """What the knob means at a 0-127 position."""
+        if self.geometric:
+            return self.start * (self.end / self.start) ** (value / 127)
+
+        return self.start + (self.end - self.start) * (value / 127)
+
 @dataclass(frozen=True)
 class GradientChoice:
     kind: Literal["gradient"] = "gradient"
@@ -37,18 +44,6 @@ class CustomChoice:
 
 CCMeta = FloatRange | GradientChoice | CustomChoice
 
-
-def at(rng: FloatRange, value: int) -> float:
-    """What a knob on this range means at a 0-127 position.
-
-    A reader of a range rather than part of what one is: a range says what a
-    control is, and this is the one place the arithmetic for walking it lives,
-    so a field and the UI drawing it cannot disagree.
-    """
-    if rng.geometric:
-        return rng.start * (rng.end / rng.start) ** (value / 127)
-
-    return rng.start + (rng.end - rng.start) * (value / 127)
 
 @dataclass
 class CCMapping:

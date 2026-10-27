@@ -1,6 +1,6 @@
 """Which edges count: a field that is 1 on the edge classes it names."""
 
-from pylattice.examples.midi import FloatRange, MIDIFor, at
+from pylattice.examples.midi import FloatRange, MIDIFor
 from pylattice.examples.tempo import Event
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EdgeClass, EndRef, TileRef
@@ -19,7 +19,7 @@ class VGradientField(ScalarField):
         phys_height = graph.height * TileRef.HEIGHT
 
         # The knob picks a height, so it reads as a fraction of the lattice.
-        origin = at(self.ORIGIN, self._origin_cc().data) * phys_height
+        origin = self.ORIGIN.at(self._origin_cc().data) * phys_height
 
         _x, y = end.vertex().physical()
 

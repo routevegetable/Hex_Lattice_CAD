@@ -1,7 +1,7 @@
 """A spot going round and round one line of the lattice."""
 import itertools
 
-from pylattice.examples.midi import CustomChoice, FloatRange, MIDIFor, at
+from pylattice.examples.midi import CustomChoice, FloatRange, MIDIFor
 from pylattice.examples.tempo import Event, ZERO, psweep
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EdgeClass, EndRef, Graph, TileRef
@@ -80,7 +80,7 @@ class ScopeFieldBetter(ScalarField):
 
     def get(self, now: Event, end: EndRef) -> float:
 
-        period = at(self.SPEED, self._speed_cc().data)
+        period = self.SPEED.at(self._speed_cc().data)
 
         self._rebuild_phases(now)
 

@@ -4,7 +4,7 @@ from typing import Callable
 from pylattice.fields.types import Slot
 from pylattice.instrument.types import Effect
 from pylattice.examples.colors import hsv
-from pylattice.examples.midi import FloatRange, MIDIFor, at
+from pylattice.examples.midi import FloatRange, MIDIFor
 from pylattice.fields.types import ScalarField
 from pylattice.examples.tempo import Event, EventLatch, History, periodic, sweep
 from pylattice.graph import EndRef, Graph
@@ -125,7 +125,7 @@ class ProbZaps(Effect):
 
     def envelope(self) -> float:
         """ms the saturation and value envelopes take."""
-        return at(self.LENGTH, self._length().data)
+        return self.LENGTH.at(self._length().data)
 
     def render(self, now: Event, lattice_: LatticeWriter, graph_: Graph):
         if not graph:
