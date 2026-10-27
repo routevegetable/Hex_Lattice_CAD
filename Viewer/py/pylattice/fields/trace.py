@@ -2,7 +2,7 @@
 import math
 from collections.abc import Iterator
 
-from pylattice.examples.midi import MIDIFor
+from pylattice.examples.midi import FloatRange, MIDIFor, at
 from pylattice.examples.tempo import Event, History
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EndRef, Graph, TileRef
@@ -60,8 +60,14 @@ class RandomTraceField(ScalarField):
     LENGTH = 24         # edges traced before a particle runs out of path
     WIDTH = 5.0         # edges the sine hump spans
 
+    AIM = FloatRange(0, 1)      # 0 fires down, 1 up, 0.5 every way at once
+
     SLOWEST = 500       # ms an edge takes at CC 0
     FASTEST = 15        # ms an edge takes at CC 127
+    # Geometric rather than linear - over a range this wide a linear knob
+    # spends most of its travel in the slow end and crams every fast speed
+    # into the last few steps.
+    SPEED = FloatRange(SLOWEST, FASTEST, "ms", geometric=True)
 
     # % chance a step takes the turn that steers it wrong. A few keeps the
     # paths from being rigid rays; much more and they wander off the aim.
@@ -73,8 +79,8 @@ class RandomTraceField(ScalarField):
         self._height = graph.height * TileRef.HEIGHT
 
         self._note = midi.note(note)
-        self._speed_cc = midi.cc(speed, "speed")
-        self._aim_cc = midi.cc(aim, "aim")
+        self._speed_cc = midi.cc(speed, "speed", meta=self.SPEED)
+        self._aim_cc = midi.cc(aim, "aim", meta=self.AIM)
 
         # The queue of particles - one latch each, a press rotates onto the
         # next, so the oldest is the one that gets overwritten.
@@ -208,14 +214,12 @@ class RandomTraceField(ScalarField):
         self._consume_note()
         self._state = {}
 
-        # ms the head takes to cross one edge. Geometric rather than linear -
-        # over a range this wide a linear knob spends most of its travel in
-        # the slow end and crams every fast speed into the last few steps.
-        step = self.SLOWEST * (self.FASTEST / self.SLOWEST) ** (self._speed_cc().data / 127)
+        # ms the head takes to cross one edge.
+        step = at(self.SPEED, self._speed_cc().data)
 
         # Read once a frame, so a knob turn steers the paths already in flight
         # as one - they are re-traced from scratch anyway.
-        aim = self._aim_cc().data / 127
+        aim = at(self.AIM, self._aim_cc().data)
 
         for ev in self._queue.events():
             if ev is None:

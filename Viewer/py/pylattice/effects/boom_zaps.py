@@ -4,7 +4,7 @@ from typing import Callable
 from pylattice.fields.types import Slot
 from pylattice.instrument.types import Effect
 from pylattice.examples.colors import hsv
-from pylattice.examples.midi import MIDIFor
+from pylattice.examples.midi import FloatRange, MIDIFor, at
 from pylattice.fields.types import ScalarField
 from pylattice.examples.tempo import Event, EventLatch, History, periodic, sweep
 from pylattice.graph import EndRef, Graph
@@ -114,18 +114,18 @@ class ProbZaps(Effect):
 
     SHORTEST = 60       # ms a zap takes to fade at CC 0 - how it has always been
     LONGEST = 1500      # ms at CC 127
+    LENGTH = FloatRange(SHORTEST, LONGEST, "ms", geometric=True)
 
     def __init__(self, midi: MIDIFor):
         super().__init__()
         # Off the desk on purpose: all sixteen BSP knobs are already spoken
         # for, and sharing one would move something else as well. It is still
         # a dial in the UI, and can be mapped onto a knob from there.
-        self._length = midi.cc(102, "length")
+        self._length = midi.cc(102, "length", meta=self.LENGTH)
 
     def envelope(self) -> float:
-        """ms the saturation and value envelopes take, a constant ratio per
-        knob step so the whole sweep is usable."""
-        return self.SHORTEST * (self.LONGEST / self.SHORTEST) ** (self._length().data / 127)
+        """ms the saturation and value envelopes take."""
+        return at(self.LENGTH, self._length().data)
 
     def render(self, now: Event, lattice_: LatticeWriter, graph_: Graph):
         if not graph:

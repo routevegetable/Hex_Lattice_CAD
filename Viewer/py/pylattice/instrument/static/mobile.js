@@ -101,6 +101,92 @@ const knobsOf = (name) => new Set(controlsOwnedBy(name).map(c => c.number));
 const commentsOn = (cc) => controls.filter(c => c.kind === 'cc' && c.number === cc)
                                    .flatMap(c => c.comments);
 
+// What sort of control sits on a CC number: a sweep, a hue, or a list of named
+// options. /rig says, per control name, so the number is resolved through the
+// names listening to it. A stray nothing is pointed at is a plain knob - it is
+// still shown moving, and 0-127 is all anyone knows about it.
+const PLAIN = {kind: 'float_range', start: 0, end: 127, unit: null};
+
+// A bare knob: 0-127 and nothing said about it. Worth knowing because a knob
+// two controls share may be described by only one of them.
+const isPlain = (m) => m.kind === 'float_range' && !m.unit
+                       && m.start === 0 && m.end === 127;
+
+// By name, which is exact - a control is what its own meta says.
+const metaFor = (name) => rig?.control_meta?.[name] ?? PLAIN;
+
+// By CC number, for when a knob moved and that is all anybody knows. Several
+// controls can share a knob and only some of them say anything about it, so a
+// described one wins: `burst.decay` is 100-2000 ms on a knob `rotary.shape`
+// also listens to and has nothing to say about.
+const metaOn = (cc) => {
+  for (const name of commentsOn(cc)) {
+    const meta = metaFor(name);
+    if (!isPlain(meta)) return meta;
+  }
+  return PLAIN;
+};
+
+// The values a control can be put on, in order. A gradient and a custom list
+// are both chosen from rather than swept, so these are the only places a drag
+// is allowed to stop. Empty means it sweeps: there is nothing in between.
+const DISCRETE = ['custom', 'gradient'];
+
+const optionsOf = (meta) => DISCRETE.includes(meta.kind)
+    ? Object.keys(meta.items ?? {}).map(Number).sort((a, b) => a - b)
+    : [];
+
+// Which option a value is on. The wire carries 0-127 whatever the list holds,
+// and a field clamps, so the nearest one is what it will actually act on.
+const nearestAt = (options, value) => options.reduce(
+    (best, k, i) => Math.abs(k - value) < Math.abs(options[best] - value) ? i : best, 0);
+
+// Where a value sits in its own range, 0-1, which is what a dial draws.
+function fracOf(meta, value) {
+  const options = optionsOf(meta);
+
+  if (options.length)
+    return options.length < 2 ? 0 : nearestAt(options, value) / (options.length - 1);
+
+  return Math.max(0, Math.min(1, value / 127));
+}
+
+// What to print for a value. A FloatRange is the range to read it in, so the
+// default (0, 127) prints the knob position and anything else prints what the
+// knob means.
+function readOut(meta, value) {
+  const options = optionsOf(meta);
+
+  if (options.length) return meta.items[options[nearestAt(options, value)]];
+  if (meta.kind === 'gradient') return value;       // no list declared yet
+
+  // The same curve FloatRange.at() uses on the other side.
+  const at = meta.geometric
+      ? meta.start * (meta.end / meta.start) ** (value / 127)
+      : meta.start + (meta.end - meta.start) * (value / 127);
+
+  const shown = Math.abs(at) >= 10 ? String(Math.round(at))
+                                   : (Number.isInteger(at) ? String(at) : at.toFixed(2));
+
+  return meta.unit ? `${shown} ${meta.unit}` : shown;
+}
+
+// The colour a hue control is sitting on, for the swatch and the dial arc.
+const hueAt = (value) => `hsl(${Math.round(value / 127 * 360)} 90% 55%)`;
+
+const PER_STEP_PX = 24;             // a thumb's worth of travel per option
+
+// Where a drag lands: the next option along for something chosen from a list,
+// or anywhere at all for a sweep.
+function dragTo(meta, from, dy) {
+  const options = optionsOf(meta);
+
+  if (!options.length) return clamp(Math.round(from + dy * DRAG_PER_PX));
+
+  const at = nearestAt(options, from) + Math.round(dy / PER_STEP_PX);
+  return options[Math.max(0, Math.min(options.length - 1, at))];
+}
+
 // The effects in the chain that took knobs of their own. They earn a place on
 // the controls screen for the same reason a field does - something on the desk
 // moves them - so they are listed beside the fields rather than only being
@@ -383,10 +469,11 @@ function refreshControls() {
 
     if (!knob) continue;
 
-    host.replaceChild(makeDial(knob.value), el);
+    const meta = metaFor(host.dataset.name);
+    host.replaceChild(makeDial(knob.value, meta), el);
 
     const now = host.querySelector('.now');
-    if (now) now.textContent = knob.value;
+    if (now) now.textContent = readOut(meta, knob.value);
   }
 }
 
@@ -397,12 +484,15 @@ function controlList(found) {
   for (const c of found) {
     const name = c.comments[0] ?? `cc ${c.number}`;
     const waiting = mapping === name;
+    const meta = metaFor(name);
 
     const row = document.createElement('button');
     row.className = 'ctrl' + (waiting ? ' waiting' : '');
     row.dataset.cc = c.number;
+    row.dataset.name = name;
     row.title = waiting ? 'turn the knob you want'
-                        : `drag to turn, tap to put ${name} on another knob`;
+                        : `${optionsOf(meta).length ? 'drag to choose' : 'drag to turn'}`
+                          + `, tap to put ${name} on another knob`;
 
     // Drag it like a knob; a tap that went nowhere is the assign gesture.
     let from = null;
@@ -415,7 +505,7 @@ function controlList(found) {
     row.onpointermove = (e) => {
       if (from === null) return;
 
-      const want = clamp(Math.round(from.value + (from.y - e.clientY) * DRAG_PER_PX));
+      const want = dragTo(meta, from.value, from.y - e.clientY);
       if (want === liveValue(c)) return;
 
       from.turned = true;
@@ -433,7 +523,7 @@ function controlList(found) {
       drawSlots();
     };
 
-    row.append(makeDial(liveValue(c)));
+    row.append(makeDial(liveValue(c), meta));
 
     const label = document.createElement('b');
     label.textContent = name;
@@ -445,7 +535,7 @@ function controlList(found) {
 
     const val = document.createElement('span');
     val.className = 'now';
-    val.textContent = liveValue(c);
+    val.textContent = readOut(meta, liveValue(c));
 
     row.append(label, val, where);
     box.append(row);
@@ -947,13 +1037,13 @@ dialTrack.setAttribute('d', arc(DIAL_FROM, DIAL_FROM + DIAL_SWEEP));
 
 // The same rev counter the readout uses, as a standalone element so any row
 // can have one.
-function makeDial(value) {
+function makeDial(value, meta = PLAIN) {
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('viewBox', '0 0 40 40');
   svg.setAttribute('class', 'dial');
 
-  const frac = Math.max(0, Math.min(1, value / 127));
+  const frac = fracOf(meta, value);
   const a = DIAL_FROM + DIAL_SWEEP * frac;
 
   const path = (d, stroke) => {
@@ -966,7 +1056,9 @@ function makeDial(value) {
   };
 
   svg.append(path(arc(DIAL_FROM, DIAL_FROM + DIAL_SWEEP), '#39414d'));
-  if (frac > 0.002) svg.append(path(arc(DIAL_FROM, a), '#6a8fd0'));
+  if (frac > 0.002)
+    svg.append(path(arc(DIAL_FROM, a),
+                    meta.kind === 'gradient' ? hueAt(value) : '#6a8fd0'));
 
   const [x1, y1] = dialAt(5, a), [x2, y2] = dialAt(13, a);
   const pin = document.createElementNS(ns, 'line');
@@ -983,11 +1075,13 @@ function makeDial(value) {
 let ccHide = null;
 
 function drawKnob(k) {
-  const frac = Math.max(0, Math.min(1, k.value / 127));
+  const meta = metaOn(k.cc);
+  const frac = fracOf(meta, k.value);
   const a = DIAL_FROM + DIAL_SWEEP * frac;
 
   // An arc of zero length still draws a cap, so leave it out entirely.
   dialValue.setAttribute('d', frac > 0.002 ? arc(DIAL_FROM, a) : '');
+  dialValue.setAttribute('stroke', meta.kind === 'gradient' ? hueAt(k.value) : '#6a8fd0');
 
   const [x1, y1] = dialAt(5, a), [x2, y2] = dialAt(13, a);
   dialPin.setAttribute('x1', x1.toFixed(2));
@@ -996,7 +1090,7 @@ function drawKnob(k) {
   dialPin.setAttribute('y2', y2.toFixed(2));
 
   ccNum.textContent = `cc ${k.cc}`;
-  ccVal.textContent = k.value;
+  ccVal.textContent = readOut(meta, k.value);
   const what = commentsOn(k.cc);
   ccComments.textContent = what.length ? what.join(' · ') : 'not mapped';
   ccComments.className = what.length ? '' : 'none';

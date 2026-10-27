@@ -1,6 +1,6 @@
 """A random number per edge, re-rolled on a note."""
 
-from pylattice.examples.midi import MIDIFor
+from pylattice.examples.midi import FloatRange, MIDIFor, at
 from pylattice.examples.tempo import Event, ZERO, sweep
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EndRef
@@ -22,9 +22,13 @@ class NoteRandomField(ScalarField):
         * period - how long the glide takes, 4s at 0 down to 30ms at 127
     """
 
+    # 4s at 0 down to 30ms at 127 - a reciprocal spends all its useful travel
+    # in the first sixth.
+    PERIOD = FloatRange(4000, 30, "ms", geometric=True)
+
     def __init__(self, midi: MIDIFor, *, note: int, period: int):
         self._note = midi.note(note)
-        self._period_cc = midi.cc(period, "period")
+        self._period_cc = midi.cc(period, "period", meta=self.PERIOD)
 
         # The press being faded from and the one being faded to.
         self._from: Event = ZERO
@@ -55,8 +59,6 @@ class NoteRandomField(ScalarField):
         # Both ends of an edge answer with the edge's own number.
         edge = end if end.top else end.other()
 
-        # 4s at 0 down to 30ms at 127, a constant ratio per step - a
-        # reciprocal spends all its useful travel in the first sixth.
-        period = 4000 * (30 / 4000) ** (self._period_cc().data / 127)
+        period = at(self.PERIOD, self._period_cc().data)
         return sweep(now, self._to, period,
                      self._value(self._from, edge), self._value(self._to, edge))

@@ -1,7 +1,7 @@
 """Control-surface inputs read straight out as fields - the same
 value at every end, whatever the lattice is doing."""
 
-from pylattice.examples.midi import MIDIFor
+from pylattice.examples.midi import FloatRange, MIDIFor, at
 from pylattice.examples.tempo import Event
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EndRef
@@ -12,12 +12,13 @@ class CCField(ScalarField):
     A CC as a field
     """
 
+    VALUE = FloatRange(0, 1)
 
     def __init__(self, midi: MIDIFor, *, value: int):
-        self._cc = midi.cc(value, "value")
-        
+        self._cc = midi.cc(value, "value", meta=self.VALUE)
+
     def get(self, now: Event, end: EndRef) -> float:
-        return self._cc().data / 127
+        return at(self.VALUE, self._cc().data)
 
 
 class PolyTouchField(ScalarField):

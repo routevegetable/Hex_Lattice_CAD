@@ -8,14 +8,21 @@ import mido
 from pylattice.examples.tempo import Event, EventLatch
 
 
-# What a control is, for whoever draws it. A tagged union.
-# Just for UI presentation - doesn't affect behavior.
+# What a control is, and the one place its range is declared: a field reads
+# through it, so this is a setting rather than a label. A tagged union.
 
 @dataclass(frozen=True)
 class FloatRange:
-    # Range start and end
+    # Range start and end, in whatever the knob means - not its 0-127.
     start: float
     end: float
+    # What the numbers are, if they are anything - "ms", or None for a bare
+    # fraction.
+    unit: str | None = None
+    # A constant ratio per knob step rather than a constant difference, which
+    # is how every period and speed here is dialled: a few ms at one end and
+    # seconds at the other, usable the whole way along.
+    geometric: bool = False
     kind: Literal["float_range"] = "float_range"
 
 @dataclass(frozen=True)
@@ -29,6 +36,19 @@ class CustomChoice:
     kind: Literal["custom"] = "custom"
 
 CCMeta = FloatRange | GradientChoice | CustomChoice
+
+
+def at(rng: FloatRange, value: int) -> float:
+    """What a knob on this range means at a 0-127 position.
+
+    A reader of a range rather than part of what one is: a range says what a
+    control is, and this is the one place the arithmetic for walking it lives,
+    so a field and the UI drawing it cannot disagree.
+    """
+    if rng.geometric:
+        return rng.start * (rng.end / rng.start) ** (value / 127)
+
+    return rng.start + (rng.end - rng.start) * (value / 127)
 
 @dataclass
 class CCMapping:

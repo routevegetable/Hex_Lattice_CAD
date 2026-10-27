@@ -1,7 +1,7 @@
 """A front crossing the lattice top to bottom, or the other way."""
 import math
 
-from pylattice.examples.midi import MIDIFor
+from pylattice.examples.midi import FloatRange, MIDIFor
 from pylattice.examples.tempo import Event, EventLatch, sweep
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EndRef, Graph, TileRef
@@ -30,7 +30,7 @@ class NoteWipeField(ScalarField):
 
     def __init__(self, midi: MIDIFor, *, note: int, speed: int):
         self._note = midi.note(note)
-        self._speed_cc = midi.cc(speed, "speed")
+        self._speed_cc = midi.cc(speed, "speed", meta=FloatRange(-1, 1))
         self._latches = [EventLatch() for _ in range(4)]
         self._last_latch = 0
         self._seen: Event | None = None

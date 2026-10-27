@@ -1,7 +1,7 @@
 """A front spreading outwards from wherever a note landed."""
 import math
 
-from pylattice.examples.midi import MIDIFor
+from pylattice.examples.midi import FloatRange, MIDIFor, at
 from pylattice.examples.tempo import Event, EventLatch, sweep
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EndRef, Graph, TileRef
@@ -31,6 +31,7 @@ class NoteRippleField(ScalarField):
 
     SLOWEST = 2000      # ms to cross the lattice at CC 0
     FASTEST = 250       # ms to cross the lattice at CC 127
+    SPEED = FloatRange(SLOWEST, FASTEST, "ms", geometric=True)
 
     def __init__(self, graph: Graph, midi: MIDIFor, *, note: int, speed: int):
         self._vertexes = list(graph.vertexes())
@@ -41,7 +42,7 @@ class NoteRippleField(ScalarField):
 
         self._note = midi.note(note, "trigger")
         self._poly = midi.polytouch(note, "intensity")
-        self._speed_cc = midi.cc(speed, "speed")
+        self._speed_cc = midi.cc(speed, "speed", meta=self.SPEED)
         self._latches = [EventLatch() for _ in range(4)]
         self._releases = [EventLatch() for _ in range(4)]
         self._last_latch = 0
@@ -93,9 +94,8 @@ class NoteRippleField(ScalarField):
 
         v = end.vertex()
 
-        # How long the front takes to cross the whole lattice, a constant
-        # ratio per knob step.
-        crossing = self.SLOWEST * (self.FASTEST / self.SLOWEST) ** (self._speed_cc().data / 127)
+        # How long the front takes to cross the whole lattice.
+        crossing = at(self.SPEED, self._speed_cc().data)
 
         # What a vertex holds at once it has finished ramping up.
         pressure = self._poly() / 127

@@ -4,7 +4,7 @@ import copy
 import math
 from typing import Callable
 
-from pylattice.examples.midi import MIDIFor
+from pylattice.examples.midi import FloatRange, MIDIFor, at
 from pylattice.examples.tempo import Event
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EndRef, Graph, TileRef
@@ -22,6 +22,10 @@ class Rotation:
     was unpatched, and the pair would no longer be half a turn apart.
     """
 
+    # 0.5s a rotation at 0 up to 16s at 127. Doubling per CC step ran off the
+    # end of the knob by about step 5.
+    PERIOD = FloatRange(500, 16000, "ms", geometric=True)
+
     def __init__(self, period: Callable[[], Event[int]]):
         self._period = period
         self.phase = 0.0
@@ -33,9 +37,7 @@ class Rotation:
         if now.when == self._when:
             return
 
-        # 0.5s a rotation at 0 up to 16s at 127, a constant ratio per step.
-        # Doubling per CC step ran off the end of the knob by about step 5.
-        period = 500 * (16000 / 500) ** (self._period().data / 127)
+        period = at(self.PERIOD, self._period().data)
 
         if self._when is not None:
             self.phase = (self.phase + (now.when - self._when) / period) % 1.0
@@ -79,7 +81,7 @@ class RotaryField(ScalarField):
     ):
         self._width = graph.width
         self._height = graph.height
-        self._rotation = Rotation(midi.cc(period, "period"))
+        self._rotation = Rotation(midi.cc(period, "period", meta=Rotation.PERIOD))
         self._parts = midi.cc(parts, "parts")
         self._shape = midi.cc(shape, "shape")
 
