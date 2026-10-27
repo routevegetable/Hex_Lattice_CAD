@@ -5,7 +5,6 @@ from collections.abc import Callable
 import operator
 from dataclasses import dataclass, field
 from pathlib import Path
-import traceback
 
 from pylattice.examples.midi import MIDI
 from pylattice.fields.types import CombinedField, ConstantField, ScalarField, average, divide
@@ -102,8 +101,11 @@ def named(namespace: type, kind: type) -> dict[str, object]:
 class Patch:
     """Every setting there is: where the knobs are, and what drives what.
 
-        Patch.capture(midi, FIELDS, EFFECTS).save("preset.json")
         Patch.load("preset.json").apply(midi, FIELDS, EFFECTS)
+
+    Patches are made by whoever is editing one - the UI sends a whole patch,
+    and the bank folds the knobs into whatever is playing. Nothing reads one
+    back off the live objects.
     """
 
     # CC number -> value
@@ -121,41 +123,6 @@ class Patch:
     # not say - a file written before effects could be switched off - and
     # every effect is taken as on.
     active: list[str] | None = None
-
-    @classmethod
-    def capture(cls, midi: MIDI, fields: type, effects: type) -> "Patch":
-        """Read the current patch off the live objects."""
-        field_names = {id(field): name for name, field in named(fields, ScalarField).items()}
-
-        slots = {}
-        for effect_name, effect in named(effects, Effect).items():
-            for slot_name, slot in effect.get_slots().items():
-                # A combination or a constant is written out as how to rebuild
-                # it; anything else unnamed cannot be, and is left out.
-                try:
-                    slots[f"{effect_name}.{slot_name}"] = encode_field(slot.field, field_names)
-                except ValueError:
-                    traceback.print_exc()
-                    #print(f"Error: ")
-                    pass
-
-        # Only the controls that have been moved away from where they were
-        # declared. A preset that says nothing about a control brings it up on
-        # its default, which is what lets an old preset meet a new control.
-        defaults = midi.cc_defaults()
-        cc_map = {name: number for name, number in midi.cc_map().items()
-                  if number != defaults.get(name)}
-
-        # A preset wants where each knob is sitting, by the number it sits on
-        # - only the knobs something is plugged into, not every stray that has
-        # turned up on the wire.
-        ccs = {number: state.value
-               for number, state in midi.get_ccs_by_number().items()
-               if state.comments}
-
-        return cls(ccs=ccs, slots=slots, cc_map=cc_map,
-                   active=[name for name, effect in named(effects, Effect).items()
-                           if effect.active])
 
     def apply(self, midi: MIDI, fields: type, effects: type):
         """Put the knobs back and re-patch the slots.
@@ -176,13 +143,9 @@ class Patch:
         by_name = named(fields, ScalarField)
         by_effect = named(effects, Effect)
 
-        # An effect the patch does not name is off. A patch with no `active`
-        # list at all predates being able to switch them off, so every effect
-        # counts as named rather than none of them.
-        active = list(by_effect) if self.active is None else self.active
-
-        for name, effect in by_effect.items():
-            effect.active = name in active
+        # Nothing here says which effects draw, or when. `active` is that, and
+        # whoever renders reads it off the patch - copying it onto the effects
+        # would be a second record of the same thing, free to disagree.
 
         # Work the whole thing out before changing anything, so a patch naming
         # a field that has gone fails without half-applying.
@@ -280,6 +243,14 @@ class PresetBank:
         """Put the knobs as they are into the preset that is playing."""
         if self.current is not None:
             self._cache[self.current].ccs.update(self.live_ccs())
+
+    def playing(self) -> "Patch | None":
+        """The patch that is playing, or None if nothing is selected.
+
+        Handed over as it is, without folding the knobs in: this is for
+        reading what is patched, and the knobs are the rig's own answer.
+        """
+        return None if self.current is None else self._cache[self.current]
 
     # -- the files --------------------------------------------------------
 
