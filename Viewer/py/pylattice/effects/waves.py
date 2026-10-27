@@ -16,7 +16,7 @@ def bg_waves(
     bg_hue: ScalarField,
     bg_value: ScalarField,
     bg_flow: ScalarField,
-    bg_sat: ScalarField | None = None
+    bg_sat: ScalarField
 ):
     for v in graph.vertexes():
         ends = v.ends_cw()
@@ -24,7 +24,7 @@ def bg_waves(
         for end in ends:
             base_hue = bg_hue.get(now, end)
             base_value = bg_value.get(now, end)
-            base_sat = 1 if bg_sat is None else bg_sat.get(now, end)
+            base_sat = bg_sat.get(now, end)
             if base_value < 0.001:
                 continue
             flow = bg_flow.get(now, end)
