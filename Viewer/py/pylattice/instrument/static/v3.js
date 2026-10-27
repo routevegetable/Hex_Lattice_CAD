@@ -74,11 +74,65 @@ function drawPresets() {
   }
 }
 
+// ---- the effects ---------------------------------------------------------
+
+const list = document.getElementById('effects');
+
+// The effects a patch has in its chain, in the order they draw: the first is
+// painted first, so the last paints over the rest. An effect that is not in
+// the chain is not shown - it is what the plus offers.
+//
+// A patch with no `active` list says nothing about it. One with slots was
+// written before effects could be switched off, so everything it wires is on;
+// one with none is a preset nobody has written, and has no effects.
+function chain(patch) {
+  const wired = new Set(Object.keys(patch.slots).map(k => k.split('.')[0]));
+  const on = patch.active === null ? wired : new Set(patch.active);
+
+  return Object.keys(rig.effects).filter(n => on.has(n));
+}
+
+function drawEffects() {
+  list.innerHTML = '';
+  const view = views[rig.selected];
+  if (!view) return;
+
+  const names = chain(view.live);
+  if (!names.length) {
+    const none = document.createElement('p');
+    none.className = 'dim';
+    none.textContent = 'no effects';
+    list.append(none);
+  }
+
+  for (const name of names) {
+    const keys = rig.effects[name].slots.map(s => `${name}.${s}`);
+    const wired = keys.filter(k => (view.live.slots[k] ?? null) !== null).length;
+
+    const card = document.createElement('section');
+    card.className = 'effect';
+    card.dataset.effect = name;
+
+    const head = document.createElement('div');
+    head.className = 'effect-head';
+    const title = document.createElement('b');
+    title.textContent = name;
+    const count = document.createElement('span');
+    count.className = 'dim';
+    count.textContent = `${wired}/${keys.length}`;
+    head.append(title, count);
+
+    card.append(head);
+    list.append(card);
+  }
+}
+
 // ---- keeping up ----------------------------------------------------------
 
 async function refresh() {
   [rig, views] = await Promise.all([get('/rig'), get('/presets')]);
   drawPresets();
+  drawEffects();
 }
 
 async function drawStats() {
