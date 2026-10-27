@@ -1,6 +1,8 @@
 :root {
   --bg: #14171c; --panel: #1d222a; --line: #39414d; --text: #d7dde6; --dim: #8892a0;
-  --accent: #6a8fd0; --dirty: #e0a040; --off: #5a616c;
+  --accent: #6a8fd0; /* the hue axis runs 0..2: the wheel twice, so a range can wrap */
+  --wheel: red, yellow, lime, cyan, blue, magenta, red;
+  --hue2: linear-gradient(to right, var(--wheel), var(--wheel)); --dirty: #e0a040; --off: #5a616c;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text);
@@ -112,3 +114,25 @@ aside { min-width: 0; }
 /* with the field menu up, field is what is being chosen, whatever it was before */
 .ctl.open .seg button.on { background: none; color: var(--dim); }
 .ctl.open .seg button[data-id=field] { background: #24334d; color: #fff; }
+
+/* hue: one or two thumbs on a 0..2 axis, the band between them */
+.ctl { flex-wrap: wrap; }
+.hue-bar { position: relative; height: 26px; flex: 0 1 110px; min-width: 70px; }
+.hue-bar.wide { flex: 1 1 100%; max-width: 260px; }
+.hue-bar .wheel { position: absolute; inset: 8px 0; border-radius: 4px; background: var(--hue2); opacity: .35; }
+.hue-bar .band { position: absolute; top: 4px; bottom: 4px; border-radius: 4px; overflow: hidden;
+                 outline: 2px solid #fff; }
+/* sized and shifted from JS so it shows exactly the stretch of wheel under it */
+.hue-bar .band > div { position: absolute; top: 0; bottom: 0; background: var(--hue2); }
+.hue-bar input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; background: none;
+                 pointer-events: none; -webkit-appearance: none; appearance: none; }
+.hue-bar input::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; width: 12px;
+                 height: 26px; border-radius: 3px; background: #fff; border: 1px solid #000;
+                 cursor: ew-resize; }
+.hue-bar input::-moz-range-thumb { pointer-events: auto; width: 10px; height: 24px; border-radius: 3px;
+                 background: #fff; border: 1px solid #000; cursor: ew-resize; }
+.hue-bar input.end::-webkit-slider-thumb { background: #cfe3ff; }
+.hue-bar input::-webkit-slider-runnable-track { background: none; }
+.hue-bar input::-moz-range-track { background: none; }
+.ctl > .num { flex: none; width: 58px; background: var(--panel); color: var(--text); border: 1px solid var(--line);
+              border-radius: 4px; padding: 2px 6px; font: inherit; }
