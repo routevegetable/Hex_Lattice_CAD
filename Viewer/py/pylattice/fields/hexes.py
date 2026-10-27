@@ -17,11 +17,12 @@ def _hex_ends(hex_ref: HexRef) -> set[EndRef]:
     return ends
 
 
-def belt(graph: Graph) -> Iterator[tuple[int, int]]:
-    """Lower, upper, lower, upper... all the way around one row of tiles."""
+def outer_bounce(graph: Graph) -> Iterator[tuple[int, int]]:
+    """Bottom, then the top full row - skipping the interstitial one between
+    them - and back down, scooting over one column with each hop."""
+    top = 2 * (graph.height - 1)
     for x in range(graph.width):
-        yield (x, 0)
-        yield (x, 1)
+        yield (x, 0 if x % 2 == 0 else top)
 
 
 def _next_nonadjacent(
@@ -50,8 +51,7 @@ def _bounce_rows(top: int) -> Iterator[int]:
 def sparse_climb(graph: Graph) -> Iterator[tuple[int, int]]:
     """Lowest, then middle, then upper, then back down via middle to lower,
     and so on - each pick skipping past the previous one's neighbors, so the
-    zigzag spirals around the rig as it bounces between top and bottom
-    instead of forming a continuous belt like `belt` does."""
+    zigzag spirals around the rig as it bounces between top and bottom."""
     top = 2 * (graph.height - 1)
     rows = _bounce_rows(top)
 
@@ -66,7 +66,7 @@ def sparse_climb(graph: Graph) -> Iterator[tuple[int, int]]:
 class HexesField(ScalarField):
     """A mask: 1 on every end inside the hexes a pattern selects, 0 elsewhere."""
 
-    PATTERNS = [belt, sparse_climb]
+    PATTERNS = [outer_bounce, sparse_climb]
 
     def __init__(self, graph: Graph, midi: MIDIFor, *, pattern: int):
         self._graph = graph

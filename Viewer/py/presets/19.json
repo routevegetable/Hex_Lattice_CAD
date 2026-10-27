@@ -1,0 +1,78 @@
+{
+  "ccs": {
+    "74": 127,
+    "114": 92,
+    "18": 127,
+    "75": 24,
+    "16": 0,
+    "17": 54,
+    "91": 65,
+    "79": 0,
+    "72": 4,
+    "77": 0,
+    "93": 0,
+    "73": 0,
+    "102": 0,
+    "12": 127,
+    "24": 90,
+    "14": 46,
+    "26": 127
+  },
+  "slots": {
+    "bg_waves.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "rotary",
+        "b": 0.39
+      },
+      "b": 0.61
+    },
+    "bg_waves.value": "wipe1",
+    "bg_waves.sat": 1.0,
+    "bg_waves.flow": "param_b",
+    "bg_waves2.hue": 0.0,
+    "bg_waves2.value": 0.0,
+    "bg_waves2.sat": 1.0,
+    "bg_waves2.flow": 0.0,
+    "net.hue": 0.4,
+    "net.value": 0.0,
+    "net.sat": 1.0,
+    "net.amp": "wipe1",
+    "sunrise.value": 0.0,
+    "bisexual.value": 0.0,
+    "bisexual.speed": 0.0,
+    "prob_zaps.hue": 0.0,
+    "prob_zaps.value": 0.0,
+    "prob_zaps.prob": {
+      "op": "mul",
+      "a": "strobe0",
+      "b": 0.1
+    },
+    "map_fiber.hue": 0.66,
+    "map_fiber.value": 0.0,
+    "map_fiber.sat": 0.72,
+    "map_fiber2.hue": 0.0,
+    "map_fiber2.value": 0.0,
+    "map_fiber2.sat": 0.0,
+    "map_fiber3.hue": 0.0,
+    "map_fiber3.value": 0.0,
+    "map_fiber3.sat": 0.0,
+    "glitter.hue_1": 0.59,
+    "glitter.hue_2": 0.0,
+    "glitter.value": 1.0,
+    "glitter.spin_rate": 0.22
+  },
+  "cc_map": {
+    "fader_a.value": 12,
+    "param_a.value": 24,
+    "param_b.value": 14,
+    "wipe1.speed": 26,
+    "rotary.period": 24,
+    "v_gradient.origin": 26
+  },
+  "active": [
+    "bg_waves"
+  ],
+  "name": "hex-test"
+}
