@@ -181,7 +181,7 @@ class Console:
         thing sits in it changes what comes out. A patch with no list at all
         was written before effects could be switched off, and means all of
         them. A name the code no longer has is skipped - apply() has already
-        said so. Muted effects stay in the patch but are left out here.
+        said so. Effects in `patch.muted` are skipped, but keep their slots.
         """
         with self.lock:
             patch = self._bank.playing()
