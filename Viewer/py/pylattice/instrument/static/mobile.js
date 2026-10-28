@@ -27,6 +27,7 @@ let open = null;            // "effect.slot" of the expanded slot, one at a time
 let picking = null;         // {key, path} while the field picker is up
 let presetsUp = false;      // the preset list uses the same modal
 let addingUp = false;       // so does the list of effects to add
+let renamingUp = false;     // and the box for naming what is playing
 let mapping = null;         // a control waiting for a knob to be turned at it
 let mappingSince = 0;       // ... and when it started waiting
 let knobs = {};             // every cc number as it stands - the only CC store
@@ -61,6 +62,7 @@ const activeEffects = () =>
 // Adding and removing are both just a different active list on the same
 // patch, written the same way any other edit is.
 async function setActive(names) {
+  remember();
   const r = await put(`/presets/${rig.selected}`,
                       {...patch, ccs: liveCCs(), active: names});
   if (!r.ok) { alert((await r.json()).detail); return; }
@@ -210,11 +212,17 @@ const slotKeys = (name) =>
 const slotOf = (key) => key.split('.').slice(1).join('.');
 const isLeaf = (n) => n === null || typeof n === 'string' || typeof n === 'number';
 
-function describe(node) {
+function describe(node, nested = false) {
   if (node === null) return 'nothing';
   if (typeof node === 'number') return String(node);
   if (typeof node === 'string') return node;
-  return `${describe(node.a)} ${OPS[node.op]} ${describe(node.b)}`;
+
+  // Brackets on every operator but the outermost. The tree has no precedence
+  // - it is nested, not parsed - so `a + b * c` would read as something it is
+  // not, and which `b * c` belongs to has to be shown rather than assumed.
+  const shown = `${describe(node.a, true)} ${OPS[node.op]} ${describe(node.b, true)}`;
+
+  return nested ? `(${shown})` : shown;
 }
 
 // ---- reading and writing one node of a slot's tree ------------------------
@@ -265,6 +273,7 @@ async function write(key, tree) {
   if (tree === null) delete slots[key];
   else slots[key] = tree;
 
+  remember();
   const r = await put(`/presets/${rig.selected}`, {...patch, ccs: liveCCs(), slots});
   if (!r.ok) alert((await r.json()).detail);
   await load();
@@ -374,19 +383,40 @@ function nodeView(key, tree, path) {
     ops.append(b);
   }
 
+  // Swap which way round the operands are. Only ÷ and − care, but they care
+  // a lot, and rebuilding both sides by hand to turn one around is a chore.
+  const swap = document.createElement('button');
+  swap.className = 'swap';
+  swap.textContent = '\u21c4';
+  swap.title = 'swap the operands';
+  swap.onclick = () => redrawSlot(key, replace(tree, path,
+                                               {...node, a: node.b, b: node.a}));
+
+  // Put this whole operation inside a new one, as its first operand - the
+  // same move the leaf's math button makes, for something already nested.
+  const wrap = document.createElement('button');
+  wrap.className = 'wrap';
+  wrap.textContent = '\u2283';
+  wrap.title = 'wrap this in a new operation';
+  wrap.onclick = () => redrawSlot(key, replace(tree, path,
+                                               {op: 'mul', a: node, b: null}));
+
   const drop = document.createElement('button');
   drop.className = 'unwrap';
   drop.textContent = '⨯';
   drop.title = 'drop this operation, keep the first operand';
   drop.onclick = () => redrawSlot(key, replace(tree, path, node.a));
 
-  head.append(ops, drop);
+  head.append(ops, swap, wrap, drop);
 
+  // The operator sits between the two operands it joins rather than above
+  // them, because which way round they are is the whole point of - and ÷.
   const kids = document.createElement('div');
   kids.className = 'kids';
-  kids.append(nodeView(key, tree, [...path, 'a']), nodeView(key, tree, [...path, 'b']));
+  kids.append(nodeView(key, tree, [...path, 'a']), head,
+              nodeView(key, tree, [...path, 'b']));
 
-  box.append(head, kids);
+  box.append(kids);
   return box;
 }
 
@@ -582,10 +612,139 @@ function closePicker() {
   picking = null;
   presetsUp = false;
   addingUp = false;
+  renamingUp = false;
   document.getElementById('modal').hidden = true;
 }
 
+// ---- undo ----------------------------------------------------------------
+
+// A ring of what the rig looked like, so a wrong turn can be walked back.
+// Nothing the instrument knows about: the page keeps the history, and every
+// step is an ordinary write of an ordinary patch.
+const UNDO_DEPTH = 64;
+
+let records = [];       // {number, patch}, oldest first
+let cursor = 0;         // index of the record that is live, or records.length
+                        // when what is live is newer than anything recorded
+
+// What is playing, as a record - the whole patch, knobs included.
+const snapshot = () => ({number: rig.selected,
+                         patch: {...patch, ccs: liveCCs()}});
+
+function keep(rec) {
+  records.push(rec);
+
+  if (records.length > UNDO_DEPTH) {
+    records.shift();                      // the ring: the oldest falls off
+    cursor = Math.max(0, cursor - 1);
+  }
+}
+
+// Called before an edit lands, so the buffer holds the state being left
+// behind. Afterwards the end of the buffer is current, which is what puts
+// redo out of reach.
+function remember() {
+  if (rig.selected === null) return;
+
+  keep(snapshot());
+  cursor = records.length;
+}
+
+const canUndo = () => records.length > 0
+                      && (cursor >= records.length ? true : cursor > 0);
+const canRedo = () => cursor < records.length - 1;
+
+// Put a record back: write its patch to its preset, then play that preset.
+// Writing first means the preset is already right when it starts playing,
+// rather than flashing whatever it held before.
+async function recall(rec) {
+  const r = await put(`/presets/${rec.number}`, rec.patch);
+  if (!r.ok) { alert((await r.json()).detail); return; }
+
+  if (rig.selected !== rec.number) {
+    const s = await post(`/presets/${rec.number}/select`);
+    if (!s.ok) { alert((await s.json()).detail); return; }
+  }
+
+  open = null;
+  editing = {};
+  await load();
+}
+
+async function undo() {
+  // The first step back has to record where it is stepping back from, or
+  // there would be nothing for redo to come forward to.
+  if (cursor >= records.length) {
+    if (!records.length) return;
+    keep(snapshot());
+    cursor = records.length - 1;
+  }
+
+  if (cursor <= 0) return;
+
+  cursor -= 1;
+  await recall(records[cursor]);
+}
+
+async function redo() {
+  if (!canRedo()) return;
+
+  cursor += 1;
+  await recall(records[cursor]);
+}
+
+// ---- naming what is playing ---------------------------------------------
+
+// A name is a field of the patch, so it is written the way any other edit is:
+// the whole patch, knobs and all. Nothing special happens to it on the way.
+function openRename() {
+  if (rig.selected === null) return;
+
+  renamingUp = true;
+  const picker = document.getElementById('picker');
+  document.getElementById('modal-title').textContent = `name preset ${rig.selected}`;
+  back(null);
+  picker.className = 'picker rename';
+  picker.innerHTML = '';
+
+  const row = document.createElement('form');
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = patch.name ?? '';
+  input.placeholder = 'unnamed';
+  input.maxLength = 40;
+
+  const ok = document.createElement('button');
+  ok.type = 'submit';
+  ok.textContent = 'name it';
+
+  row.onsubmit = async (e) => {
+    e.preventDefault();
+    // Blank clears it rather than storing an empty string: a preset with no
+    // name is the same thing it was before anyone typed.
+    const called = input.value.trim() || null;
+    closePicker();
+
+    const r = await put(`/presets/${rig.selected}`,
+                        {...patch, ccs: liveCCs(), name: called});
+    if (!r.ok) { alert((await r.json()).detail); return; }
+    await load();
+  };
+
+  row.append(input, ok);
+  picker.append(row);
+  document.getElementById('modal').hidden = false;
+  input.focus();
+  input.select();
+}
+
 // ---- the preset list -----------------------------------------------------
+
+// Whether a slot holds anything. There is no such thing as an empty preset -
+// a number with no file holds a patch that says nothing - so "written" is a
+// question about the content rather than about the file.
+const written = (view) => !!view && (view.stored.name
+                                     || Object.keys(view.stored.slots).length > 0);
 
 async function openPresets() {
   presetsUp = true;
@@ -600,20 +759,18 @@ async function openPresets() {
     // Every slot holds a patch, written or not, so every one can be switched
     // to. Saving and reverting are up in the header, on whatever is playing.
     const cell = document.createElement('div');
-    cell.className = 'pcell' + (rig.presets.includes(n) ? ' saved' : '') +
+    cell.className = 'pcell' + (written(views[n]) ? ' saved' : '') +
                      (isDirty(views[n]) ? ' dirty' : '') +
                      (n === rig.selected ? ' on' : '');
 
     const label = document.createElement('b');
-    label.textContent = n;
+    const called = views[n]?.live?.name;
+    label.textContent = called ? `${n} \u00b7 ${called}` : n;
 
-    const key = (glyph, title, path) => {
-      const b = document.createElement('button');
-      b.textContent = glyph;
-      b.title = title;
-      b.onclick = () => act(path);
-      return b;
-    };
+    // The name is the switch - there is nothing else to do to a preset from
+    // here, so a separate play button was only taking room from the name.
+    label.title = `switch to preset ${n}`;
+    label.onclick = () => act(`/presets/${n}/select`);
 
     // Copying is a write followed by a select: the write puts what is playing
     // into that preset, and the select is what makes it the one you are on.
@@ -629,9 +786,7 @@ async function openPresets() {
       return b;
     };
 
-    cell.append(label,
-                key('\u25b6', `switch to preset ${n}`, `/presets/${n}/select`),
-                copyHere(n));
+    cell.append(label, copyHere(n));
     picker.append(cell);
   }
 }
@@ -754,7 +909,7 @@ function drawSubBar() {
       kill.title = `take ${name} out`;
       kill.onclick = () => setActive(activeEffects().filter(n => n !== name));
 
-      box.append(pick, kill);
+      box.append(kill, pick);
       bar.append(box);
     }
 
@@ -941,8 +1096,9 @@ async function drawConfigPage() {
   } else {
     box.append(infoRow('bank size', rig.size));
     box.append(infoRow('playing', rig.selected === null ? '\u2014' : `preset ${rig.selected}`));
-    box.append(infoRow('written', rig.presets.join(', ') || 'none'));
     views = await get('/presets');
+    box.append(infoRow('written',
+                       Object.keys(views).filter(n => written(views[n])).join(', ') || 'none'));
     const edited = Object.keys(views).filter(n => isDirty(views[n]));
     box.append(infoRow('unsaved edits', edited.join(', ') || 'none'));
   }
@@ -957,7 +1113,15 @@ function drawChip() {
   const chip = document.getElementById('preset-chip');
   const n = rig.selected;
 
-  chip.textContent = n === null ? 'preset —' : `preset ${n}`;
+  // The same pill the preset list is made of, minus the two buttons - so
+  // what is playing reads the way it reads in the list.
+  const called = patch?.name;
+  const label = document.createElement('b');
+  label.textContent = n === null ? 'preset —'
+                                 : (called ? `${n} \u00b7 ${called}` : String(n));
+
+  chip.innerHTML = '';
+  chip.append(label);
   chip.className = (n === null ? 'none' : '') + (dirty ? ' dirty' : '');
 
   // Saving and reverting act on whatever is playing, so they live up here
@@ -967,6 +1131,20 @@ function drawChip() {
     b.disabled = !dirty;
     b.title = dirty ? `${verb} preset ${n}` : `nothing to ${verb}`;
   }
+
+  // Naming does not wait on there being an edit to save - it needs only
+  // something to name.
+  for (const [id, go, label] of [['undo-chip', canUndo(), 'undo'],
+                                 ['redo-chip', canRedo(), 'redo']]) {
+    const b = document.getElementById(id);
+    b.disabled = !go;
+    b.title = go ? `${label} the last change` : `nothing to ${label}`;
+  }
+
+  const rename = document.getElementById('rename-chip');
+  rename.disabled = n === null;
+  rename.title = n === null ? 'nothing playing'
+                            : `name preset ${n}${patch?.name ? ` (${patch.name})` : ''}`;
 }
 
 for (const [id, path] of [['save-chip', 'commit'], ['revert-chip', 'revert']]) {
@@ -975,6 +1153,12 @@ for (const [id, path] of [['save-chip', 'commit'], ['revert-chip', 'revert']]) {
   };
 }
 document.getElementById('modal-close').onclick = closePicker;
+document.getElementById('undo-chip').onclick = undo;
+document.getElementById('redo-chip').onclick = redo;
+document.getElementById('rename-chip').onclick = () => {
+  if (renamingUp) { closePicker(); return; }
+  openRename();
+};
 document.getElementById('preset-chip').onclick = () => {
   if (presetsUp) { closePicker(); return; }
   openPresets();
@@ -995,7 +1179,7 @@ setInterval(async () => {
     if (moved && presetsUp) openPresets();   // the marker moves with it
   }
 
-  if (open === null && picking === null && !presetsUp && !addingUp) {
+  if (open === null && picking === null && !presetsUp && !addingUp && !renamingUp) {
     const view = await get(`/presets/${rig.selected}`);
     patch = heldPatch(view.live);
     stored = view.stored;
@@ -1105,6 +1289,7 @@ const isPlumbing = (cc) =>
 
 async function applyMapping(name, number) {
   mapping = null;
+  remember();
   const r = await put(`/presets/${rig.selected}`,
                       {...patch, ccs: liveCCs(),
                        cc_map: {...patch.cc_map, [name]: number}});

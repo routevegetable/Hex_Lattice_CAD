@@ -32,15 +32,18 @@ header .tabs button { min-height: 32px; padding: 0 .75rem; border: 0;
 header .tabs button.on { background: #24334d; color: #fff;
                          box-shadow: inset 0 -2px 0 #6a8fd0; }
 
-#preset-chip { min-height: 32px; padding: 0 .9rem; border: 0; border-left: 1px solid #333;
-               background: #1c1c1c; color: #ddd; font: inherit;
-               font-variant-numeric: tabular-nums; }
-#preset-chip.none { color: #a87; }
-/* the preset showing has edits that are not on disk - same amber the preset
-   list marks a dirty row with */
-#preset-chip.dirty { color: #e0b070; }
-#preset-chip.dirty::after { content: '\25cf'; margin-left: .4rem;
-                            font-size: .6em; vertical-align: middle; }
+/* one of the preset list's cells, without the buttons: same background,
+   same number-and-name, same amber when there are edits not on disk. */
+#preset-chip { min-height: 32px; max-width: 11rem; padding: 0; border: 0;
+               border-left: 1px solid #333; background: #1a1f26; color: #dee;
+               font: inherit; font-size: .85rem; overflow: hidden; }
+#preset-chip b { display: block; padding: 0 .6rem; white-space: nowrap;
+                 overflow: hidden; text-overflow: ellipsis;
+                 font-variant-numeric: tabular-nums; font-weight: 600; }
+#preset-chip.none b { color: #a87; font-weight: inherit; }
+#preset-chip.dirty b { color: #e0b070; }
+#preset-chip.dirty b::after { content: '\25cf'; margin-left: .3rem;
+                              font-size: .6em; vertical-align: middle; }
 
 /* save what is playing, in the corner. Lit only when there is something to
    write - which makes it the second half of the dirty indicator. */
@@ -56,6 +59,32 @@ header .tabs button.on { background: #24334d; color: #fff;
                background: #1c1c1c; color: #c99; font: inherit; font-size: 1rem;
                line-height: 1; }
 #revert-chip:disabled { color: #3c434d; }
+
+/* name what is playing. Always available while something is playing - a name
+   is not an edit to undo, it is what the thing is called. */
+#rename-chip { min-height: 32px; min-width: 42px; padding: 0 .6rem;
+               border: 0; border-left: 1px solid #333;
+               background: #1c1c1c; color: #9ab; font: inherit; font-size: 1rem;
+               line-height: 1; }
+#rename-chip:disabled { color: #3c434d; }
+
+/* walking an edit back. Nothing the instrument knows about - the page keeps
+   the history and replays it as ordinary writes. */
+#undo-chip, #redo-chip { min-height: 32px; min-width: 40px; padding: 0 .5rem;
+                         border: 0; border-left: 1px solid #333;
+                         background: #1c1c1c; color: #9ab; font: inherit;
+                         font-size: 1rem; line-height: 1; }
+#undo-chip:disabled, #redo-chip:disabled { color: #3c434d; }
+
+/* one row: type, then commit it. The picker is a grid of narrow cells by
+   default, so this one is told to be a single full-width column. */
+.picker.rename { grid-template-columns: 1fr; }
+.picker.rename form { display: flex; }
+.picker.rename input { flex: 1; min-width: 0; min-height: 44px; padding: 0 .7rem;
+                       border: 0; background: #16181b; color: #eee; font: inherit; }
+.picker.rename button { min-height: 44px; padding: 0 1.2rem; border: 0;
+                        border-left: 1px solid #333; background: #1c1c1c;
+                        color: #cde; font: inherit; }
 
 /* the sub bar: one segment each, divided by lines, scrolls sideways.
    What is in it depends on the tab - effects, fields, or the parts of
@@ -129,8 +158,13 @@ main { flex: 1; position: relative; overflow: hidden; }
 .kindsel .math { flex-direction: column; font-size: .55rem; line-height: 1.15;
                  letter-spacing: .06em; padding: 0 .35rem; }
 
-.unwrap { min-width: 28px; min-height: 26px; border: 0; border-left: 1px solid #333;
-          background: #1d1d1d; color: #a77; font: inherit; line-height: 1; padding: 0; }
+/* the three things you can do to an operation itself, rather than to what is
+   in it: swap its operands, put it inside a new one, or drop it. */
+.unwrap, .wrap, .swap {
+          min-width: 28px; min-height: 26px; border: 0; border-left: 1px solid #333;
+          background: #1d1d1d; font: inherit; line-height: 1; padding: 0; }
+.unwrap { color: #a77; }
+.wrap, .swap { color: #8a9; }
 .hint { color: #666; font-size: .75rem; padding: 0 .5rem; }
 
 /* a constant is dragged, not typed */
@@ -218,16 +252,36 @@ input[type=range] { flex: 1; min-width: 5rem; max-width: 12rem; height: 24px;
 
 /* preset list: a number, switch to it, or copy what is playing into it.
    Saving and reverting are in the header, on whatever is playing. */
-.picker.presets { grid-template-columns: repeat(auto-fill, minmax(5.6rem, 1fr)); }
-.pcell { display: flex; align-items: stretch; background: #1a1f26; }
-.pcell b { flex: none; display: flex; align-items: center; justify-content: flex-end;
-           min-width: 1.9rem; padding-right: .35rem; color: #dee; font-size: .85rem;
-           font-variant-numeric: tabular-nums; }
-.pcell button { flex: 1; min-height: 38px; border: 0; border-left: 1px solid #2d3238;
+/* Not the usual grid: these flow like words, each a fixed width, so a row
+   holds however many fit and the last one does not stretch to the edge.
+   Wide enough for a number and a name beside it. */
+.picker.presets { display: flex; flex-wrap: wrap; align-content: start;
+                  gap: .45rem; padding: .45rem; }
+/* The one place cells do not butt together: a pill's two buttons sit right
+   beside the next pill's number, and touching made it ambiguous which one
+   they belonged to. Space and a rounded edge say where each pill ends. */
+.picker.presets > * { border: 0; }
+.pcell { flex: none; width: 11rem; display: flex; align-items: stretch;
+         background: #1a1f26; border-radius: .35rem; overflow: hidden; }
+/* Left aligned, so a name that will not fit is cut off at its end with an
+   ellipsis rather than losing its beginning. */
+.pcell b { flex: 1; min-width: 0; align-self: stretch; display: flex;
+           align-items: center; cursor: pointer; padding: 0 .35rem 0 .5rem;
+           color: #dee; font-size: .85rem; font-variant-numeric: tabular-nums;
+           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the glyph sits in the middle of its own part of the pill - the picker's
+   buttons are left aligned, which is right for a list of names and wrong for
+   a pair of icons. */
+.pcell button { flex: none; min-width: 2.4rem; min-height: 38px;
+                display: flex; align-items: center; justify-content: center;
+                border: 0; border-left: 1px solid #2d3238;
                 background: #20262e; color: #cde; font: inherit; font-size: .8rem;
                 line-height: 1; padding: 0; }
 .pcell.saved { background: #1b2a38; }
 .pcell.on { box-shadow: inset 2px 0 0 #6a8fd0; color: #fff; }
 /* edited since it was last written - on the number, not the whole cell */
 .pcell.dirty b { color: #e0b070; }
-.pcell.dirty b::after { content: '\00b7'; margin-left: .15rem; }
+/* a filled dot, not the middle dot that separates the number from the name -
+   the same glyph twice would be two things wearing one mark */
+.pcell.dirty b::after { content: '\25cf'; margin-left: .3rem;
+                        font-size: .6em; vertical-align: middle; }

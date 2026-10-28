@@ -124,6 +124,10 @@ class Patch:
     # every effect is taken as on.
     active: list[str] | None = None
 
+    # What to call it, if it is worth calling anything. A preset is addressed
+    # by its number; this is only so there is something to read.
+    name: str | None = None
+
     def apply(self, midi: MIDI, fields: type, effects: type):
         """Put the knobs back and re-patch the slots.
 
@@ -186,12 +190,13 @@ class Patch:
         patches must never share a dict, or editing one edits the other."""
         return Patch(ccs=dict(self.ccs), slots=copy.deepcopy(self.slots),
                      cc_map=dict(self.cc_map),
-                     active=None if self.active is None else list(self.active))
+                     active=None if self.active is None else list(self.active),
+                     name=self.name)
 
     def save(self, path: str):
         slots = {name: as_json(ref) for name, ref in self.slots.items()}
         out = {"ccs": self.ccs, "slots": slots, "cc_map": self.cc_map,
-               "active": self.active}
+               "active": self.active, "name": self.name}
         Path(path).write_text(json.dumps(out, indent=2))
 
     @classmethod
@@ -203,7 +208,8 @@ class Patch:
         return cls(ccs={int(cc): v for cc, v in saved["ccs"].items()},
                    slots={name: as_ref(raw) for name, raw in saved["slots"].items()},
                    cc_map=saved.get("cc_map", {}),
-                   active=None if active is None else list(active))
+                   active=None if active is None else list(active),
+                   name=saved.get("name"))
 
 
 @dataclass
@@ -219,7 +225,10 @@ class PresetBank:
     """
 
     directory: Path
-    size: int = 16
+    # A program change carries 0-127, so that is the bank. Most slots have no
+    # file and hold a patch that says nothing, which is what an empty preset
+    # is - there is no other kind.
+    size: int = 128
 
     def __post_init__(self):
         self.directory = Path(self.directory)
@@ -264,10 +273,6 @@ class PresetBank:
 
     def exists(self, number: int) -> bool:
         return self.path(number).exists()
-
-    def saved(self) -> list[int]:
-        """Which slots have a file."""
-        return [n for n in range(self.size) if self.exists(n)]
 
     def reload(self):
         """Fill the cache from storage.

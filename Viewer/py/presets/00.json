@@ -16,28 +16,14 @@
     "91": 123,
     "93": 10,
     "102": 13,
+    "104": 25,
+    "105": 19,
     "114": 47
   },
   "slots": {
-    "bg_waves.hue": {
-      "op": "add",
-      "a": 0.5,
-      "b": {
-        "op": "mul",
-        "a": {
-          "op": "add",
-          "a": "burst",
-          "b": "rotary"
-        },
-        "b": 0.31
-      }
-    },
-    "bg_waves.value": {
-      "op": "mul",
-      "a": "burst",
-      "b": "fader_a"
-    },
-    "bg_waves.flow": "wipe1",
+    "bg_waves.hue": 0.5,
+    "bg_waves.value": 0.12,
+    "bg_waves.flow": "loops",
     "bg_waves2.hue": 0.84,
     "bg_waves2.value": 0.0,
     "net.amp": "strobe1",
@@ -124,10 +110,12 @@
     "map_fiber3.saturation": 0.97
   },
   "cc_map": {
-    "fader_a.value": 10
+    "fader_a.value": 10,
+    "loops.shape": 105
   },
   "active": [
     "bg_waves",
     "prob_zaps"
-  ]
+  ],
+  "name": "temp"
 }

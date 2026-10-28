@@ -92,7 +92,6 @@ class Rig:
     # Presentation metadata for controls
     control_meta: dict[str, CCMeta] = field(default_factory=dict)
 
-    presets: list[int] = field(default_factory=list)    # the ones with a file
     selected: int | None = None
     size: int = 16
 
@@ -277,7 +276,6 @@ class Console:
                 effects=effects,
                 control_meta={name: mapping.meta for name, mapping
                               in self._midi.get_mappings().items()},
-                presets=self._bank.saved(),
                 selected=self._selected,
                 size=self._bank.size,
             )
