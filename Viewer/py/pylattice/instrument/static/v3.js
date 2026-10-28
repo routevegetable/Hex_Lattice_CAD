@@ -106,7 +106,12 @@ function drawPresets() {
   }
 }
 
-const fmt = (n) => (Math.round(n * 100) / 100).toFixed(2);
+// Two decimals, or three when the number has them: a value typed as 0.123 is shown
+// as 0.123, not as the 0.12 it would round to. Three is as fine as the page keeps.
+const fmt = (n) => {
+  const three = n.toFixed(3);
+  return three.endsWith('0') ? n.toFixed(2) : three;
+};
 const OPS = {add: '+', sub: '\u2212', mul: '\u00d7', div: '\u00f7', avg: '\u2248'};
 
 // A slot as text: what is plugged into it, however deep.
@@ -503,14 +508,23 @@ function hueBar(start, end, single, onInput, onCommit) {
   bar.append(a, b);
 
   const read = () => [parseFloat(a.value), parseFloat(single ? a.value : b.value)];
-  const show = () => { const [s0, e0] = read(); paintBand(band, s0, e0); onInput(s0, e0); };
-  show();
+  const show = (s0, e0) => { paintBand(band, s0, e0); onInput(s0, e0); };
 
-  a.oninput = b.oninput = show;
+  // The first time it says what it was handed, not where the thumbs ended up: they
+  // can only sit on a hundredth, and a hue of 0.615 is not 0.62.
+  show(start, end);
+
+  a.oninput = b.oninput = () => show(...read());
   a.onchange = b.onchange = () => onCommit(...read());
 
-  // Typing a hue moves the one thumb.
-  bar.setHue = (v) => { a.value = String(clampAxis(v)); show(); onCommit(...read()); };
+  // Typing a hue moves the one thumb, and keeps what was typed rather than the
+  // hundredth the thumb rounds it to.
+  bar.setHue = (v) => {
+    const x = clampAxis(v);
+    a.value = String(x);
+    show(x, x);
+    onCommit(x, x);
+  };
   return bar;
 }
 
