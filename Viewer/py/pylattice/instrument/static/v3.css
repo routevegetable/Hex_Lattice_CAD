@@ -35,6 +35,7 @@ header button { white-space: nowrap; }
 .pcell.act { font-size: 1rem; line-height: 1; }
 .pcell.act[data-verb=commit] { color: #e0b070; margin-left: 8px; }
 .pcell.act[data-verb=revert] { color: #c99; }
+.pcell.act[data-verb=undo] { margin-left: 8px; }
 .pcell.act:disabled { opacity: .25; }
 
 /* effects down the left half, the rest of the page on the right */
