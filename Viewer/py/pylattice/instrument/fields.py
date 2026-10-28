@@ -7,6 +7,7 @@ preset can name - docs/beatstep.svg has the same thing as a control layout.
 from pylattice.fields.artnet import artnet_universes
 from pylattice.fields.burst import BurstField
 from pylattice.fields.controls import CCField, StrobeField
+from pylattice.fields.loops import LoopsField
 from pylattice.fields.fire import FireField
 from pylattice.fields.gradient import VGradientField
 from pylattice.fields.mask import EdgeMaskField
@@ -37,6 +38,7 @@ from pylattice.instrument.hardware import (
     PA1,
     PA2,
     PA3,
+    PA4,
     PB1,
     PB2,
     PB3,
@@ -87,6 +89,12 @@ class FIELDS:
     scope240 = ScopeFieldBetter(
         graph, midi.for_("scope"), speed=KB7, pattern=KB8, phase_offset=0.6
     )
+
+    # Closed figures scattered about, each with a trail going round it. Every
+    # knob on the box is spoken for, so these three start off the desk - map
+    # them onto something from the expression editor.
+    loops = LoopsField(graph, midi.for_("loops"),
+                       note=PA4, shape=103, copies=104, speed=105)
 
     # Fire climbing from the bottom, as hard as PB7 is leaned on
     fire = FireField(graph, midi.for_("fire"), note=PB7)
