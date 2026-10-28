@@ -40,7 +40,10 @@
     "prob_zaps.prob": 0.0,
     "map_fiber.value": "wipe1",
     "map_fiber.hue": 0.66,
-    "map_fiber.saturation": 0.52
+    "map_fiber.sat": 0.52,
+    "bg_waves.sat": 1,
+    "bg_waves2.sat": 1,
+    "net.sat": 0.7
   },
   "cc_map": {},
   "active": [

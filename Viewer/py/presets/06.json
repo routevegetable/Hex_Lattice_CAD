@@ -78,10 +78,13 @@
       "b": 0.22
     },
     "map_fiber.hue": 0.27,
-    "map_fiber.saturation": {
+    "map_fiber.sat": {
       "op": "sub",
       "a": 1.0,
       "b": "wipe2"
-    }
+    },
+    "bg_waves.sat": 1,
+    "bg_waves2.sat": 1,
+    "net.sat": 0.7
   }
 }

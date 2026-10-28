@@ -124,6 +124,11 @@ class Patch:
     # every effect is taken as on.
     active: list[str] | None = None
 
+    # Which effects are silenced. A muted effect stays in the patch, slots and
+    # all, and the chain skips it when drawing. Empty - which is also what a
+    # file written before mute existed gives - means every effect is heard.
+    muted: set[str] = field(default_factory=set)
+
     # What to call it, if it is worth calling anything. A preset is addressed
     # by its number; this is only so there is something to read.
     name: str | None = None
@@ -191,12 +196,15 @@ class Patch:
         return Patch(ccs=dict(self.ccs), slots=copy.deepcopy(self.slots),
                      cc_map=dict(self.cc_map),
                      active=None if self.active is None else list(self.active),
+                     muted=set(self.muted),
                      name=self.name)
 
     def save(self, path: str):
         slots = {name: as_json(ref) for name, ref in self.slots.items()}
         out = {"ccs": self.ccs, "slots": slots, "cc_map": self.cc_map,
-               "active": self.active, "name": self.name}
+               "active": self.active,
+               "muted": sorted(self.muted),
+               "name": self.name}
         Path(path).write_text(json.dumps(out, indent=2))
 
     @classmethod
@@ -209,6 +217,7 @@ class Patch:
                    slots={name: as_ref(raw) for name, raw in saved["slots"].items()},
                    cc_map=saved.get("cc_map", {}),
                    active=None if active is None else list(active),
+                   muted=set(saved.get("muted", [])),
                    name=saved.get("name"))
 
 

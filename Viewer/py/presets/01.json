@@ -96,10 +96,13 @@
       },
       "b": 0.4
     },
-    "map_fiber.saturation": {
+    "map_fiber.sat": {
       "op": "sub",
       "a": 1.0,
       "b": "wipe1"
-    }
+    },
+    "bg_waves.sat": 1,
+    "bg_waves2.sat": 1,
+    "net.sat": 0.7
   }
 }

@@ -47,7 +47,7 @@
     "prob_zaps.value": 0.9,
     "map_fiber.value": 0.0,
     "map_fiber.hue": 0.0,
-    "map_fiber.saturation": 1.0,
+    "map_fiber.sat": 1.0,
     "map_fiber2.value": {
       "op": "mul",
       "a": "h_edges",
@@ -62,7 +62,7 @@
       }
     },
     "map_fiber2.hue": 0.78,
-    "map_fiber2.saturation": {
+    "map_fiber2.sat": {
       "op": "add",
       "a": "rotary",
       "b": {
@@ -93,7 +93,10 @@
       }
     },
     "map_fiber3.hue": 1.0,
-    "map_fiber3.saturation": 0.97
+    "map_fiber3.sat": 0.97,
+    "bg_waves.sat": 1,
+    "bg_waves2.sat": 1,
+    "net.sat": 0.7
   },
   "cc_map": {},
   "active": [

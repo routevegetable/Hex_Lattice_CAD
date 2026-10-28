@@ -39,6 +39,9 @@
     "net.amp": "ripple2",
     "net.hue": "param_b",
     "net.value": "fader_b",
-    "prob_zaps.prob": "ripple2"
+    "prob_zaps.prob": "ripple2",
+    "bg_waves.sat": 1,
+    "bg_waves2.sat": 1,
+    "net.sat": 0.7
   }
 }

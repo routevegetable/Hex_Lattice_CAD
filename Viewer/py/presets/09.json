@@ -77,7 +77,7 @@
         "b": 0.3
       }
     },
-    "map_fiber.saturation": 0.9,
+    "map_fiber.sat": 0.9,
     "map_fiber2.value": {
       "op": "mul",
       "a": "param_b",
@@ -88,7 +88,7 @@
       "a": "fire",
       "b": 0.68
     },
-    "map_fiber2.saturation": {
+    "map_fiber2.sat": {
       "op": "sub",
       "a": 1.0,
       "b": {
@@ -103,7 +103,10 @@
       "b": 0.15
     },
     "bg_waves2.hue": 0.5,
-    "bg_waves2.flow": 0.0
+    "bg_waves2.flow": 0.0,
+    "bg_waves.sat": 1,
+    "bg_waves2.sat": 1,
+    "net.sat": 0.7
   },
   "cc_map": {},
   "active": [

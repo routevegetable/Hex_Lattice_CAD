@@ -15,7 +15,8 @@ def bg_waves(
     now: Event,
     bg_hue: ScalarField,
     bg_value: ScalarField,
-    bg_flow: ScalarField
+    bg_flow: ScalarField,
+    bg_sat: ScalarField
 ):
     for v in graph.vertexes():
         ends = v.ends_cw()
@@ -23,6 +24,7 @@ def bg_waves(
         for end in ends:
             base_hue = bg_hue.get(now, end)
             base_value = bg_value.get(now, end)
+            base_sat = bg_sat.get(now, end)
             if base_value < 0.001:
                 continue
             flow = bg_flow.get(now, end)
@@ -32,15 +34,16 @@ def bg_waves(
                 hue = vary(now, base_hue, base_hue + .03, PERIOD, i/4)
                 value = vary(now, 0.1, .7 + flow*0.3, PERIOD*7.1, i/4)
                 saturation = vary(now, 0.9 - flow*0.9, 1, PERIOD*3, i/4) # More flow means less saturation
-                lattice[end][i] = hsv(hue, saturation, value * base_value)
+                lattice[end][i] = hsv(hue, saturation * base_sat, value * base_value)
 
 
 class BgWaves(Effect):
     """Waves over the whole lattice: one field picks the hue, another the brightness."""
 
     hue: Slot
+    sat: Slot
     value: Slot
     flow: Slot
 
     def render(self, now: Event, lattice: LatticeWriter, graph: Graph):
-        bg_waves(graph, lattice, now, self.hue, self.value, self.flow)
+        bg_waves(graph, lattice, now, self.hue, self.value, self.flow, self.sat)

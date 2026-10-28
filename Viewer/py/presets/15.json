@@ -60,7 +60,7 @@
       },
       "b": 0.0
     },
-    "map_fiber.saturation": {
+    "map_fiber.sat": {
       "op": "sub",
       "a": 1.0,
       "b": "wipe1"
@@ -83,7 +83,7 @@
         "b": 0.32
       }
     },
-    "map_fiber2.saturation": 0.91,
+    "map_fiber2.sat": 0.91,
     "prob_zaps.value": {
       "op": "mul",
       "a": {
@@ -93,7 +93,10 @@
       },
       "b": 0.57
     },
-    "prob_zaps.hue": 0.69
+    "prob_zaps.hue": 0.69,
+    "bg_waves.sat": 1,
+    "bg_waves2.sat": 1,
+    "net.sat": 0.7
   },
   "cc_map": {
     "burst.decay": 73

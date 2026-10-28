@@ -65,7 +65,10 @@
       "b": "scope120"
     },
     "bg_waves2.flow": 0.83,
-    "bg_waves2.value": 0.19
+    "bg_waves2.value": 0.19,
+    "bg_waves.sat": 1,
+    "bg_waves2.sat": 1,
+    "net.sat": 0.7
   },
   "cc_map": {},
   "active": [

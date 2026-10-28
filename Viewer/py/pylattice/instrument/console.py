@@ -181,7 +181,7 @@ class Console:
         thing sits in it changes what comes out. A patch with no list at all
         was written before effects could be switched off, and means all of
         them. A name the code no longer has is skipped - apply() has already
-        said so.
+        said so. Effects in `patch.muted` are skipped, but keep their slots.
         """
         with self.lock:
             patch = self._bank.playing()
@@ -190,7 +190,9 @@ class Console:
                 return []               # nothing selected, nothing to draw
 
             names = list(self._by_effect) if patch.active is None else patch.active
-            return [self._by_effect[name] for name in names if name in self._by_effect]
+            return [self._by_effect[name] for name in names
+                    if name in self._by_effect
+                    and name not in patch.muted]
 
     def _apply(self, patch: Patch):
         """Put a patch into the rig. Knobs it does not mention are left alone,
