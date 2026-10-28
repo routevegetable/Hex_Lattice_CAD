@@ -5,6 +5,11 @@
    scarce thing here. Nothing relies on hover. */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+/* The one lever for how big everything is. zoom scales the px sizes too -
+   the 32px rows, the 38px sub bar, the dials - which a root font-size would
+   leave behind. Firefox understands it with no flags or devtools. */
+html { zoom: 2; }
+
 html, body { height: 100%; margin: 0; overscroll-behavior: none; }
 body { font: 14px/1.25 system-ui, sans-serif; color: #eee; background: #111;
        user-select: none; }
