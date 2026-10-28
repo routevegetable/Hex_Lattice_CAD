@@ -1287,6 +1287,30 @@ const store = {
 };
 const expanded = store.get();
 
+// How wide the effects run is the same kind of habit: the left half, or the whole
+// window. It is only a class on the layout, so nothing has to be drawn again.
+const columns = document.querySelector('.cols');
+const wideButton = document.getElementById('wide');
+const widthStore = {
+  get() { try { return localStorage.getItem('v3.wide') === '1'; } catch { return false; } },
+  put(on) { try { localStorage.setItem('v3.wide', on ? '1' : '0'); } catch {} },
+};
+
+function setWide(on) {
+  columns.classList.toggle('wide', on);
+  wideButton.setAttribute('aria-pressed', String(on));
+  wideButton.textContent = on ? 'half width' : 'full width';
+  wideButton.title = on ? 'put the effects back in the left half'
+                        : 'let the effects take the whole width of the window';
+}
+
+setWide(widthStore.get());
+wideButton.onclick = () => {
+  const on = !columns.classList.contains('wide');
+  widthStore.put(on);
+  setWide(on);
+};
+
 // A drag or a half-typed number lives in the page, and a redraw would take it away.
 const inUse = () => document.activeElement?.closest?.('#effects') != null &&
                     document.activeElement.tagName === 'INPUT';
