@@ -1653,6 +1653,7 @@ const copyWhy = document.getElementById('copy-why');
 const copyOk = document.getElementById('copy-ok');
 let savedTimer = null;
 let target = null;          // the number picked in the dialog
+let making = 'copy';        // what the dialog is for: 'copy' of what is playing, or a blank 'new' one
 
 // The numbers to choose from: every one the bank holds, each saying what it holds.
 function drawCopyGrid() {
@@ -1691,8 +1692,10 @@ function checkCopy() {
 copyName.oninput = checkCopy;
 document.getElementById('copy-cancel').onclick = () => copyDialog.close();
 
-async function openCopy() {
-  if (rig.selected === null) { alert('Nothing is playing to copy.'); return; }
+async function openCopy(kind = 'copy') {
+  if (kind === 'copy' && rig.selected === null) { alert('Nothing is playing to copy.'); return; }
+  making = kind;
+  document.getElementById('copy-title').textContent = kind === 'new' ? 'new preset' : 'save a copy';
 
   // What is on the page may be a second old; the choices are about what is there now.
   views = await get('/presets');
@@ -1706,7 +1709,15 @@ async function openCopy() {
   copyName.focus();
 }
 
-document.getElementById('save-copy').onclick = openCopy;
+document.getElementById('save-copy').onclick = () => openCopy('copy');
+document.getElementById('new-preset').onclick = () => openCopy('new');
+
+// A preset with nothing plugged in: every effect is in the chain, so there is a
+// card for each to open, and every slot is blank, so nothing draws until one is
+// filled. No knobs are listed - a patch that says nothing about them leaves them
+// where they are - and nothing is muted.
+const blankPatch = (name) => ({ccs: {}, slots: {}, cc_map: {}, active: Object.keys(rig.effects),
+                               muted: [], name});
 
 copyDialog.querySelector('form').onsubmit = async (e) => {
   e.preventDefault();
@@ -1723,15 +1734,21 @@ copyDialog.querySelector('form').onsubmit = async (e) => {
       !confirm(`Replace preset ${number}${nameOf(number) ? ` "${nameOf(number)}"` : ''}? Its file is written over.`)) return;
   copyDialog.close();
 
-  const playing = await get(`/presets/${rig.selected}`);
-  let r = await put(`/presets/${number}`, {...playing.live, name});
+  // A copy is the playing preset with a name; a new one is a blank patch with one.
+  const patch = making === 'new' ? blankPatch(name)
+                                 : {...(await get(`/presets/${rig.selected}`)).live, name};
+  let r = await put(`/presets/${number}`, patch);
   if (!r.ok) { alert((await r.json()).detail); return; }
 
   r = await post(`/presets/${number}/commit`);
   if (!r.ok) { alert((await r.json()).detail); return; }
-  await refresh();
 
-  savedNote.textContent = `saved ${name} as #${number}`;
+  // A copy leaves what is playing alone. A blank one is made to be filled in, so
+  // it is the one to play.
+  if (making === 'new') await act(`/presets/${number}/select`);
+  else await refresh();
+
+  savedNote.textContent = making === 'new' ? `made ${name} as #${number}` : `saved ${name} as #${number}`;
   clearTimeout(savedTimer);
   savedTimer = setTimeout(() => { savedNote.textContent = ''; }, 4000);
 };

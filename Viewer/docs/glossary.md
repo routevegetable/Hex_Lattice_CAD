@@ -160,8 +160,10 @@ shows every number the bank holds, each with the name it has; you pick the one
 the copy goes to, starting from the lowest free number past the first sixteen,
 and picking one that already holds something asks before it is replaced. The
 page then reads the playing preset, writes it to that number with the name and
-commits it - the same writes as any other edit. The page cannot delete a
-preset: the API has no way to.
+commits it - the same writes as any other edit. *New preset…* is the same dialog and picker, but what it writes is a blank
+patch: every effect is in the chain, no slot has anything plugged in, nothing is
+muted, and no knob is listed. It plays the new preset afterwards, ready to fill in.
+The page cannot delete a preset: the API has no way to.
 
 **Effect card** — one effect in the playing preset. Its switch **mutes** it, which is an edit to the preset like any other, its
 bin takes it out of the preset, and opening it shows its slots. Cards run down

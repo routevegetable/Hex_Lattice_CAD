@@ -11,6 +11,7 @@
   <span id="preset-name" class="preset-name"></span>
   <span id="named" class="fpick"><button id="named-open" title="play a preset by name">named ▾</button></span>
   <button id="save-copy" title="keep a copy of what is playing as a new preset; this one keeps playing">save copy as…</button>
+  <button id="new-preset" title="start a new named preset with every slot blank, and play it">new preset…</button>
   <span id="saved" class="dim"></span>
   <button id="wide" class="wide-toggle" aria-pressed="false" title="let the effects take the whole width of the window">full width</button>
 </header>
@@ -22,7 +23,7 @@
 
 <dialog id="copy-dialog">
   <form method="dialog">
-    <h2>save a copy</h2>
+    <h2 id="copy-title">save a copy</h2>
     <label>name <input id="copy-name" type="text" maxlength="32" autocomplete="off"
            placeholder="letters, digits and single dashes"></label>
     <p class="dim">number</p>
