@@ -402,6 +402,7 @@ function fieldMenu(box, current, onPick, source = fieldSource) {
     box.classList.remove('open');
     box.closest('.slot')?.classList.remove('menu-open');
     picking = null;
+    source.onClose?.();
   };
   const away = (ev) => { if (!box.contains(ev.target)) close(); };
   const choose = (value) => { close(); onPick(value); };
@@ -424,7 +425,9 @@ function fieldMenu(box, current, onPick, source = fieldSource) {
     onMap.className = 'fpick-map';
     onMap.textContent = 'pick on the controller map';
     onMap.onclick = () => { close(); startMapPick(onPick); };
-    menu.append(search, onMap, body);
+    menu.append(search);
+    if (!source.noMap) menu.append(onMap);
+    menu.append(body);
 
     let rows = [], cursor = 0;
 
@@ -1229,6 +1232,7 @@ function listen() {
     if (turning && knobs[turning.cc]) knobs[turning.cc].value = turning.value;
     syncKnobs();
     syncMapKnobs();
+    menuOnTurn();
 
     const moved = mapping && lastMoved();
     if (moved && moved.knob.age_ms < Date.now() - mapping.since) assign(mapping.name, moved.cc);
@@ -1889,6 +1893,8 @@ function drawMap() {
   const surface = surfaces[surfaceId];
   if (!surface || !surfaceSvg[surfaceId]) return;
 
+  if (ccMenu) return;           // an open menu is not to be redrawn out from under the hand
+
   const used = fieldsInUse();
   const here = controls.filter(c => !c.hidden);
   const key = JSON.stringify([surfaceId, [...used], here.map(c => [c.kind, c.number, c.comments])]);
@@ -1911,13 +1917,29 @@ function drawMap() {
     await loadSurfaces();
     drawMap();
   };
-  head.append(pick);
+  const ask = document.createElement('label');
+  ask.className = 'dim';
+  ask.title = 'turn a knob or fader on the desk and a menu offers to assign it';
+  const box = document.createElement('input');
+  box.type = 'checkbox'; box.checked = askOnTurn;
+  box.onchange = () => {
+    askOnTurn = box.checked;
+    try { localStorage.setItem('askOnTurn', askOnTurn ? 'yes' : 'no'); } catch { /* a courtesy */ }
+  };
+  ask.append(box, ' menu when I turn one');
+  head.append(pick, ask);
   mapBox.append(head);
 
   const holder = document.createElement('div');
   holder.className = 'surface';
   holder.innerHTML = surfaceSvg[surfaceId];
   mapBox.append(holder);
+
+  // Every knob and fader the picture has can be assigned, and follows the desk.
+  for (const [cc, id] of Object.entries(surface.ccs)) {
+    const spot = holder.querySelector(`#${CSS.escape(id)}`);
+    if (spot) { spot.dataset.cc = cc; spot.onclick = () => openCcMenu(Number(cc)); }
+  }
 
   const off = [];
   const roles = new Map();          // spot -> the [field, role] of everything on it
@@ -1930,7 +1952,6 @@ function drawMap() {
     for (const spot of spots) {
       spot.classList.add('assigned');
       if (fieldOwners(c).some(n => used.has(n))) spot.classList.add('lit');
-      if (c.kind === 'cc') spot.dataset.cc = c.number;
       spot.dataset.owners = JSON.stringify([...new Set([...JSON.parse(spot.dataset.owners ?? '[]'), ...fieldOwners(c)])]);
       roles.set(spot, [...(roles.get(spot) ?? []), ...c.comments.map(t => t.split('.'))]);
     }
@@ -1952,7 +1973,10 @@ function drawMap() {
     title.textContent = rs.map(r => r.join('.')).join('\n');
     spot.append(title);
   }
-  for (const spot of holder.querySelectorAll('.spot.assigned')) spot.onclick = () => pressedOnMap(spot);
+  for (const spot of holder.querySelectorAll('.spot.assigned')) {
+    const open = spot.onclick;
+    spot.onclick = () => mapPick ? pressedOnMap(spot) : open?.();
+  }
 
   if (off.length) {
     const note = document.createElement('p');
@@ -2033,6 +2057,59 @@ function pressedOnMap(spot) {
 }
 
 document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && mapPick) endMapPick(); });
+
+// ---- giving a knob or fader a job
+
+// What a knob can be assigned to: every CC control the instrument declares,
+// named `field.role`, listed under its field with the CC it is on now.
+const ccSource = (cc) => ({
+  placeholder: `assign cc ${cc} to\u2026`,
+  noMap: true,
+  onClose: () => { ccMenu = null; dismissed = {cc, at: Date.now()}; mapDrawn = ''; drawMap(); },
+  entries: () => controls.filter(c => c.kind === 'cc' && !c.hidden && c.comments.length)
+      .map(c => ({group: c.comments[0].split('.')[0], text: c.comments[0],
+                  hint: c.number === cc ? 'here' : `cc ${c.number}`, value: c.comments[0]}))
+      .sort((a, b) => a.group.localeCompare(b.group) || a.text.localeCompare(b.text)),
+});
+
+// Playing the rig turns knobs all the time, so the menu on a turn can be switched off.
+let askOnTurn = (() => { try { return localStorage.getItem('askOnTurn') !== 'no'; } catch { return true; } })();
+let ccMenu = null;          // {cc} while the menu is up on a knob or fader
+let dismissed = {cc: null, at: 0};
+
+function openCcMenu(cc) {
+  // A press that closed the menu on this very control is not a request for it again.
+  if (mapPick || ccMenu || (dismissed.cc === cc && Date.now() - dismissed.at < 300)) return;
+  const id = surfaces[surfaceId]?.ccs[cc];
+  const spot = id && mapBox.querySelector(`#${CSS.escape(id)}`);
+  if (!spot) return;
+
+  const here = spot.getBoundingClientRect(), within = mapBox.getBoundingClientRect();
+  const anchor = document.createElement('div');
+  anchor.className = 'fpick cc-anchor';
+  anchor.style.left = `${here.left - within.left}px`;
+  anchor.style.top = `${here.bottom - within.top}px`;
+  anchor.style.width = '220px';
+  mapBox.append(anchor);
+
+  const now = controls.find(c => c.kind === 'cc' && c.number === cc && c.comments.length);
+  ccMenu = {cc};
+  const close = () => { anchor.remove(); };
+  const toggle = fieldMenu(anchor, now?.comments[0] ?? null, (name) => assign(name, cc), {
+      ...ccSource(cc), onClose: () => { close(); ccSource(cc).onClose(); }});
+  toggle();
+}
+
+// A knob turned on the desk that is not being dragged here asks what it is for.
+function menuOnTurn() {
+  if (!askOnTurn || ccMenu || mapPick || mapping || turning) return;
+  const moved = lastMoved();
+  if (!moved || moved.knob.age_ms > 400 || !surfaces[surfaceId]?.ccs[moved.cc]) return;
+  const cc = Number(moved.cc);
+  // Still turning the one that was put away: leave it be until it has been still.
+  if (dismissed.cc === cc && Date.now() - dismissed.at < 3000) { dismissed.at = Date.now(); return; }
+  openCcMenu(cc);
+}
 
 // ---- keeping up ----------------------------------------------------------
 

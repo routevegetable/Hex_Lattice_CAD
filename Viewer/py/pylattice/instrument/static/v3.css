@@ -47,7 +47,9 @@ aside { min-width: 0; }
 /* The effects can take the whole window; the controller map then sits below them. */
 .cols.wide { grid-template-columns: 1fr; }
 #map { position: sticky; top: 12px; }
-.cols.wide #map { position: static; }
+#map .cc-anchor { position: absolute; z-index: 40; }
+.cc-anchor .fpick-list { margin-top: 2px; }
+.cols.wide #map { position: relative; }
 .wide-toggle { margin-left: auto; }
 .wide-toggle[aria-pressed="true"] { border-color: var(--accent); }
 
@@ -273,3 +275,6 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 .box.akai .pad.lit .cap { fill: #24334d; }
 .box.akai .fader.assigned .thumb { fill: #2b3441; }
 .box.akai .fader.lit .thumb { fill: #24334d; }
+
+.map-head { align-items: center; }
+.map-head label { font-size: 12px; cursor: pointer; }
