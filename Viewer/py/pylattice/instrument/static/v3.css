@@ -277,3 +277,4 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 .map-menu .fpick-list { min-width: 260px; }
 .spot[data-cc]:not(.assigned) { cursor: pointer; }
 .map-off button { margin-left: 6px; }
+.spot.assigned[data-cc] { cursor: pointer; }

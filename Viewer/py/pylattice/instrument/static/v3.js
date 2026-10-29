@@ -1964,7 +1964,10 @@ function drawMap() {
     title.textContent = rs.map(r => r.join('.')).join('\n');
     spot.append(title);
   }
-  for (const spot of holder.querySelectorAll('.spot.assigned')) spot.onclick = () => pressedOnMap(spot);
+  for (const [spot, rs] of roles) spot.dataset.names = JSON.stringify(rs.map(r => r.join('.')));
+  for (const spot of holder.querySelectorAll('.spot.assigned')) spot.onclick = () => {
+    if (mapPick) pressedOnMap(spot); else if (spot.dataset.cc) unassignBar(spot);
+  };
   // Clicking a knob or fader nothing is on offers a control for it. Turning one
   // never asks anything.
   for (const spot of holder.querySelectorAll('.spot[data-cc]:not(.assigned)'))
@@ -2124,6 +2127,37 @@ async function assignUsed() {
   clearTimeout(savedTimer);
   savedTimer = setTimeout(() => { savedNote.textContent = ''; }, 6000);
   await refresh();
+}
+
+// Take a control off the knob or fader that was clicked: it goes back to the CC
+// it was declared with, which is not on this box.
+function unassignBar(spot) {
+  mapBox.querySelector('.map-menu')?.remove();
+  mapBox.querySelector('.map-prompt')?.remove();
+  const bar = document.createElement('div');
+  bar.className = 'map-prompt';
+  const msg = document.createElement('span');
+  msg.textContent = `${surfaces[surfaceId].ccs[spot.dataset.cc]}: take off`;
+  bar.append(msg);
+  for (const name of JSON.parse(spot.dataset.names ?? '[]')) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.onclick = async () => {
+      const n = rig.selected;
+      if (n === null) return;
+      const fresh = await get(`/presets/${n}`);
+      const {[name]: _, ...cc_map} = fresh.live.cc_map;
+      const r = await put(`/presets/${n}`, {...fresh.live, cc_map});
+      if (!r.ok) { alert((await r.json()).detail); return; }
+      await refresh();
+    };
+    bar.append(b);
+  }
+  const cancel = document.createElement('button');
+  cancel.textContent = 'cancel';
+  cancel.onclick = () => bar.remove();
+  bar.append(cancel);
+  mapBox.prepend(bar);
 }
 
 // A menu of the controls, to put one on the knob or fader that was clicked.
