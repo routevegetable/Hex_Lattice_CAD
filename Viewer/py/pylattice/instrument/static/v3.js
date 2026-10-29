@@ -419,7 +419,12 @@ function fieldMenu(box, current, onPick, source = fieldSource) {
     search.placeholder = source.placeholder;
     const body = document.createElement('div');
     body.className = 'fpick-body';
-    menu.append(search, body);
+    // The same choice, made by pressing the control that drives the field.
+    const onMap = document.createElement('button');
+    onMap.className = 'fpick-map';
+    onMap.textContent = 'pick on the controller map';
+    onMap.onclick = () => { close(); startMapPick(onPick); };
+    menu.append(search, onMap, body);
 
     let rows = [], cursor = 0;
 
@@ -1223,6 +1228,7 @@ function listen() {
     knobs = JSON.parse(e.data);
     if (turning && knobs[turning.cc]) knobs[turning.cc].value = turning.value;
     syncKnobs();
+    syncMapKnobs();
 
     const moved = mapping && lastMoved();
     if (moved && moved.knob.age_ms < Date.now() - mapping.since) assign(mapping.name, moved.cc);
@@ -1838,6 +1844,190 @@ copyDialog.querySelector('form').onsubmit = async (e) => {
   savedTimer = setTimeout(() => { savedNote.textContent = ''; }, 4000);
 };
 
+// ---- the controller map -------------------------------------------------
+
+// A picture of the box on the desk, with each of its controls labelled by what
+// the playing preset has it drive. The picture and the table that says which
+// CC or note is which part of it come from surfaces.json; what the controls
+// drive is /controls, so assigning a knob changes the map on the next refresh.
+const SURFACES = '/static/surfaces.json';
+let surfaces = {};
+let surfaceId = (() => { try { return localStorage.getItem('surface'); } catch { return null; } })();
+const surfaceSvg = {};      // the pictures, fetched once each
+let mapPick = null;         // the callback waiting for a control to be pressed on the map
+const mapBox = document.getElementById('map');
+let mapDrawn = '';          // what the map was last drawn from, so a quiet second draws nothing
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const short = (t, n = 8) => t.length > n ? t.slice(0, n - 1) + '…' : t;
+
+// A control's comment is `field.role`. Only the ones that name a field of the
+// rig can be plugged into a slot.
+const fieldOwners = (c) => {
+  const names = new Set(rig.fields.map(f => f.name));
+  return [...new Set(c.comments.map(t => knobOwner(t.split('.')[0])).filter(n => names.has(n)))];
+};
+
+// The fields the playing preset's slots name, whatever their depth.
+function fieldsInUse() {
+  const live = views[rig.selected]?.live;
+  const used = new Set();
+  for (const tree of Object.values(live?.slots ?? {})) fieldsIn(tree).forEach(n => used.add(knobOwner(n)));
+  return used;
+}
+
+async function loadSurfaces() {
+  try {
+    surfaces = await get(SURFACES);
+    if (!(surfaceId in surfaces)) surfaceId = Object.keys(surfaces)[0] ?? null;
+    if (surfaceId && !surfaceSvg[surfaceId])
+      surfaceSvg[surfaceId] = await fetch(surfaces[surfaceId].svg).then(r => r.text());
+  } catch (e) { /* no map; the rest of the page works without one */ }
+}
+
+function drawMap() {
+  const surface = surfaces[surfaceId];
+  if (!surface || !surfaceSvg[surfaceId]) return;
+
+  const used = fieldsInUse();
+  const here = controls.filter(c => !c.hidden);
+  const key = JSON.stringify([surfaceId, [...used], here.map(c => [c.kind, c.number, c.comments])]);
+  if (key === mapDrawn) return;
+  mapDrawn = key;
+
+  mapBox.replaceChildren();
+  const head = document.createElement('div');
+  head.className = 'map-head';
+  const pick = document.createElement('select');
+  for (const [id, s] of Object.entries(surfaces)) {
+    const opt = document.createElement('option');
+    opt.value = id; opt.textContent = s.name; opt.selected = id === surfaceId;
+    pick.append(opt);
+  }
+  pick.onchange = async () => {
+    surfaceId = pick.value;
+    try { localStorage.setItem('surface', surfaceId); } catch { /* remembering is a courtesy */ }
+    mapDrawn = '';
+    await loadSurfaces();
+    drawMap();
+  };
+  head.append(pick);
+  mapBox.append(head);
+
+  const holder = document.createElement('div');
+  holder.className = 'surface';
+  holder.innerHTML = surfaceSvg[surfaceId];
+  mapBox.append(holder);
+
+  const off = [];
+  const roles = new Map();          // spot -> the [field, role] of everything on it
+  for (const c of here) {
+    const id = (c.kind === 'cc' ? surface.ccs : surface.notes ?? {})[c.number];
+    const spot = id && holder.querySelector(`#${CSS.escape(id)}`);
+    if (!spot) { if (c.comments.length) off.push(c); continue; }
+
+    spot.classList.add('assigned');
+    if (fieldOwners(c).some(n => used.has(n))) spot.classList.add('lit');
+    if (c.kind === 'cc') spot.dataset.cc = c.number;
+    spot.dataset.owners = JSON.stringify([...new Set([...JSON.parse(spot.dataset.owners ?? '[]'), ...fieldOwners(c)])]);
+    roles.set(spot, [...(roles.get(spot) ?? []), ...c.comments.map(t => t.split('.'))]);
+  }
+
+  for (const [spot, rs] of roles) {
+    if (!rs.length) continue;
+    const tag = spot.querySelector('.tag');
+    const x = tag.getAttribute('x'), y = Number(tag.getAttribute('y'));
+    [rs[0][0] + (rs.length > 1 ? ` +${rs.length - 1}` : ''), rs[0][1] ?? '']
+      .forEach((text, i) => {
+        const t = document.createElementNS(SVG_NS, 'text');
+        t.setAttribute('class', i ? 'what role' : 'what');
+        t.setAttribute('x', x); t.setAttribute('y', y + 10 + 8 * i);
+        t.textContent = short(text);
+        spot.append(t);
+      });
+    const title = document.createElementNS(SVG_NS, 'title');
+    title.textContent = rs.map(r => r.join('.')).join('\n');
+    spot.append(title);
+  }
+  for (const spot of holder.querySelectorAll('.spot.assigned')) spot.onclick = () => pressedOnMap(spot);
+
+  if (off.length) {
+    const note = document.createElement('p');
+    note.className = 'dim map-off';
+    note.textContent = `not on this box: ${off.map(c => c.comments[0]).join(', ')}`;
+    mapBox.append(note);
+  }
+
+  mapBox.classList.toggle('picking', mapPick !== null);
+  if (mapPick) showMapPrompt();
+  syncMapKnobs();
+}
+
+// The knobs and faders follow the desk.
+function syncMapKnobs() {
+  for (const spot of mapBox.querySelectorAll('.spot.assigned[data-cc]')) {
+    const k = knobs[spot.dataset.cc];
+    if (!k) continue;
+    const frac = Math.max(0, Math.min(1, k.value / CC_MAX));
+    const pointer = spot.querySelector('.pointer');
+    const cap = spot.querySelector('.cap');
+    if (pointer) pointer.setAttribute('transform',
+        `rotate(${-135 + 270 * frac} ${cap.getAttribute('cx')} ${cap.getAttribute('cy')})`);
+    const thumb = spot.querySelector('.thumb');
+    if (thumb) thumb.setAttribute('y', 160 - 62 * frac);
+  }
+}
+
+// ---- picking a field by pressing its control
+
+function startMapPick(onPick) {
+  mapPick = onPick;
+  mapDrawn = '';
+  drawMap();
+  mapBox.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+}
+
+function endMapPick() {
+  mapPick = null;
+  mapDrawn = '';
+  drawMap();
+}
+
+function showMapPrompt(choices = null) {
+  mapBox.querySelector('.map-prompt')?.remove();
+  const bar = document.createElement('div');
+  bar.className = 'map-prompt';
+  const msg = document.createElement('span');
+  msg.textContent = choices ? 'which field?' : 'press a control on the map to plug its field in';
+  bar.append(msg);
+  for (const name of choices ?? []) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.onclick = () => finishMapPick(name);
+    bar.append(b);
+  }
+  const cancel = document.createElement('button');
+  cancel.textContent = 'cancel';
+  cancel.onclick = endMapPick;
+  bar.append(cancel);
+  mapBox.prepend(bar);
+}
+
+function finishMapPick(name) {
+  const done = mapPick;
+  endMapPick();
+  done?.(name);
+}
+
+function pressedOnMap(spot) {
+  if (!mapPick) return;
+  const owners = JSON.parse(spot.dataset.owners ?? '[]');
+  if (owners.length === 1) finishMapPick(owners[0]);
+  else if (owners.length) showMapPrompt(owners);
+}
+
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && mapPick) endMapPick(); });
+
 // ---- keeping up ----------------------------------------------------------
 
 // Which preset the half-built formulas belong to. Another one has its own slots.
@@ -1852,6 +2042,7 @@ async function refresh() {
     formulasFor = rig.selected;
   }
   drawPresets();
+  drawMap();
   if (!adding && !picking && !dragging && !reordering && !turning && !inUse()) drawEffects();
 }
 
@@ -1860,7 +2051,7 @@ async function drawStats() {
   document.getElementById('fps').textContent = `${s.fps.toFixed(0)} fps`;
 }
 
-refresh(); drawStats();
+loadSurfaces().then(refresh); drawStats();
 
 // The preset can change from the controller - a program change - so the bar
 // follows it rather than showing what it was at load.

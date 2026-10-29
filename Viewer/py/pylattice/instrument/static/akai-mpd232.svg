@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 226" class="box" aria-label="Akai MPD232">
+<rect class="shell" x="2" y="2" width="536" height="222" rx="0"/>
+<g id="K1" class="spot knob"><circle class="cap" cx="34" cy="30" r="13"/><line class="pointer" x1="34" y1="30" x2="34" y2="20"/><text class="tag" x="34" y="56">K1</text></g>
+<g id="K2" class="spot knob"><circle class="cap" cx="74" cy="30" r="13"/><line class="pointer" x1="74" y1="30" x2="74" y2="20"/><text class="tag" x="74" y="56">K2</text></g>
+<g id="K3" class="spot knob"><circle class="cap" cx="114" cy="30" r="13"/><line class="pointer" x1="114" y1="30" x2="114" y2="20"/><text class="tag" x="114" y="56">K3</text></g>
+<g id="K4" class="spot knob"><circle class="cap" cx="154" cy="30" r="13"/><line class="pointer" x1="154" y1="30" x2="154" y2="20"/><text class="tag" x="154" y="56">K4</text></g>
+<g id="K5" class="spot knob"><circle class="cap" cx="194" cy="30" r="13"/><line class="pointer" x1="194" y1="30" x2="194" y2="20"/><text class="tag" x="194" y="56">K5</text></g>
+<g id="K6" class="spot knob"><circle class="cap" cx="234" cy="30" r="13"/><line class="pointer" x1="234" y1="30" x2="234" y2="20"/><text class="tag" x="234" y="56">K6</text></g>
+<g id="K7" class="spot knob"><circle class="cap" cx="274" cy="30" r="13"/><line class="pointer" x1="274" y1="30" x2="274" y2="20"/><text class="tag" x="274" y="56">K7</text></g>
+<g id="K8" class="spot knob"><circle class="cap" cx="314" cy="30" r="13"/><line class="pointer" x1="314" y1="30" x2="314" y2="20"/><text class="tag" x="314" y="56">K8</text></g>
+<g id="F1" class="spot fader"><rect class="track" x="31" y="98" width="6" height="68"/><rect class="cap thumb" x="25" y="160" width="18" height="10"/><text class="tag" x="34" y="86">F1</text></g>
+<g id="F2" class="spot fader"><rect class="track" x="71" y="98" width="6" height="68"/><rect class="cap thumb" x="65" y="160" width="18" height="10"/><text class="tag" x="74" y="86">F2</text></g>
+<g id="F3" class="spot fader"><rect class="track" x="111" y="98" width="6" height="68"/><rect class="cap thumb" x="105" y="160" width="18" height="10"/><text class="tag" x="114" y="86">F3</text></g>
+<g id="F4" class="spot fader"><rect class="track" x="151" y="98" width="6" height="68"/><rect class="cap thumb" x="145" y="160" width="18" height="10"/><text class="tag" x="154" y="86">F4</text></g>
+<g id="F5" class="spot fader"><rect class="track" x="191" y="98" width="6" height="68"/><rect class="cap thumb" x="185" y="160" width="18" height="10"/><text class="tag" x="194" y="86">F5</text></g>
+<g id="F6" class="spot fader"><rect class="track" x="231" y="98" width="6" height="68"/><rect class="cap thumb" x="225" y="160" width="18" height="10"/><text class="tag" x="234" y="86">F6</text></g>
+<g id="F7" class="spot fader"><rect class="track" x="271" y="98" width="6" height="68"/><rect class="cap thumb" x="265" y="160" width="18" height="10"/><text class="tag" x="274" y="86">F7</text></g>
+<g id="F8" class="spot fader"><rect class="track" x="311" y="98" width="6" height="68"/><rect class="cap thumb" x="305" y="160" width="18" height="10"/><text class="tag" x="314" y="86">F8</text></g>
+<g id="P13" class="spot pad"><rect class="cap" x="366" y="14" width="38" height="46" rx="3"/><text class="tag" x="385" y="24">13</text></g>
+<g id="P14" class="spot pad"><rect class="cap" x="408" y="14" width="38" height="46" rx="3"/><text class="tag" x="427" y="24">14</text></g>
+<g id="P15" class="spot pad"><rect class="cap" x="450" y="14" width="38" height="46" rx="3"/><text class="tag" x="469" y="24">15</text></g>
+<g id="P16" class="spot pad"><rect class="cap" x="492" y="14" width="38" height="46" rx="3"/><text class="tag" x="511" y="24">16</text></g>
+<g id="P9" class="spot pad"><rect class="cap" x="366" y="66" width="38" height="46" rx="3"/><text class="tag" x="385" y="76">9</text></g>
+<g id="P10" class="spot pad"><rect class="cap" x="408" y="66" width="38" height="46" rx="3"/><text class="tag" x="427" y="76">10</text></g>
+<g id="P11" class="spot pad"><rect class="cap" x="450" y="66" width="38" height="46" rx="3"/><text class="tag" x="469" y="76">11</text></g>
+<g id="P12" class="spot pad"><rect class="cap" x="492" y="66" width="38" height="46" rx="3"/><text class="tag" x="511" y="76">12</text></g>
+<g id="P5" class="spot pad"><rect class="cap" x="366" y="118" width="38" height="46" rx="3"/><text class="tag" x="385" y="128">5</text></g>
+<g id="P6" class="spot pad"><rect class="cap" x="408" y="118" width="38" height="46" rx="3"/><text class="tag" x="427" y="128">6</text></g>
+<g id="P7" class="spot pad"><rect class="cap" x="450" y="118" width="38" height="46" rx="3"/><text class="tag" x="469" y="128">7</text></g>
+<g id="P8" class="spot pad"><rect class="cap" x="492" y="118" width="38" height="46" rx="3"/><text class="tag" x="511" y="128">8</text></g>
+<g id="P1" class="spot pad"><rect class="cap" x="366" y="170" width="38" height="46" rx="3"/><text class="tag" x="385" y="180">1</text></g>
+<g id="P2" class="spot pad"><rect class="cap" x="408" y="170" width="38" height="46" rx="3"/><text class="tag" x="427" y="180">2</text></g>
+<g id="P3" class="spot pad"><rect class="cap" x="450" y="170" width="38" height="46" rx="3"/><text class="tag" x="469" y="180">3</text></g>
+<g id="P4" class="spot pad"><rect class="cap" x="492" y="170" width="38" height="46" rx="3"/><text class="tag" x="511" y="180">4</text></g>
+</svg>

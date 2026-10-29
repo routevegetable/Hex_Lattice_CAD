@@ -44,10 +44,10 @@ header button { white-space: nowrap; }
 main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 aside { min-width: 0; }
 
-/* The effects can take the whole window. The right half is empty for now, so it
-   goes while they do. */
+/* The effects can take the whole window; the controller map then sits below them. */
 .cols.wide { grid-template-columns: 1fr; }
-.cols.wide aside { display: none; }
+#map { position: sticky; top: 12px; }
+.cols.wide #map { position: static; }
 .wide-toggle { margin-left: auto; }
 .wide-toggle[aria-pressed="true"] { border-color: var(--accent); }
 
@@ -237,3 +237,27 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 .copy-grid .pcell.pick { background: rgba(106, 143, 208, .35); border-color: var(--accent); }
 #copy-why.bad { color: var(--dirty); }
 .copy-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+/* ---- the controller map, in the style of the BeatStep picture on the touch layout ---- */
+.map-head { display: flex; gap: 8px; margin-bottom: 8px; }
+.map-head select { background: var(--panel); color: var(--text); border: 1px solid var(--line);
+                   border-radius: 4px; padding: 3px 6px; font: inherit; }
+.surface .box { display: block; width: 100%; max-width: 760px; }
+.box .shell { fill: #14181d; stroke: #22272e; }
+.box .cap { fill: #20262e; stroke: #39414d; }
+.box .track { fill: #0f1216; stroke: #2a3039; }
+.box .pointer { stroke: #6d7681; stroke-width: 2; stroke-linecap: round; }
+.box .tag { fill: #6d7681; font-size: 9px; text-anchor: middle; }
+.box .what { fill: #aab3bf; font-size: 7.5px; text-anchor: middle; pointer-events: none; }
+.box .what.role { fill: #7d8793; }
+.box .spot:not(.assigned) { opacity: .45; }
+.box .spot.assigned .cap { stroke: #5d6877; }
+.box .lit .cap { fill: #24334d; stroke: var(--accent); stroke-width: 2; }
+.box .lit .pointer { stroke: #cfe3ff; }
+.box .lit .tag, .box .lit .what { fill: #cfe3ff; }
+.map-off { font-size: 12px; margin: 8px 0 0; }
+#map.picking .spot.assigned { cursor: pointer; }
+#map.picking .spot.assigned:hover .cap { stroke: #e0b070; stroke-width: 2; }
+#map.picking { outline: 1px solid var(--accent); outline-offset: 6px; border-radius: 2px; }
+.map-prompt { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; color: var(--accent); }
+.fpick-map { display: block; width: 100%; margin: 4px 0; }
