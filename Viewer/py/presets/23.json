@@ -1,6 +1,14 @@
 {
   "ccs": {},
-  "slots": {},
+  "slots": {
+    "bg_waves.sat": 0,
+    "bg_waves2.sat": 0,
+    "net.sat": 0,
+    "map_fiber.sat": 0,
+    "map_fiber2.sat": 0,
+    "map_fiber3.sat": 0,
+    "sparks.sat": 0
+  },
   "cc_map": {},
   "active": [
     "bg_waves",

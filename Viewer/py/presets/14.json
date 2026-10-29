@@ -59,6 +59,10 @@
     "net.hue": "param_b",
     "net.value": 0.0,
     "prob_zaps.prob": 0.0,
+    "map_fiber.sat": 0,
+    "map_fiber2.sat": 0,
+    "map_fiber3.sat": 0,
+    "sparks.sat": 0,
     "bg_waves.flow": {
       "op": "mul",
       "a": 0.14,
