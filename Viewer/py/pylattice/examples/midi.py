@@ -108,11 +108,16 @@ class NoteState:
 # only knows 36-51, so anything another box plays has to arrive as one of
 # those or nothing is watching it.
 #
-# 60 is 36 two octaves up, so 60-75 lines up with the pads one for one and the
-# rest of the range wraps back round. Hardcoded for now: when there is a second
-# box worth naming, this becomes something it owns rather than a constant here.
-PAD_ALIASES: dict[int, int] = {note: 36 + (note - 60) % 16
-                               for note in range(60, 87)}
+# The Akai MPD232's pads, as heard (pad bank A, Controller mode), from the
+# unit's pad 1 at the bottom left, along each row and up: 16 pads, 16 notes,
+# each its own BSP pad. The top row is PA1-PA4, then PB1-PB4 and PB5-PB8
+# below it, with PA5-PA8 along the bottom, so the pads the rig uses sit
+# together where the hand falls. Hardcoded for now: when there is a second box
+# worth naming, this becomes something it owns rather than a constant here.
+AKAI_PAD_NOTES = (60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81, 83, 84, 86)
+# The BSP pad (as a note, PB1 = 36 ... PA8 = 51) each of those is.
+_AKAI_PAD_BSP = (48, 49, 50, 51, 40, 41, 42, 43, 36, 37, 38, 39, 44, 45, 46, 47)
+PAD_ALIASES: dict[int, int] = dict(zip(AKAI_PAD_NOTES, _AKAI_PAD_BSP))
 
 
 class MIDI:
