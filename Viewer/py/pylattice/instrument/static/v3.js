@@ -37,7 +37,7 @@ async function act(path) {
 // ---- the preset bar ------------------------------------------------------
 
 // The same glyphs as the touch layout.
-const ICONS = {save: '\u{1F4BE}', revert: '\u21ba'};
+const ICONS = {save: '\u{1F4BE}', revert: '\u21ba', undo: '\u21b6', redo: '\u21b7'};
 
 // The bank holds a patch for every number, written or not. The bar shows the
 // first sixteen; the rest are reached by name, from the menu beside it.
@@ -49,7 +49,7 @@ const written = (view) => !!view && (!!view.stored.name || Object.keys(view.stor
 
 const bar = document.getElementById('presets');
 let cells = [];             // built once, so a redraw never swallows a click
-let save = null, revert = null;
+let save = null, revert = null, undoBtn = null, redoBtn = null;
 
 function buildPresets() {
   bar.innerHTML = '';
@@ -64,15 +64,17 @@ function buildPresets() {
   }
 
   // Both act on whatever is playing, so there is one of each, not one per cell.
-  for (const [verb, icon] of [['commit', ICONS.save], ['revert', ICONS.revert]]) {
+  for (const [verb, icon] of [['commit', ICONS.save], ['revert', ICONS.revert],
+                              ['undo', ICONS.undo], ['redo', ICONS.redo]]) {
     const b = document.createElement('button');
     b.className = 'pcell act';
     b.textContent = icon;
-    b.onclick = () => { if (rig.selected !== null) act(`/presets/${rig.selected}/${verb}`); };
+    b.onclick = verb === 'undo' ? undo : verb === 'redo' ? redo
+              : () => { if (rig.selected !== null) act(`/presets/${rig.selected}/${verb}`); };
     b.dataset.verb = verb;
     bar.append(b);
   }
-  [save, revert] = bar.querySelectorAll('.act');
+  [save, revert, undoBtn, redoBtn] = bar.querySelectorAll('.act');
 }
 
 // What a preset is called, if it has a name: it is a field of the patch, so it
@@ -112,6 +114,11 @@ function drawPresets() {
     b.disabled = !dirty;
     b.title = dirty ? `${b.dataset.verb} preset ${n}` : `nothing to ${b.dataset.verb}`;
   }
+
+  for (const [b, go, label] of [[undoBtn, canUndo(), 'undo'], [redoBtn, canRedo(), 'redo']]) {
+    b.disabled = !go;
+    b.title = go ? `${label} the last change` : `nothing to ${label}`;
+  }
 }
 
 // Two decimals, or three when the number has them: a value typed as 0.123 is shown
@@ -143,6 +150,80 @@ function describe(node) {
   return `(${describe(node.a)} ${OPS[node.op]} ${describe(node.b)})`;
 }
 
+// ---- undo ----------------------------------------------------------------
+
+// A ring of what a preset looked like before each edit, so a wrong turn can be
+// walked back. Nothing the instrument knows about: the page keeps the history,
+// and every step is an ordinary write of an ordinary patch.
+const UNDO_DEPTH = 64;
+
+let records = [];       // {number, patch}, oldest first
+let cursor = 0;         // index of the record that is live, or records.length
+                        // when what is live is newer than anything recorded
+
+function keep(rec) {
+  records.push(rec);
+
+  if (records.length > UNDO_DEPTH) {
+    records.shift();                      // the ring: the oldest falls off
+    cursor = Math.max(0, cursor - 1);
+  }
+}
+
+// Called with the patch as it stands, before an edit lands on it, so the buffer
+// holds the state being left behind. Afterwards the end of the buffer is current,
+// which is what puts redo out of reach.
+function remember(number, patch) {
+  keep({number, patch});
+  cursor = records.length;
+}
+
+const canUndo = () => records.length > 0 && (cursor >= records.length ? true : cursor > 0);
+const canRedo = () => cursor < records.length - 1;
+
+// What is playing, whole and just now - knobs included, as they are.
+const snapshot = async () => ({number: rig.selected, patch: (await get(`/presets/${rig.selected}`)).live});
+
+// Put a record back: write its patch to its preset, then play that preset.
+// Writing first means the preset is already right when it starts playing,
+// rather than flashing whatever it held before.
+async function recall(rec) {
+  const r = await put(`/presets/${rec.number}`, rec.patch);
+  if (!r.ok) { alert((await r.json()).detail); return; }
+
+  if (rig.selected !== rec.number) {
+    const s = await post(`/presets/${rec.number}/select`);
+    if (!s.ok) { alert((await s.json()).detail); return; }
+  }
+
+  editing = {};
+  await refresh();
+}
+
+async function undo() {
+  if (rig.selected === null) return;
+
+  // The first step back has to record where it is stepping back from, or
+  // there would be nothing for redo to come forward to.
+  if (cursor >= records.length) {
+    if (!records.length) return;
+    keep(await snapshot());
+    cursor = records.length - 1;
+  }
+
+  if (cursor <= 0) return;
+
+  cursor -= 1;
+  await recall(records[cursor]);
+}
+
+async function redo() {
+  if (!canRedo()) return;
+
+  cursor += 1;
+  await recall(records[cursor]);
+}
+
 // ---- muting --------------------------------------------------------------
 
 // A muted effect stays in the preset, slots and all, and is not drawn. Which
@@ -159,6 +240,7 @@ async function setMuted(names) {
   // Read just now: a patch carries where the knobs are, and sending a stale one
   // back would move them.
   const fresh = await get(`/presets/${n}`);
+  remember(n, fresh.live);
   const r = await put(`/presets/${n}`, {...fresh.live, muted: names});
   if (!r.ok) { alert((await r.json()).detail); return; }
   await refresh();
@@ -197,6 +279,7 @@ async function setActive(names) {
   // The order is the order they draw in, so it is kept as given.
   const active = names.filter(e => e in rig.effects);
 
+  remember(n, fresh.live);
   const r = await put(`/presets/${n}`, {...fresh.live, active});
   if (!r.ok) { alert((await r.json()).detail); return; }
   await refresh();
@@ -211,6 +294,7 @@ async function writeSlot(key, tree) {
   if (n === null) return;
 
   const fresh = await get(`/presets/${n}`);
+  remember(n, fresh.live);
   const r = await put(`/presets/${n}`, {...fresh.live, slots: {...fresh.live.slots, [key]: tree}});
   if (!r.ok) { alert((await r.json()).detail); return; }
   await refresh();
@@ -1105,6 +1189,7 @@ async function assign(name, cc) {
   if (n === null) return;
 
   const fresh = await get(`/presets/${n}`);
+  remember(n, fresh.live);
   const r = await put(`/presets/${n}`,
                       {...fresh.live, cc_map: {...fresh.live.cc_map, [name]: Number(cc)}});
   if (!r.ok) { alert((await r.json()).detail); return; }

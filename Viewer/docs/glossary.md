@@ -154,7 +154,7 @@ with a dot when it has unsaved edits. Tapping it opens the preset list.
 plain static files and reads the same API as the others. Its parts:
 
 **Preset bar** — the row across the top: a cell for each of the first sixteen
-presets, save and revert for the one playing, a label for its name, a *named*
+presets, save and revert for the one playing, undo and redo, a label for its name, a *named*
 menu to play a preset by name, and *save copy as…*. That asks for a name and
 shows every number the bank holds, each with the name it has; you pick the one
 the copy goes to, starting from the lowest free number past the first sixteen,
@@ -164,6 +164,15 @@ commits it - the same writes as any other edit. *New preset…* is the same dial
 patch: every effect is in the chain, no slot has anything plugged in, nothing is
 muted, and no knob is listed. It plays the new preset afterwards, ready to fill in.
 The page cannot delete a preset: the API has no way to.
+
+**Undo** — the page keeps the last 64 states a preset was in before an edit (muting,
+adding, removing or moving an effect, plugging a slot, pointing a control at a
+knob), knobs included, and undo and redo walk back and forward through them, as
+on the touch layout. Each step is an ordinary write of an ordinary patch, so the
+instrument knows nothing about it, and the history is lost when the page is
+reloaded. Turning a knob is not an edit of its own and is not undone; it comes
+back with the next step, since each record holds where the knobs were. A new
+edit after an undo ends redo.
 
 **Effect card** — one effect in the playing preset. Its switch **mutes** it, which is an edit to the preset like any other, its
 bin takes it out of the preset, and opening it shows its slots. Cards run down
