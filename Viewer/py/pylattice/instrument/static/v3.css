@@ -273,3 +273,7 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 .box.akai .pad.lit .cap { fill: #24334d; }
 .box.akai .fader.assigned .thumb { fill: #2b3441; }
 .box.akai .fader.lit .thumb { fill: #24334d; }
+.map-menu { height: 0; }
+.map-menu .fpick-list { min-width: 260px; }
+.spot[data-cc]:not(.assigned) { cursor: pointer; }
+.map-off button { margin-left: 6px; }

@@ -431,7 +431,7 @@ function fieldMenu(box, current, onPick, source = fieldSource) {
     onMap.className = 'fpick-map';
     onMap.textContent = 'pick on the controller map';
     onMap.onclick = () => { close(); startMapPick(onPick); };
-    menu.append(search, onMap, body);
+    menu.append(search, ...(source.noMap ? [] : [onMap]), body);
 
     let rows = [], cursor = 0;
 
@@ -1938,7 +1938,7 @@ function drawMap() {
     // A note can be several pads: the Akai's pads fold onto fewer BSP notes.
     const ids = [].concat((c.kind === 'cc' ? surface.ccs : surface.notes ?? {})[c.number] ?? []);
     const spots = ids.map(id => holder.querySelector(`#${CSS.escape(id)}`)).filter(Boolean);
-    if (!spots.length) { if (c.comments.length) off.push(c); continue; }
+    if (!spots.length) { if (c.kind === 'cc' && fieldOwners(c).some(n => used.has(n))) off.push(c); continue; }
 
     for (const spot of spots) {
       spot.classList.add('assigned');
@@ -1965,11 +1965,19 @@ function drawMap() {
     spot.append(title);
   }
   for (const spot of holder.querySelectorAll('.spot.assigned')) spot.onclick = () => pressedOnMap(spot);
+  // Clicking a knob or fader nothing is on offers a control for it. Turning one
+  // never asks anything.
+  for (const spot of holder.querySelectorAll('.spot[data-cc]:not(.assigned)'))
+    spot.onclick = () => { if (!mapPick) assignMenu(spot); };
 
   if (off.length) {
     const note = document.createElement('p');
     note.className = 'dim map-off';
-    note.textContent = `not on this box: ${off.map(c => c.comments[0]).join(', ')}`;
+    note.textContent = `used, but not on this box: ${off.map(c => c.comments[0]).join(', ')} `;
+    const go = document.createElement('button');
+    go.textContent = 'assign them';
+    go.onclick = assignUsed;
+    note.append(go);
     mapBox.append(note);
   }
 
@@ -2057,25 +2065,25 @@ const FADER_ANY = ['wipe1.speed', 'wipe2.speed'];
 const fieldOf = (name) => name.split('.')[0];
 const fieldsOfSlots = (slots) => new Set(Object.values(slots).flatMap(fieldsIn).map(knobOwner));
 
-// The patch's cc_map once the fields its slots have newly gained are on the
-// next free fader or knob of the box on the map. A control already in the map
-// stays where it is; so does every control of a field that was in use before,
-// and the CCs those are on are taken. Returns what was said about each one.
+// The patch's cc_map once every control the slots use is on a fader or knob of
+// the box on the map. One already on the box stays where it is, and the CCs
+// those are on are taken; the rest go to the next free fader or knob. Returns
+// what was said about each one placed.
 function withControls(patch, slots) {
   const surface = surfaces[surfaceId];
   const cc_map = {...patch.cc_map};
   const said = [];
   if (!surface) return {cc_map, said};
 
-  const before = fieldsOfSlots(patch.slots), now = fieldsOfSlots(slots);
-  const ours = controls.filter(c => c.kind === 'cc' && !c.hidden && c.comments.length);
-  const wanting = ours.filter(c => now.has(fieldOf(c.comments[0])) && !before.has(fieldOf(c.comments[0]))
-                                   && !(c.comments[0] in cc_map));
+  const now = fieldsOfSlots(slots);
+  const effective = (c) => cc_map[c.comments[0]] ?? c.number;
+  const ours = controls.filter(c => c.kind === 'cc' && !c.hidden && c.comments.length
+                                    && now.has(knobOwner(fieldOf(c.comments[0]))));
+  const wanting = ours.filter(c => !(effective(c) in surface.ccs));
   if (!wanting.length) return {cc_map, said};
 
   const taking = new Set(wanting.map(c => c.comments[0]));
-  const taken = new Set(ours.filter(c => now.has(fieldOf(c.comments[0])) && !taking.has(c.comments[0]))
-                            .map(c => cc_map[c.comments[0]] ?? c.number));
+  const taken = new Set(ours.filter(c => !taking.has(c.comments[0])).map(effective));
 
   const faders = (surface.faders ?? []).filter(cc => !taken.has(cc));
   const knobs = (surface.knobs ?? []).filter(cc => !taken.has(cc));
@@ -2102,6 +2110,50 @@ function withControls(patch, slots) {
   }
   return {cc_map, said};
 }
+
+// Put every control the playing preset uses, and that is not on the box, there.
+async function assignUsed() {
+  const n = rig.selected;
+  if (n === null) return;
+  const fresh = await get(`/presets/${n}`);
+  const {cc_map, said} = withControls(fresh.live, fresh.live.slots);
+  if (!said.length) return;
+  const r = await put(`/presets/${n}`, {...fresh.live, cc_map});
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  savedNote.textContent = said.join(', ');
+  clearTimeout(savedTimer);
+  savedTimer = setTimeout(() => { savedNote.textContent = ''; }, 6000);
+  await refresh();
+}
+
+// A menu of the controls, to put one on the knob or fader that was clicked.
+function assignMenu(spot) {
+  const cc = Number(spot.dataset.cc);
+  mapBox.querySelector('.map-menu')?.remove();
+  const box = document.createElement('div');
+  box.className = 'fpick map-menu';
+  mapBox.prepend(box);
+
+  const surface = surfaces[surfaceId];
+  const where = (c) => surface.ccs[(patchMap()[c.comments[0]]) ?? c.number] ?? '';
+  const open = fieldMenu(box, null, async (name) => {
+    box.remove();
+    const n = rig.selected;
+    if (n === null) return;
+    const fresh = await get(`/presets/${n}`);
+    const r = await put(`/presets/${n}`, {...fresh.live, cc_map: {...fresh.live.cc_map, [name]: cc}});
+    if (!r.ok) { alert((await r.json()).detail); return; }
+    await refresh();
+  }, {
+    placeholder: `put on ${surface.ccs[cc]}: search controls`,
+    noMap: true,
+    entries: () => controls.filter(c => c.kind === 'cc' && !c.hidden && c.comments.length)
+        .map(c => ({group: fieldOf(c.comments[0]), text: c.comments[0], hint: where(c), value: c.comments[0]}))
+        .sort((a, b) => a.group.localeCompare(b.group) || a.text.localeCompare(b.text)),
+  });
+  open();
+}
+const patchMap = () => views[rig.selected]?.live?.cc_map ?? {};
 
 // ---- keeping up ----------------------------------------------------------
 
