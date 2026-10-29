@@ -1922,15 +1922,18 @@ function drawMap() {
   const off = [];
   const roles = new Map();          // spot -> the [field, role] of everything on it
   for (const c of here) {
-    const id = (c.kind === 'cc' ? surface.ccs : surface.notes ?? {})[c.number];
-    const spot = id && holder.querySelector(`#${CSS.escape(id)}`);
-    if (!spot) { if (c.comments.length) off.push(c); continue; }
+    // A note can be several pads: the Akai's pads fold onto fewer BSP notes.
+    const ids = [].concat((c.kind === 'cc' ? surface.ccs : surface.notes ?? {})[c.number] ?? []);
+    const spots = ids.map(id => holder.querySelector(`#${CSS.escape(id)}`)).filter(Boolean);
+    if (!spots.length) { if (c.comments.length) off.push(c); continue; }
 
-    spot.classList.add('assigned');
-    if (fieldOwners(c).some(n => used.has(n))) spot.classList.add('lit');
-    if (c.kind === 'cc') spot.dataset.cc = c.number;
-    spot.dataset.owners = JSON.stringify([...new Set([...JSON.parse(spot.dataset.owners ?? '[]'), ...fieldOwners(c)])]);
-    roles.set(spot, [...(roles.get(spot) ?? []), ...c.comments.map(t => t.split('.'))]);
+    for (const spot of spots) {
+      spot.classList.add('assigned');
+      if (fieldOwners(c).some(n => used.has(n))) spot.classList.add('lit');
+      if (c.kind === 'cc') spot.dataset.cc = c.number;
+      spot.dataset.owners = JSON.stringify([...new Set([...JSON.parse(spot.dataset.owners ?? '[]'), ...fieldOwners(c)])]);
+      roles.set(spot, [...(roles.get(spot) ?? []), ...c.comments.map(t => t.split('.'))]);
+    }
   }
 
   for (const [spot, rs] of roles) {
