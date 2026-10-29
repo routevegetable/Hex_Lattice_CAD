@@ -10,7 +10,6 @@ from pylattice.fields.controls import CCField, StrobeField
 from pylattice.fields.loops import LoopsField
 from pylattice.fields.fire import FireField
 from pylattice.fields.gradient import VGradientField
-from pylattice.fields.hexes import HexesField
 from pylattice.fields.mask import EdgeMaskField
 from pylattice.fields.random import NoteRandomField
 from pylattice.fields.ripple import NoteRippleField
@@ -96,9 +95,6 @@ class FIELDS:
     # them onto something from the expression editor.
     loops = LoopsField(graph, midi.for_("loops"),
                        note=PA4, shape=103, copies=104, speed=105)
-
-    # Complete hexes, selected by the same pattern knob as scope
-    hexes = HexesField(graph, midi.for_("hexes"), pattern=KB8)
 
     # Fire climbing from the bottom, as hard as PB7 is leaned on
     fire = FireField(graph, midi.for_("fire"), note=PB7)
