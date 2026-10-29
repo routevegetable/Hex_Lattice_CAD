@@ -251,6 +251,15 @@ class HexGrid:
         below = vertex.ends_cw()[0]  # top of the vertical below the vertex
         return HexRef(base=below.lr()[0])
 
+    def neighbors(self, x: int, y: int) -> list[tuple[int, int]]:
+        w = self.graph.width
+        s = 1 if y % 2 else -1
+        deltas = [(-1, 0), (1, 0), (0, 1), (s, 1), (0, -1), (s, -1)]
+        return [((x + dx) % w, y + dy) for dx, dy in deltas]
+
+    def is_adjacent(self, a: tuple[int, int], b: tuple[int, int]) -> bool:
+        return b in self.neighbors(*a)
+
 
 class TileGrid:
     def __init__(self, graph: Graph):
@@ -361,7 +370,7 @@ class Graph:
             yield from edge.ends()
 
     def vertexes(self) -> Generator[VertexRef, None, None]:
-        yield self.TILE[0,0].vertex(VertexClass.ABC)
+        yield self.TILE[0, 0].vertex(VertexClass.ABC)
         for tile in self.tiles():
             for c in VertexClass:
                 yield tile.vertex(c)

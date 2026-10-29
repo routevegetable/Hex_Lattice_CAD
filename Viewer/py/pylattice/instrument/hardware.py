@@ -3,18 +3,18 @@
 These are module-level singletons because there is one of each per process -
 importing this opens the MIDI port.
 """
+
 from pylattice.examples.midi import MIDI
 from pylattice.graph import Graph
 from pylattice.lattice_writer import LatticeWriter
 
 
-COLS = 8
+COLS = 24
 ROWS = 2
 
 graph = Graph(COLS, ROWS)
-
 lattice = LatticeWriter(COLS / 2, ROWS)
-#midi = MIDI('Arturia BeatStep Pro Arturia BeatStepPro')
+# midi = MIDI('Arturia BeatStep Pro Arturia BeatStepPro')
 midi = MIDI()
 
 # BSP control mode. Knobs KA1-KB8 are CCs, pads PA1-PB8 are notes; row A is
