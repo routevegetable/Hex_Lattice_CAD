@@ -278,3 +278,4 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 .spot[data-cc]:not(.assigned) { cursor: pointer; }
 .map-off button { margin-left: 6px; }
 .spot.assigned[data-cc] { cursor: pointer; }
+.box .what.fx { fill: #6a8fd0; font-style: italic; }

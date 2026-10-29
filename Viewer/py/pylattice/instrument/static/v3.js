@@ -1875,6 +1875,16 @@ const fieldOwners = (c) => {
   return [...new Set(c.comments.map(t => knobOwner(t.split('.')[0])).filter(n => names.has(n)))];
 };
 
+// The effects each field is used by in the playing preset: a slot is
+// `effect.slot`, and its formula names the fields it reads.
+function effectsUsing() {
+  const live = views[rig.selected]?.live;
+  const by = new Map();
+  for (const [key, tree] of Object.entries(live?.slots ?? {}))
+    for (const f of fieldsIn(tree).map(knobOwner)) by.set(f, (by.get(f) ?? new Set()).add(key.split('.')[0]));
+  return by;
+}
+
 // The fields the playing preset's slots name, whatever their depth.
 function fieldsInUse() {
   const live = views[rig.selected]?.live;
@@ -1897,8 +1907,9 @@ function drawMap() {
   if (!surface || !surfaceSvg[surfaceId]) return;
 
   const used = fieldsInUse();
+  const effectsBy = effectsUsing();
   const here = controls.filter(c => !c.hidden);
-  const key = JSON.stringify([surfaceId, [...used], here.map(c => [c.kind, c.number, c.comments])]);
+  const key = JSON.stringify([surfaceId, [...used], [...effectsBy].map(([f, e]) => [f, [...e]]), here.map(c => [c.kind, c.number, c.comments])]);
   if (key === mapDrawn) return;
   mapDrawn = key;
 
@@ -1952,16 +1963,19 @@ function drawMap() {
     if (!rs.length) continue;
     const tag = spot.querySelector('.tag');
     const x = tag.getAttribute('x'), y = Number(tag.getAttribute('y'));
-    [rs[0][0] + (rs.length > 1 ? ` +${rs.length - 1}` : ''), rs[0][1] ?? '']
+    const fx = [...new Set(rs.flatMap(r => [...(effectsBy.get(knobOwner(r[0])) ?? [])]))];
+    spot.dataset.effects = fx.join(', ');
+    [rs[0][0] + (rs.length > 1 ? ` +${rs.length - 1}` : ''), rs[0][1] ?? '', fx.join(', ')]
       .forEach((text, i) => {
+        if (!text) return;
         const t = document.createElementNS(SVG_NS, 'text');
-        t.setAttribute('class', i ? 'what role' : 'what');
+        t.setAttribute('class', i ? 'what role' + (i > 1 ? ' fx' : '') : 'what');
         t.setAttribute('x', x); t.setAttribute('y', y + 12 + 11 * i);
         t.textContent = short(text, Number(spot.dataset.chars ?? 8));
         spot.append(t);
       });
     const title = document.createElementNS(SVG_NS, 'title');
-    title.textContent = rs.map(r => r.join('.')).join('\n');
+    title.textContent = rs.map(r => r.join('.')).join('\n') + (spot.dataset.effects ? `\nin ${spot.dataset.effects}` : '');
     spot.append(title);
   }
   for (const [spot, rs] of roles) spot.dataset.names = JSON.stringify(rs.map(r => r.join('.')));
