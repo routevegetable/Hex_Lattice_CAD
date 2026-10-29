@@ -1,10 +1,20 @@
 {
   "ccs": {
     "10": 64,
-    "16": 127,
-    "17": 36,
-    "18": 85,
-    "19": 127,
+    "12": 127,
+    "13": 127,
+    "14": 0,
+    "15": 0,
+    "16": 0,
+    "17": 0,
+    "18": 0,
+    "19": 0,
+    "22": 0,
+    "23": 127,
+    "24": 0,
+    "25": 0,
+    "26": 0,
+    "27": 0,
     "71": 127,
     "72": 0,
     "73": 0,
@@ -16,6 +26,9 @@
     "91": 68,
     "93": 0,
     "102": 0,
+    "103": 0,
+    "104": 25,
+    "105": 19,
     "114": 0
   },
   "slots": {
@@ -28,11 +41,11 @@
         "a": {
           "op": "sub",
           "a": 1.0,
-          "b": "param_a"
+          "b": "fader_b"
         },
         "b": {
           "op": "mul",
-          "a": "param_a",
+          "a": "fader_b",
           "b": "random"
         }
       }
@@ -44,7 +57,7 @@
     "bg_waves2.sat": 1.0,
     "bg_waves2.flow": 0.0,
     "net.hue": "param_b",
-    "net.value": "fader_b",
+    "net.value": 0.0,
     "net.sat": 1.0,
     "net.amp": "ripple2",
     "sunrise.value": 0.0,
@@ -54,7 +67,11 @@
     "prob_zaps.value": {
       "op": "mul",
       "a": "ripple2",
-      "b": "rotary"
+      "b": {
+        "op": "add",
+        "a": "rotary",
+        "b": 0.8
+      }
     },
     "prob_zaps.prob": 0.26,
     "map_fiber.hue": 0.01,
@@ -83,7 +100,18 @@
     "sparks.prob": 0.0,
     "sparks.hue": 0.0
   },
-  "cc_map": {},
+  "cc_map": {
+    "fader_a.value": 12,
+    "fader_b.value": 13,
+    "param_a.value": 14,
+    "param_b.value": 15,
+    "rotary.shape": 22,
+    "random.period": 23,
+    "rotary.period": 24,
+    "trace.aim": 25,
+    "rotary.parts": 26,
+    "ripple.speed": 27
+  },
   "active": [
     "bg_waves",
     "prob_zaps",
