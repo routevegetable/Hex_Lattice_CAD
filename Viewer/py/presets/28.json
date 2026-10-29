@@ -1,0 +1,128 @@
+{
+  "ccs": {
+    "12": 127,
+    "14": 0,
+    "16": 0,
+    "17": 54,
+    "18": 127,
+    "24": 90,
+    "26": 127,
+    "72": 0,
+    "73": 0,
+    "74": 127,
+    "75": 24,
+    "77": 127,
+    "79": 0,
+    "91": 65,
+    "93": 0,
+    "102": 0,
+    "103": 0,
+    "104": 25,
+    "105": 19,
+    "114": 92
+  },
+  "slots": {
+    "bg_waves.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "v_rotary",
+        "b": 0.41
+      },
+      "b": 0.62
+    },
+    "bg_waves.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": "hexes",
+        "b": {
+          "op": "add",
+          "a": {
+            "op": "mul",
+            "a": "v_rotary180",
+            "b": "rotary180"
+          },
+          "b": 0.51
+        }
+      },
+      "b": 0.71
+    },
+    "bg_waves.sat": 1.0,
+    "bg_waves.flow": "param_b",
+    "bg_waves2.hue": 0.0,
+    "bg_waves2.value": 0.0,
+    "bg_waves2.sat": 1.0,
+    "bg_waves2.flow": 0.0,
+    "net.hue": 0.4,
+    "net.value": 0.0,
+    "net.sat": 1.0,
+    "net.amp": "wipe1",
+    "sunrise.value": 0.0,
+    "bisexual.value": 0.0,
+    "bisexual.speed": 0.0,
+    "prob_zaps.hue": 0.0,
+    "prob_zaps.value": 0.0,
+    "prob_zaps.prob": {
+      "op": "mul",
+      "a": "strobe0",
+      "b": 0.1
+    },
+    "map_fiber.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "v_rotary",
+        "b": 0.41
+      },
+      "b": 0.62
+    },
+    "map_fiber.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": {
+          "op": "add",
+          "a": {
+            "op": "mul",
+            "a": "v_rotary180",
+            "b": "rotary180"
+          },
+          "b": 0.36
+        },
+        "b": "hexes"
+      },
+      "b": 0.71
+    },
+    "map_fiber.sat": 1.0,
+    "map_fiber2.hue": 0.0,
+    "map_fiber2.value": 0.0,
+    "map_fiber2.sat": 0.0,
+    "map_fiber3.hue": 0.0,
+    "map_fiber3.value": 0.0,
+    "map_fiber3.sat": 0.0,
+    "glitter.hue_1": 0.59,
+    "glitter.hue_2": 0.0,
+    "glitter.value": 1.0,
+    "glitter.spin_rate": 0.22,
+    "sparks.value": 1.0,
+    "sparks.sat": 0.25,
+    "sparks.prob": 50.0,
+    "sparks.hue": 0.67
+  },
+  "cc_map": {
+    "fader_a.value": 12,
+    "param_a.value": 24,
+    "param_b.value": 14,
+    "wipe1.speed": 26,
+    "rotary.period": 24,
+    "v_gradient.origin": 26
+  },
+  "active": [
+    "bg_waves",
+    "map_fiber",
+    "sparks"
+  ],
+  "muted": [],
+  "name": "hex-loop"
+}

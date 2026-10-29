@@ -1,12 +1,13 @@
 {
   "ccs": {
-    "12": 127,
-    "13": 127,
-    "14": 127,
+    "12": 72,
+    "13": 29,
+    "14": 0,
     "15": 127,
     "16": 0,
     "17": 54,
     "18": 127,
+    "19": 27,
     "24": 90,
     "26": 127,
     "72": 3,
@@ -18,6 +19,9 @@
     "91": 65,
     "93": 0,
     "102": 0,
+    "103": 0,
+    "104": 25,
+    "105": 19,
     "114": 92
   },
   "slots": {
@@ -34,7 +38,7 @@
       "a": {
         "op": "mul",
         "a": "param_a",
-        "b": 0.05
+        "b": 0.1
       },
       "b": 1.0
     },
@@ -99,7 +103,7 @@
             },
             "b": 0.36
           },
-          "b": "hexes"
+          "b": "d1_edges"
         },
         "b": 0.71
       },
@@ -123,17 +127,19 @@
   },
   "cc_map": {
     "fader_a.value": 18,
-    "param_a.value": 18,
+    "param_a.value": 12,
     "param_b.value": 13,
     "wipe1.speed": 26,
     "rotary.period": 24,
     "v_gradient.origin": 26,
-    "scope.pattern": 72
+    "scope.pattern": 72,
+    "fader_b.value": 19
   },
   "active": [
     "net",
     "prob_zaps",
     "map_fiber"
   ],
+  "muted": [],
   "name": "flight-fm-1"
 }
