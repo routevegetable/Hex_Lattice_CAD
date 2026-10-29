@@ -15,10 +15,15 @@ class BurstField(ScalarField):
     MAX_DECAY_MS = 2000
     DECAY = FloatRange(MIN_DECAY_MS, MAX_DECAY_MS, "ms")
 
-    def __init__(self, graph: Graph, midi: MIDIFor, note: int, decay: int):
+    # How long a lit end takes to come up before it starts falling again. At
+    # 0 it is on the moment the note lands, which is how it always was.
+    ATTACK = FloatRange(0, 500, "ms")
+
+    def __init__(self, graph: Graph, midi: MIDIFor, note: int, decay: int, attack: int):
         self._graph = graph
         self._note = midi.note(note, "trigger")
         self._decay = midi.cc(decay, "decay", meta=self.DECAY)
+        self._attack = midi.cc(attack, "attack", meta=self.ATTACK)
         self._latches = {end: EventLatch(0) for end in graph.ends()}
 
 
@@ -37,10 +42,17 @@ class BurstField(ScalarField):
             #print("latch")
 
         decay = self.DECAY.at(self._decay().data)
-        
+        attack = self.ATTACK.at(self._attack().data)
 
-        v = sweep(now, latch.read(), decay, 1, 0, 0)
+        lit = latch.read()
 
+        if lit is None:
+            return 0.0              # this end has never been picked
 
-        #print(f"v: {v}")
-        return v
+        # Up, then down from wherever the climb finished. Taking the lower of
+        # the two is what joins them: the fall waits at 1 until the rise is
+        # over, and the rise sits at 1 once it is.
+        rise = 1.0 if attack <= 0 else sweep(now, lit, attack, 0, 1, 0)
+        fall = sweep(now, lit.delay(int(attack)), decay, 1, 0, 1)
+
+        return min(rise, fall)

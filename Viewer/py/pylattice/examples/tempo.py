@@ -80,6 +80,26 @@ def sweep(
         return start + frac * dv
 
 
+def trail(now: Event[Any], period: float, phase: float, attack: float = 0.0) -> float:
+    """A travelling trail: brightness at a point `phase` of the way round.
+
+    Up from nothing over `attack` ms as the head comes on, full as it passes,
+    then down over whatever is left of the period. An attack of 0 is a hard
+    edge - full brightness the moment the head arrives - which is the plain
+    sawtooth this replaced.
+
+    An attack longer than the period is all ramp and no decay, which is what
+    asking for a rise longer than the trail can only mean.
+    """
+    rise = min(max(attack / period, 0.0), 1.0)
+    frac = ((now.when / period) - phase) % 1.0
+
+    if frac >= 1 - rise:
+        return (frac - (1 - rise)) / rise
+
+    return 1 - frac / (1 - rise)
+
+
 def seq(
     now: Event[Any],
     trigger: Event[Any] | None,

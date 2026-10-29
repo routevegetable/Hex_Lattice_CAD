@@ -37,8 +37,10 @@ class NoteRippleField(ScalarField):
         self._vertexes = list(graph.vertexes())
         self._width = graph.width * TileRef.WIDTH
         self._height = graph.height * TileRef.HEIGHT
-        # The lattice wraps, so nothing is ever further than half of it away.
-        self._furthest = math.hypot(self._width / 2, self._height / 2)
+        # Half the width away is as far as anything gets across, because the
+        # lattice wraps that way. Up and down it does not, so the full height
+        # is in reach.
+        self._furthest = math.hypot(self._width / 2, self._height)
 
         self._note = midi.note(note, "trigger")
         self._poly = midi.polytouch(note, "intensity")
@@ -77,17 +79,19 @@ class NoteRippleField(ScalarField):
         return self._vertexes[ev.rand() % len(self._vertexes)]
 
     def _distance(self, a, b) -> float:
-        """Physical distance, the short way round - the lattice is a torus."""
+        """Physical distance, the short way round across but not up.
+
+        A ripple spreads sideways through the wrap, so the short way round is
+        what counts there. It does not spread off the top and back in at the
+        bottom, so up and down is plain distance.
+        """
         ax, ay = a.physical()
         bx, by = b.physical()
 
         dx = abs(ax - bx)
         dx = min(dx, self._width - dx)
 
-        dy = abs(ay - by)
-        dy = min(dy, self._height - dy)
-
-        return math.hypot(dx, dy)
+        return math.hypot(dx, abs(ay - by))
 
     def get(self, now: Event, end: EndRef) -> float:
         self._consume_note()

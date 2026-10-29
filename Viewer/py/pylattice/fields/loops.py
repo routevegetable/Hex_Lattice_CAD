@@ -2,9 +2,9 @@
 import itertools
 
 from pylattice.examples.midi import CustomChoice, FloatRange, MIDIFor
-from pylattice.examples.tempo import Event, ZERO, psweep
+from pylattice.examples.tempo import Event, ZERO, trail
 from pylattice.fields.types import ScalarField
-from pylattice.graph import EdgeClass, EndRef, Graph
+from pylattice.graph import EdgeClass, EndRef, Graph, TileRef
 
 
 MOST = 16       # copies at the top of the count knob
@@ -29,8 +29,11 @@ class LoopsField(ScalarField):
     how fast the trails run, not where the figures are. Each copy runs a fifth
     either side of the knob, so they drift apart rather than pulsing as one.
 
-    Wrapping needs no help: the walk steps from end to end and the lattice is
-    a torus, so a figure that runs off the top comes back underneath.
+    Sideways the lattice wraps and so do the figures - one running off the
+    right comes back on the left, whole. Up and down it does not: a figure
+    that would run off the top is cut off there rather than reappearing
+    underneath. Its trail still runs round the whole figure, so what is left
+    goes dark for as long as the head is out of sight.
 
     CC:
         * shape  - which closed figure to trace
@@ -52,6 +55,10 @@ class LoopsField(ScalarField):
     ]
 
     SPEED = FloatRange(4000, 30, "ms", geometric=True)
+
+    # How long the head takes to come up to full as it arrives. 0 is a hard
+    # edge, which is how it was before there was a knob for it.
+    ATTACK = FloatRange(0, 1000, "ms")
     SPREAD = 0.2        # how far a copy's own speed may stray from the knob
 
     # A count, not a sweep: half a copy is not a thing. Spelling out which
@@ -63,8 +70,9 @@ class LoopsField(ScalarField):
                            for i in range(MOST)})
 
     def __init__(self, graph: Graph, midi: MIDIFor, *,
-                 note: int, shape: int, copies: int, speed: int):
+                 note: int, shape: int, copies: int, speed: int, attack: int):
         self._graph = graph
+        self._height = graph.height * TileRef.HEIGHT
         self._note = midi.note(note, "trigger")
 
         # Not a sweep: the value picks a figure, so the UI is better off
@@ -73,6 +81,7 @@ class LoopsField(ScalarField):
             {index: name for index, (name, _) in enumerate(self.SHAPES)}))
         self._copies_cc = midi.cc(copies, "copies", meta=self.COPIES)
         self._speed_cc = midi.cc(speed, "speed", meta=self.SPEED)
+        self._attack_cc = midi.cc(attack, "attack", meta=self.ATTACK)
 
         # Each copy: the end it starts from, and where every end of that one
         # figure sits around it. A figure at a time rather than all of them
@@ -118,9 +127,37 @@ class LoopsField(ScalarField):
 
             last = end
 
+        # How far up each end is, counted as the walk goes rather than read
+        # off the lattice: stepping off the top lands at the bottom, so the
+        # raw height jumps a whole lattice and that jump is what gives the
+        # crossing away. Anything that ends up outside is off the lattice as
+        # far as this figure is concerned.
+        climbed: list[float] = []
+        shift = 0.0
+        previous = None
+
+        for end in ends:
+            y = end.vertex().physical()[1]
+
+            if previous is not None:
+                step = y - previous
+
+                if step > self._height / 2:
+                    shift -= self._height       # stepped down off the bottom
+                elif step < -self._height / 2:
+                    shift += self._height       # stepped up off the top
+
+            previous = y
+            climbed.append(y + shift)
+
         phases: dict[EndRef, list[float]] = {}
 
-        for i, end in enumerate(ends):
+        for i, (end, y) in enumerate(zip(ends, climbed)):
+            if not 0 <= y <= self._height:
+                continue        # past the top or the bottom: cut off
+
+            # Out of however far round the whole figure, not just the part
+            # that fits - the trail keeps its timing through the gap.
             phases.setdefault(end, []).append(i / len(ends))
 
         return phases
@@ -165,6 +202,7 @@ class LoopsField(ScalarField):
         # figures. Like scope, the phase comes off the clock rather than being
         # accumulated, so a turn of this knob does carry them along with it.
         base = self.SPEED.at(self._speed_cc().data)
+        attack = self.ATTACK.at(self._attack_cc().data)
         result = 0.0
 
         for start, phases in self._loops:
@@ -176,6 +214,6 @@ class LoopsField(ScalarField):
             period = base * self._spread(start)
 
             for phase in here:
-                result = max(result, psweep(now.delay(period * -phase), period, 1, 0))
+                result = max(result, trail(now, period, phase, attack))
 
         return result

@@ -38,9 +38,13 @@ class RandomTraceField(ScalarField):
     hold come out of that event's `rand`, so a particle is never stored, only
     re-derived, and never moves once it is on its way.
 
-    What travels is the first half of a sine wave: the ends just behind the
-    head ramp up to 1 and back down to 0 over WIDTH edges. Every end a path
-    does not reach is 0, which is most of them most of the time.
+    What travels is a head at full brightness with a trail behind it, the
+    same shape scope and loops draw: up over `attack` ms as the head comes on,
+    full as it passes, then straight down over DECAY ms. Both are times
+    rather than distances, so the trail reads the same however fast the head
+    is moving.
+    Every end a path does not reach is 0, which is most of them most of the
+    time.
 
     A path wraps round the sides of the lattice but not the top or the bottom
     - one that gets that far is cut off there.
@@ -54,11 +58,19 @@ class RandomTraceField(ScalarField):
           at 127
         * aim - which way they go: 0 is mostly downward, 1 is mostly upward,
           and 0.5 is evenly spread round the circle
+        * attack - how long the rise in front of the head takes, 0 for a hard
+          edge
     """
 
     PARTICLES = 8       # how many can be in flight at once
     LENGTH = 24         # edges traced before a particle runs out of path
-    WIDTH = 5.0         # edges the sine hump spans
+
+    # The trail in time rather than in edges, so it reads the same however
+    # fast the head is going: full as the head passes, up over `attack` ms
+    # before it gets there and straight back down over DECAY after. The fall
+    # is a fixed length and a straight line, the way scope's is.
+    ATTACK = FloatRange(0, 1000, "ms")
+    DECAY = 400         # ms the trail takes to fade out behind the head
 
     AIM = FloatRange(0, 1)      # 0 fires down, 1 up, 0.5 every way at once
 
@@ -73,7 +85,8 @@ class RandomTraceField(ScalarField):
     # paths from being rigid rays; much more and they wander off the aim.
     KINK = 4
 
-    def __init__(self, graph: Graph, midi: MIDIFor, *, note: int, speed: int, aim: int):
+    def __init__(self, graph: Graph, midi: MIDIFor, *, note: int, speed: int,
+                 aim: int, attack: int):
         self._vertexes = list(graph.vertexes())
         self._width = graph.width * TileRef.WIDTH
         self._height = graph.height * TileRef.HEIGHT
@@ -81,6 +94,7 @@ class RandomTraceField(ScalarField):
         self._note = midi.note(note)
         self._speed_cc = midi.cc(speed, "speed", meta=self.SPEED)
         self._aim_cc = midi.cc(aim, "aim", meta=self.AIM)
+        self._attack_cc = midi.cc(attack, "attack", meta=self.ATTACK)
 
         # The queue of particles - one latch each, a press rotates onto the
         # next, so the oldest is the one that gets overwritten.
@@ -195,15 +209,26 @@ class RandomTraceField(ScalarField):
             else:
                 current = straighter
 
-    def _level(self, at: float, head: float) -> float:
-        """Half a sine wave trailing the head: 0 at the head itself, 0 again
-        WIDTH edges behind it, 1 in the middle."""
-        behind = head - at
+    def _level(self, at: float, head: float, step: float,
+               attack: float) -> float:
+        """How bright a point on the path is, by how long ago the head was
+        there - the same shape scope and loops draw.
 
-        if behind <= 0 or behind >= self.WIDTH:
-            return 0.0          # not reached yet, or long gone
+        Negative is ahead of the head, which is where the rise lives: it
+        reaches full just as the head arrives, then falls away behind.
+        """
+        age = (head - at) * step        # ms since the head passed this point
 
-        return math.sin(behind / self.WIDTH * math.pi)
+        if age > self.DECAY:
+            return 0.0                  # long gone
+
+        if age >= 0:
+            return 1 - age / self.DECAY     # the fall, behind the head
+
+        if -age >= attack:
+            return 0.0                  # too far ahead to have started rising
+
+        return 1 + age / attack         # the rise: 0 an attack ahead, 1 at the head
 
     def _regen(self, now: Event):
         """Re-trace every particle in flight, if the time has moved on."""
@@ -220,23 +245,28 @@ class RandomTraceField(ScalarField):
         # Read once a frame, so a knob turn steers the paths already in flight
         # as one - they are re-traced from scratch anyway.
         aim = self.AIM.at(self._aim_cc().data)
+        attack = self.ATTACK.at(self._attack_cc().data)
+
+        # The trail in edges, which is what the path is counted in.
+        behind = self.DECAY / step
+        ahead = attack / step
 
         for ev in self._queue.events():
             if ev is None:
                 continue        # this latch has not been used yet
 
             head = (now.when - ev.when) / step
-            if head <= 0 or head - self.WIDTH > self.LENGTH:
+            if head + ahead <= 0 or head - behind > self.LENGTH:
                 continue        # not off yet, or run off the end of its path
 
             for i, end in enumerate(self._trace(ev, aim)):
-                if i >= head:
-                    break       # the rest of the path is ahead of the head
+                if i >= head + ahead:
+                    break       # beyond even the rise that runs before the head
 
                 # An edge is entered before it is left, so its far end lights
                 # half a step after its near one.
                 for at, lit in ((i, end), (i + 0.5, end.other())):
-                    level = self._level(at, head)
+                    level = self._level(at, head, step, attack)
 
                     if level > 0:
                         # Paths cross, and one can cross itself - the brightest

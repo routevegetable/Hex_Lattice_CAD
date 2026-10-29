@@ -75,27 +75,32 @@ class FIELDS:
     wipe2 = NoteWipeField(midi.for_("wipe2"), note=PB4, speed=KB4)
 
     # A particle tracing a path of its own from wherever it spawned
-    trace = RandomTraceField(graph, midi.for_("trace"), note=PB5, speed=KB5, aim=KB6)
+    trace = RandomTraceField(graph, midi.for_("trace"), note=PB5, speed=KB5, aim=KB6,
+                             attack=108)
 
     # A spot going round and round one flat line of the lattice
-    scope = ScopeFieldBetter(graph, midi.for_("scope"), speed=KB7, pattern=KB8)
+    scope = ScopeFieldBetter(graph, midi.for_("scope"), speed=KB7, pattern=KB8,
+                             attack=106)
 
     # Rotated versions of scope
     scope180 = ScopeFieldBetter(
-        graph, midi.for_("scope"), speed=KB7, pattern=KB8, phase_offset=0.5
+        graph, midi.for_("scope"), speed=KB7, pattern=KB8, attack=106,
+        phase_offset=0.5
     )
     scope120 = ScopeFieldBetter(
-        graph, midi.for_("scope"), speed=KB7, pattern=KB8, phase_offset=0.3
+        graph, midi.for_("scope"), speed=KB7, pattern=KB8, attack=106,
+        phase_offset=0.3
     )
     scope240 = ScopeFieldBetter(
-        graph, midi.for_("scope"), speed=KB7, pattern=KB8, phase_offset=0.6
+        graph, midi.for_("scope"), speed=KB7, pattern=KB8, attack=106,
+        phase_offset=0.6
     )
 
     # Closed figures scattered about, each with a trail going round it. Every
     # knob on the box is spoken for, so these three start off the desk - map
     # them onto something from the expression editor.
     loops = LoopsField(graph, midi.for_("loops"),
-                       note=PA4, shape=103, copies=104, speed=105)
+                       note=PA4, shape=103, copies=104, speed=105, attack=107)
 
     # Complete hexes, selected by the same pattern knob as scope
     hexes = HexesField(graph, midi.for_("hexes"), pattern=KB8)
@@ -127,10 +132,13 @@ class FIELDS:
     d1_edges = EdgeMaskField({EdgeClass.A, EdgeClass.C, EdgeClass.E, EdgeClass.F})
     d2_edges = EdgeMaskField({EdgeClass.B, EdgeClass.C, EdgeClass.D, EdgeClass.F})
 
-    strobe0 = StrobeField(midi.for_("strobe0"), strobe=PA1)
-    strobe1 = StrobeField(midi.for_("strobe1"), strobe=PA2)
-    strobe2 = StrobeField(midi.for_("strobe2"), strobe=PA3)
+    strobe0 = StrobeField(midi.for_("strobe0"), strobe=PA1,
+                           attack=110, decay=111)
+    strobe1 = StrobeField(midi.for_("strobe1"), strobe=PA2,
+                           attack=112, decay=113)
+    strobe2 = StrobeField(midi.for_("strobe2"), strobe=PA3,
+                           attack=115, decay=116)
 
     v_gradient = VGradientField(midi.for_("v_gradient"), origin=KA6)
 
-    burst = BurstField(graph, midi.for_("burst"), note=PB8, decay=KA7)
+    burst = BurstField(graph, midi.for_("burst"), note=PB8, decay=KA7, attack=109)
