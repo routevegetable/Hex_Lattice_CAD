@@ -261,3 +261,15 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 #map.picking { outline: 1px solid var(--accent); outline-offset: 6px; border-radius: 2px; }
 .map-prompt { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; color: var(--accent); }
 .fpick-map { display: block; width: 100%; margin: 4px 0; }
+
+/* the Akai's own picture: knobs over faders over the pads, larger type than the BeatStep's */
+.box.akai .section { fill: var(--dim); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+.box.akai .ring { fill: none; stroke: #2a3039; stroke-width: 3; }
+.box.akai .tag { font-size: 9.5px; }
+.box.akai .what { font-size: 11px; font-weight: 600; }
+.box.akai .what.role { font-size: 9.5px; font-weight: 400; }
+.box.akai .pad .tag { text-anchor: middle; }
+.box.akai .pad.assigned .cap { fill: #232a34; }
+.box.akai .pad.lit .cap { fill: #24334d; }
+.box.akai .fader.assigned .thumb { fill: #2b3441; }
+.box.akai .fader.lit .thumb { fill: #24334d; }

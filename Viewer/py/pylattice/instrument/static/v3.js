@@ -1944,8 +1944,8 @@ function drawMap() {
       .forEach((text, i) => {
         const t = document.createElementNS(SVG_NS, 'text');
         t.setAttribute('class', i ? 'what role' : 'what');
-        t.setAttribute('x', x); t.setAttribute('y', y + 10 + 8 * i);
-        t.textContent = short(text);
+        t.setAttribute('x', x); t.setAttribute('y', y + 12 + 11 * i);
+        t.textContent = short(text, Number(spot.dataset.chars ?? 8));
         spot.append(t);
       });
     const title = document.createElementNS(SVG_NS, 'title');
@@ -1977,7 +1977,10 @@ function syncMapKnobs() {
     if (pointer) pointer.setAttribute('transform',
         `rotate(${-135 + 270 * frac} ${cap.getAttribute('cx')} ${cap.getAttribute('cy')})`);
     const thumb = spot.querySelector('.thumb');
-    if (thumb) thumb.setAttribute('y', 160 - 62 * frac);
+    if (thumb) {
+      const lo = Number(spot.dataset.lo), hi = Number(spot.dataset.hi);
+      thumb.setAttribute('y', lo - (lo - hi) * frac);
+    }
   }
 }
 
