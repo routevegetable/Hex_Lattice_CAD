@@ -39,7 +39,7 @@ header button { white-space: nowrap; }
 .pcell.act:disabled { opacity: .25; }
 
 /* effects down the left half, the rest of the page on the right */
-.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 12px 16px;
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; padding: 12px 16px;
         align-items: start; }
 main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 aside { min-width: 0; }
@@ -279,3 +279,10 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 .map-off button { margin-left: 6px; }
 .spot.assigned[data-cc] { cursor: pointer; }
 .box .what.fx { fill: #6a8fd0; font-style: italic; }
+.map-legend { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+.map-legend td { padding: 3px 8px 3px 0; border-top: 1px solid var(--line); vertical-align: top; }
+.map-legend td:first-child { color: var(--dim); white-space: nowrap; }
+.map-legend td.fx { color: #6a8fd0; font-style: italic; }
+.map-legend tr.lit td:nth-child(2) { color: #cfe3ff; }
+.box .spot.hover .cap, .box .spot.hover .thumb { stroke: var(--accent); stroke-width: 2; }
+.map-legend tr.hover td { background: rgba(106, 143, 208, .22); }

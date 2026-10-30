@@ -1813,9 +1813,11 @@ document.getElementById('new-preset').onclick = () => openCopy('new');
 // A preset with nothing plugged in: every effect is in the chain, so there is a
 // card for each to open, and every slot is blank, so nothing draws until one is
 // filled. No knobs are listed - a patch that says nothing about them leaves them
-// where they are - and nothing is muted.
-const blankPatch = (name) => ({ccs: {}, slots: {}, cc_map: {}, active: Object.keys(rig.effects),
-                               muted: [], name});
+// where they are - and nothing is muted. The box on the desk says where its own
+// defaults go (surfaces.json), so a new preset starts with those controls on it -
+// and with any that would land on it by accident parked on a CC nothing sends.
+const blankPatch = (name) => ({ccs: {}, slots: {}, cc_map: {...surfaces[surfaceId]?.defaults},
+                               active: Object.keys(rig.effects), muted: [], name});
 
 copyDialog.querySelector('form').onsubmit = async (e) => {
   e.preventDefault();
@@ -1967,7 +1969,7 @@ function drawMap() {
     spot.dataset.effects = fx.join(', ');
     [rs[0][0] + (rs.length > 1 ? ` +${rs.length - 1}` : ''), rs[0][1] ?? '', fx.join(', ')]
       .forEach((text, i) => {
-        if (!text) return;
+        if (!text || (i && spot.classList.contains('pad'))) return;   // pads have no room; the legend has the role and effects
         const t = document.createElementNS(SVG_NS, 'text');
         t.setAttribute('class', i ? 'what role' + (i > 1 ? ' fx' : '') : 'what');
         t.setAttribute('x', x); t.setAttribute('y', y + 12 + 11 * i);
@@ -1977,6 +1979,10 @@ function drawMap() {
     const title = document.createElementNS(SVG_NS, 'title');
     title.textContent = rs.map(r => r.join('.')).join('\n') + (spot.dataset.effects ? `\nin ${spot.dataset.effects}` : '');
     spot.append(title);
+    // A tooltip belongs to the shape under the pointer, so the whole pad, not
+    // just its text, needs one.
+    for (const shape of spot.querySelectorAll('rect, circle, line'))
+      shape.append(title.cloneNode(true));
   }
   for (const [spot, rs] of roles) spot.dataset.names = JSON.stringify(rs.map(r => r.join('.')));
   for (const spot of holder.querySelectorAll('.spot.assigned')) spot.onclick = () => {
@@ -1986,6 +1992,37 @@ function drawMap() {
   // never asks anything.
   for (const spot of holder.querySelectorAll('.spot[data-cc]:not(.assigned)'))
     spot.onclick = () => { if (!mapPick) assignMenu(spot); };
+
+  // The picture has no room for whole names, so the same assignments are listed
+  // in full beneath it: control, what it moves, and the effects that use it.
+  // Pads come first, in the Akai's own numbering, then the knobs and faders as drawn.
+  const isPad = s => s.classList.contains('pad');
+  const padNo = s => Number(s.id.replace(/\D/g, ''));
+  const rows = [...holder.querySelectorAll('.spot.assigned')].filter(s => roles.get(s)?.length)
+    .sort((a, b) => isPad(b) - isPad(a) || (isPad(a) && padNo(a) - padNo(b)));
+  if (rows.length) {
+    const legend = document.createElement('table');
+    legend.className = 'map-legend';
+    for (const spot of rows) {
+      const rs = roles.get(spot);
+      const tr = legend.insertRow();
+      tr.classList.toggle('lit', spot.classList.contains('lit'));
+      const hover = on => { tr.classList.toggle('hover', on); spot.classList.toggle('hover', on); };
+      tr.onmouseenter = () => hover(true); tr.onmouseleave = () => hover(false);
+      spot.onmouseenter = () => hover(true); spot.onmouseleave = () => hover(false);
+      const cells = [
+        spot.querySelector('.tag')?.textContent ?? spot.id,
+        rs.map(r => r.join('.')).join(', '),
+        spot.dataset.effects || '',
+      ];
+      cells.forEach((text, i) => {
+        const td = tr.insertCell();
+        td.textContent = text;
+        if (i === 2) td.className = 'fx';
+      });
+    }
+    mapBox.append(legend);
+  }
 
   if (off.length) {
     const note = document.createElement('p');
