@@ -1,7 +1,7 @@
 """Fire climbing the lattice from the bottom."""
 from collections.abc import Iterator
 
-from pylattice.examples.midi import MIDIFor
+from pylattice.examples.midi import FloatRange, MIDIFor
 from pylattice.examples.tempo import Event, periodic
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EndRef, Graph, VertexClass, VertexRef
@@ -12,9 +12,9 @@ class FireField(ScalarField):
     Fire rising from the bottom of the lattice, always going.
 
     Every vertex along the bottom is an ember, throwing a particle upward
-    every so often. How often is how hard the pad is being leaned on: nothing
-    at rest, every ember on every tick at full pressure. It is not gated by
-    the note - the pad is a dimmer, not a trigger.
+    every so often. How often is what the knob says: nothing at the bottom of
+    its travel, every ember on every tick at the top. There is no pad to hold
+    - the knob is where it is left, and the fire burns at that.
 
     Which way a particle goes is the lattice's business. At a CDE or an ABF
     there is an edge going straight up, so it takes it. At a DEF or an ABC
@@ -26,11 +26,12 @@ class FireField(ScalarField):
 
     Nothing about a particle is stored. Embers throw on a fixed grid of ticks,
     and which ticks they threw on - and which way each one leaned - comes out
-    of the tick's own `rand`. Turning the pressure up fills in more of the
-    same grid rather than moving what is already in the air.
+    of the tick's own `rand`. Turning the rate up fills in more of the same
+    grid rather than moving what is already in the air.
 
     CC:
-        * note - aftertouch on this pad sets how often the embers throw
+        * rate - how often the embers throw, 0 for none and 1 for every
+          ember on every tick
     """
 
     # The vertices with an edge going straight up out of them.
@@ -40,8 +41,11 @@ class FireField(ScalarField):
     SPEED = 90          # ms a particle takes to climb one edge
     TAIL = 3.0          # edges of trail behind the head
 
-    def __init__(self, graph: Graph, midi: MIDIFor, *, note: int):
-        self._pressure = midi.polytouch(note, "rate")
+    # The chance an ember takes any given tick, straight through.
+    RATE = FloatRange(0, 1)
+
+    def __init__(self, graph: Graph, midi: MIDIFor, *, rate: int):
+        self._rate_cc = midi.cc(rate, "rate", meta=self.RATE)
 
         # The bottom row: the DEF of each tile along the bottom, which is the
         # lowest vertex there is.
@@ -92,10 +96,10 @@ class FireField(ScalarField):
         self._generated = now.when
         self._state = {}
 
-        chance = self._pressure() / 127
+        chance = self.RATE.at(self._rate_cc().data)
 
         if chance <= 0:
-            return                          # nobody leaning on it
+            return                          # the knob is at the bottom
 
         for ember in range(len(self._embers)):
             # Embers are offset against each other, or the whole bottom row

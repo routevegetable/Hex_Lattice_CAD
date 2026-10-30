@@ -46,7 +46,6 @@ from pylattice.instrument.hardware import (
     PB4,
     PB5,
     PB6,
-    PB7,
     PB8,
     graph,
     midi,
@@ -105,8 +104,9 @@ class FIELDS:
     # Complete hexes, selected by the same pattern knob as scope
     hexes = HexesField(graph, midi.for_("hexes"), pattern=KB8)
 
-    # Fire climbing from the bottom, as hard as PB7 is leaned on
-    fire = FireField(graph, midi.for_("fire"), note=PB7)
+    # Fire climbing from the bottom, as hard as its knob says. No pad: it
+    # burns at whatever the knob is left at.
+    fire = FireField(graph, midi.for_("fire"), rate=117)
 
     # Rotary
     rotary = RotaryField(graph, midi.for_("rotary"), period=KA5, parts=KA6, shape=KA7)

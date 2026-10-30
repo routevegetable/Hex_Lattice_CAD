@@ -98,8 +98,10 @@ class NoteState:
 
     on: EventLatch[int] = field(default_factory=EventLatch)
     off: EventLatch[int] = field(default_factory=EventLatch)
-    # Set to the velocity when the key goes down, then moved by aftertouch.
-    # It is not cleared on release - the last press stands as a level.
+    # Set to the velocity when the key goes down, moved by aftertouch, and
+    # back to 0 when the key comes up - a pad that is not being held is not
+    # being leaned on. Both kinds of release clear it, including a note-on of
+    # velocity 0, which is how some boxes say the same thing.
     pressure: int = 0
     comments: list[str] = field(default_factory=list)
 
@@ -159,6 +161,7 @@ class MIDI:
                     if note is not None:
                         if msg.velocity == 0:
                             note.off.put(0)             # a note-off in disguise
+                            note.pressure = 0           # ... so it lets go too
                         else:
                             note.off.clear()            # this press is not over
                             note.on.put(msg.velocity)
@@ -169,6 +172,7 @@ class MIDI:
                     note = self._notes.get(self.pad(msg.note))
                     if note is not None:
                         note.off.put(msg.velocity)
+                        note.pressure = 0
                 case "control_change":
                     print(msg)
                     moved[msg.control] = msg.value
