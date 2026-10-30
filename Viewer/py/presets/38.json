@@ -1,0 +1,90 @@
+{
+  "ccs": {
+    "12": 0,
+    "13": 0,
+    "14": 0,
+    "15": 0,
+    "22": 0,
+    "23": 79,
+    "24": 106,
+    "25": 3,
+    "26": 0,
+    "27": 116,
+    "72": 3,
+    "73": 57,
+    "75": 24,
+    "77": 69,
+    "79": 71,
+    "91": 123,
+    "93": 10,
+    "102": 13,
+    "103": 0,
+    "104": 25,
+    "105": 19,
+    "106": 0,
+    "107": 0,
+    "108": 0,
+    "109": 0,
+    "114": 47
+  },
+  "slots": {
+    "bg_waves.sat": 1.0,
+    "bg_waves.value": {
+      "op": "mul",
+      "a": {
+        "op": "sub",
+        "a": "rotary",
+        "b": 0.95
+      },
+      "b": 10.0
+    },
+    "bg_waves2.hue": 0.55,
+    "bg_waves2.value": {
+      "op": "mul",
+      "a": {
+        "op": "sub",
+        "a": "rotary180",
+        "b": 0.95
+      },
+      "b": 10.0
+    },
+    "bg_waves2.sat": 1.0,
+    "bg_waves.hue": 0.45,
+    "map_fiber.hue": 0.97,
+    "map_fiber.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": "scope",
+        "b": "wipe1"
+      },
+      "b": 0.2
+    },
+    "map_fiber.sat": 1.0
+  },
+  "cc_map": {
+    "fader_a.value": 12,
+    "fader_b.value": 13,
+    "param_a.value": 14,
+    "param_b.value": 15,
+    "wipe2.speed": 106,
+    "trace.speed": 107,
+    "ripple2.speed": 108,
+    "wipe1.speed": 12,
+    "rotary.shape": 22,
+    "rotary.period": 23,
+    "rotary.parts": 24,
+    "loops.shape": 25,
+    "loops.copies": 26,
+    "loops.speed": 27,
+    "scope.pattern": 25,
+    "scope.speed": 26
+  },
+  "active": [
+    "bg_waves",
+    "bg_waves2",
+    "map_fiber"
+  ],
+  "muted": [],
+  "name": "rotary-test"
+}
