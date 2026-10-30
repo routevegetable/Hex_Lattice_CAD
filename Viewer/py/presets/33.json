@@ -1,0 +1,29 @@
+{
+  "ccs": {},
+  "slots": {},
+  "cc_map": {
+    "fader_a.value": 12,
+    "fader_b.value": 13,
+    "param_a.value": 14,
+    "param_b.value": 15,
+    "wipe2.speed": 106,
+    "trace.speed": 107,
+    "ripple2.speed": 108,
+    "wipe1.speed": 109
+  },
+  "active": [
+    "bg_waves",
+    "bg_waves2",
+    "net",
+    "sunrise",
+    "bisexual",
+    "prob_zaps",
+    "map_fiber",
+    "map_fiber2",
+    "map_fiber3",
+    "glitter",
+    "sparks"
+  ],
+  "muted": [],
+  "name": "purge-1"
+}

@@ -1,0 +1,123 @@
+{
+  "ccs": {
+    "10": 64,
+    "12": 127,
+    "13": 127,
+    "14": 0,
+    "15": 0,
+    "16": 0,
+    "17": 0,
+    "18": 0,
+    "19": 0,
+    "22": 0,
+    "23": 127,
+    "24": 0,
+    "25": 0,
+    "26": 0,
+    "27": 0,
+    "71": 127,
+    "72": 0,
+    "73": 0,
+    "74": 0,
+    "75": 127,
+    "76": 87,
+    "77": 0,
+    "79": 18,
+    "91": 68,
+    "93": 0,
+    "102": 0,
+    "103": 0,
+    "104": 25,
+    "105": 19,
+    "114": 0
+  },
+  "slots": {
+    "bg_waves.hue": 0.67,
+    "bg_waves.value": {
+      "op": "mul",
+      "a": "fader_a",
+      "b": {
+        "op": "add",
+        "a": {
+          "op": "sub",
+          "a": 1.0,
+          "b": "fader_b"
+        },
+        "b": {
+          "op": "mul",
+          "a": "fader_b",
+          "b": "random"
+        }
+      }
+    },
+    "bg_waves.sat": 1.0,
+    "bg_waves.flow": 0.0,
+    "bg_waves2.hue": 0.0,
+    "bg_waves2.value": 0.0,
+    "bg_waves2.sat": 1.0,
+    "bg_waves2.flow": 0.0,
+    "net.hue": "param_b",
+    "net.value": 0.0,
+    "net.sat": 1.0,
+    "net.amp": "ripple2",
+    "sunrise.value": 0.0,
+    "bisexual.value": 0.0,
+    "bisexual.speed": 0.0,
+    "prob_zaps.hue": 0.0,
+    "prob_zaps.value": {
+      "op": "mul",
+      "a": "ripple2",
+      "b": {
+        "op": "add",
+        "a": "rotary",
+        "b": 0.8
+      }
+    },
+    "prob_zaps.prob": 0.26,
+    "map_fiber.hue": 0.01,
+    "map_fiber.value": "ripple",
+    "map_fiber.sat": 0.13,
+    "map_fiber2.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "rotary",
+        "b": 0.42
+      },
+      "b": 0.6
+    },
+    "map_fiber2.value": "trace",
+    "map_fiber2.sat": 1.0,
+    "map_fiber3.hue": 0.0,
+    "map_fiber3.value": 0.0,
+    "map_fiber3.sat": 1.0,
+    "glitter.hue_1": 0.0,
+    "glitter.hue_2": 0.0,
+    "glitter.value": 0.0,
+    "glitter.spin_rate": 0.0,
+    "sparks.value": 0.0,
+    "sparks.sat": 1.0,
+    "sparks.prob": 0.0,
+    "sparks.hue": 0.0
+  },
+  "cc_map": {
+    "fader_a.value": 12,
+    "fader_b.value": 13,
+    "param_a.value": 14,
+    "param_b.value": 15,
+    "rotary.shape": 22,
+    "random.period": 23,
+    "rotary.period": 24,
+    "trace.aim": 25,
+    "rotary.parts": 26,
+    "ripple.speed": 27
+  },
+  "active": [
+    "bg_waves",
+    "prob_zaps",
+    "map_fiber",
+    "map_fiber2"
+  ],
+  "muted": [],
+  "name": "believe-1"
+}

@@ -16,6 +16,9 @@
     "91": 65,
     "93": 0,
     "102": 0,
+    "103": 0,
+    "104": 25,
+    "105": 19,
     "114": 92
   },
   "slots": {
@@ -69,7 +72,7 @@
       "op": "add",
       "a": {
         "op": "mul",
-        "a": "v_rotary",
+        "a": "loops",
         "b": 0.41
       },
       "b": 0.62
@@ -87,7 +90,7 @@
           },
           "b": 0.36
         },
-        "b": "hexes"
+        "b": "loops"
       },
       "b": 0.71
     },
@@ -102,11 +105,7 @@
     "glitter.hue_2": 0.0,
     "glitter.value": 1.0,
     "glitter.spin_rate": 0.22,
-    "sparks.value": {
-      "op": "mul",
-      "a": 1.0,
-      "b": "strobe0"
-    },
+    "sparks.value": 1.0,
     "sparks.sat": 0.25,
     "sparks.prob": 50.0,
     "sparks.hue": 0.67
@@ -124,5 +123,6 @@
     "map_fiber",
     "sparks"
   ],
+  "muted": [],
   "name": "hex-test"
 }

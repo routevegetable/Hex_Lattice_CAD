@@ -1,0 +1,116 @@
+{
+  "ccs": {
+    "12": 26,
+    "13": 22,
+    "14": 0,
+    "15": 0,
+    "16": 0,
+    "17": 0,
+    "22": 0,
+    "23": 120,
+    "24": 0,
+    "25": 0,
+    "26": 127,
+    "27": 0,
+    "28": 0,
+    "72": 3,
+    "73": 57,
+    "75": 24,
+    "77": 69,
+    "79": 71,
+    "91": 123,
+    "93": 10,
+    "102": 13,
+    "103": 0,
+    "104": 25,
+    "105": 19,
+    "106": 0,
+    "107": 0,
+    "108": 0,
+    "109": 0,
+    "114": 47
+  },
+  "slots": {
+    "sparks.value": 1.0,
+    "sparks.prob": {
+      "op": "mul",
+      "a": 50.0,
+      "b": "fader_a"
+    },
+    "sparks.hue": 0.05,
+    "sparks.sat": {
+      "op": "mul",
+      "a": 0.5,
+      "b": "fader_b"
+    },
+    "bg_waves.hue": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": "rotary",
+        "b": "v_rotary"
+      },
+      "b": 0.37
+    },
+    "bg_waves.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": "rotary180",
+        "b": {
+          "op": "sub",
+          "a": "v_rotary180",
+          "b": 0.2
+        }
+      },
+      "b": "param_a"
+    },
+    "bg_waves.sat": 0.98,
+    "bg_waves2.sat": 0.27,
+    "bg_waves2.hue": 0.04,
+    "bg_waves2.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": 0.21,
+        "b": "ripple"
+      },
+      "b": "param_b"
+    },
+    "prob_zaps.value": {
+      "op": "mul",
+      "a": 0.72,
+      "b": {
+        "op": "mul",
+        "a": "h_edges",
+        "b": "strobe0"
+      }
+    },
+    "prob_zaps.prob": 0.13
+  },
+  "cc_map": {
+    "fader_a.value": 12,
+    "fader_b.value": 13,
+    "param_a.value": 14,
+    "param_b.value": 15,
+    "wipe2.speed": 17,
+    "trace.speed": 107,
+    "ripple2.speed": 108,
+    "wipe1.speed": 16,
+    "rotary.shape": 22,
+    "rotary.period": 23,
+    "rotary.parts": 24,
+    "v_rotary.shape": 25,
+    "v_rotary.period": 26,
+    "v_rotary.parts": 27,
+    "ripple.speed": 28
+  },
+  "active": [
+    "bg_waves",
+    "sparks",
+    "bg_waves2",
+    "prob_zaps"
+  ],
+  "muted": [],
+  "name": "takk-3"
+}

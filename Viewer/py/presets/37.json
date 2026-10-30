@@ -1,0 +1,127 @@
+{
+  "ccs": {
+    "12": 0,
+    "13": 0,
+    "14": 0,
+    "15": 0,
+    "16": 113,
+    "17": 72,
+    "18": 127,
+    "19": 113,
+    "22": 0,
+    "23": 0,
+    "24": 106,
+    "25": 0,
+    "26": 0,
+    "27": 116,
+    "28": 0,
+    "71": 75,
+    "72": 3,
+    "73": 57,
+    "74": 80,
+    "75": 24,
+    "76": 0,
+    "77": 69,
+    "79": 71,
+    "91": 123,
+    "93": 10,
+    "102": 13,
+    "103": 0,
+    "104": 25,
+    "105": 19,
+    "114": 47
+  },
+  "slots": {
+    "net.hue": 0.9,
+    "net.value": "d1_edges",
+    "net.sat": 1.0,
+    "net.amp": 0.3,
+    "map_fiber.hue": {
+      "op": "add",
+      "a": "v_rotary",
+      "b": 0.33
+    },
+    "map_fiber2.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "v_rotary",
+        "b": 0.22
+      },
+      "b": 0.8
+    },
+    "map_fiber.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": {
+          "op": "mul",
+          "a": "d1_edges",
+          "b": "hexes"
+        },
+        "b": "fader_a"
+      },
+      "b": 0.68
+    },
+    "map_fiber.sat": 1.0,
+    "map_fiber2.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": {
+          "op": "sub",
+          "a": {
+            "op": "mul",
+            "a": "d2_edges",
+            "b": "hexes"
+          },
+          "b": "h_edges"
+        },
+        "b": "fader_b"
+      },
+      "b": 0.87
+    },
+    "map_fiber2.sat": 1.0,
+    "glitter.value": {
+      "op": "mul",
+      "a": 0.5,
+      "b": "param_b"
+    },
+    "glitter.spin_rate": 0.52,
+    "glitter.hue_1": 0.97,
+    "glitter.hue_2": 0.9,
+    "sparks.prob": {
+      "op": "mul",
+      "a": 100.0,
+      "b": "rotary180"
+    },
+    "sparks.hue": {
+      "op": "add",
+      "a": "v_rotary",
+      "b": 0.67
+    },
+    "sparks.value": "param_a",
+    "sparks.sat": 1.0
+  },
+  "cc_map": {
+    "fader_a.value": 12,
+    "hexes.pattern": 22,
+    "rotary.shape": 23,
+    "rotary.period": 24,
+    "rotary.parts": 25,
+    "v_rotary.shape": 26,
+    "v_rotary.period": 27,
+    "v_rotary.parts": 28,
+    "fader_b.value": 13,
+    "param_a.value": 14,
+    "param_b.value": 15
+  },
+  "active": [
+    "glitter",
+    "sparks",
+    "map_fiber",
+    "map_fiber2"
+  ],
+  "muted": [],
+  "name": "sleep-sounds-2"
+}

@@ -1,0 +1,54 @@
+{
+  "ccs": {
+    "19": 101,
+    "71": 98,
+    "77": 0,
+    "102": 40,
+    "10": 0,
+    "74": 80,
+    "76": 0,
+    "114": 47,
+    "18": 0,
+    "75": 24,
+    "16": 32,
+    "17": 0,
+    "91": 123,
+    "79": 71,
+    "72": 3,
+    "103": 0,
+    "104": 25,
+    "105": 19,
+    "93": 10,
+    "73": 57
+  },
+  "slots": {
+    "bg_waves.sat": 0,
+    "bg_waves2.sat": 0,
+    "net.hue": 0.0,
+    "net.sat": 1.0,
+    "net.amp": 0.3,
+    "net.value": 0.5,
+    "prob_zaps.hue": 0.12,
+    "prob_zaps.value": 1.0,
+    "prob_zaps.prob": {
+      "op": "mul",
+      "a": {
+        "op": "sub",
+        "a": "wipe1",
+        "b": "param_a"
+      },
+      "b": 1.0
+    },
+    "map_fiber.sat": 0,
+    "map_fiber2.sat": 0,
+    "map_fiber3.sat": 0,
+    "sparks.sat": 0
+  },
+  "cc_map": {},
+  "active": [
+    "prob_zaps",
+    "net"
+  ],
+  "muted": [],
+  "name": "wipe-tail-zaps"
+}
