@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Generator, Iterable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import ClassVar, Dict, Tuple
 
@@ -58,9 +58,31 @@ class TileRef:
             math.floor((y - TileRef.ORIGIN_OFFSET_Y) / TileRef.HEIGHT),
         )
 
+    @property
+    def tile(self):
+        """The tile this is on - which is itself, since a vertex, an edge and
+        an end are all a tile with something extra said about them. Here so
+        that `end.tile.x` still reads the way it always did."""
+        return self
+
+    def _at(self, x: int, y: int) -> "TileRef":
+        """This same thing at another position. Each class overrides it,
+        because only it knows what else it carries."""
+        return TileRef(self.graph, x, y)
+
+    def moved(self, dx: int, dy: int):
+        """This same thing, dx and dy tiles away, wrapping both ways."""
+        return self._at((self.x + dx) % self.graph.width,
+                        (self.y + dy) % self.graph.height)
+
     def offset(self, a):
-        """Translate any {tile: TileRef} ref by this tile's offset."""
-        return replace(a, tile=a.tile.add(self))
+        """Translate any ref by this tile's offset.
+
+        One object comes out, not two: a ref used to hold a TileRef, so moving
+        one meant building a new tile and then a new ref around it. Now the
+        position is on the ref itself and there is only the ref to rebuild.
+        """
+        return a.moved(self.x, self.y)
 
     def negate(self) -> "TileRef":
         return TileRef(self.graph, -self.x, -self.y)
@@ -73,16 +95,16 @@ class TileRef:
         )
 
     def edge(self, c: EdgeClass) -> "EdgeRef":
-        return EdgeRef(c, self)
+        return EdgeRef(self.graph, self.x, self.y, c)
 
     def vertex(self, v: VertexClass) -> "VertexRef":
-        return VertexRef(v, self)
+        return VertexRef(self.graph, self.x, self.y, v)
 
     def top_end(self, c: EdgeClass) -> "EndRef":
-        return EndRef(c, self, True)
+        return EndRef(self.graph, self.x, self.y, c, True)
 
     def bottom_end(self, c: EdgeClass) -> "EndRef":
-        return EndRef(c, self, False)
+        return EndRef(self.graph, self.x, self.y, c, False)
 
     def physical(self) -> Tuple[float, float]:
         """Physical position of this tile's main hex center."""
@@ -95,38 +117,44 @@ class TileRef:
 
 
 @dataclass(frozen=True)
-class VertexRef:
+class VertexRef(TileRef):
     vertex_class: VertexClass
-    tile: TileRef
+
+    def _at(self, x: int, y: int) -> "VertexRef":
+        return VertexRef(self.graph, x, y, self.vertex_class)
 
     def ends_cw(self) -> Tuple["EndRef", "EndRef", "EndRef"]:
         """Clockwise ends around the vertex; index 0 is always the vertical."""
-        s = self.tile.graph.VERTEX_END_SETS[self.vertex_class]
+        s = self.graph.VERTEX_END_SETS[self.vertex_class]
         points_up = not s.v.top
         order = (s.v, s.r, s.l) if points_up else (s.v, s.l, s.r)
-        return tuple(self.tile.offset(x) for x in order)  # type: ignore[return-value]
+        return tuple(self.offset(x) for x in order)  # type: ignore[return-value]
 
     def physical(self) -> Tuple[float, float]:
         """Physical position of this vertex."""
-        cx, cy = self.tile.physical()  # center of the main hex
+        # The tile's own answer, named explicitly - this method is the one
+        # that would otherwise be called.
+        cx, cy = TileRef.physical(self)  # center of the main hex
         ox, oy = TILE_VERTEX_OFFSETS[self.vertex_class]  # offset from center
         return (cx + ox, cy + oy)
 
 
 @dataclass(frozen=True)
-class EdgeRef:
+class EdgeRef(TileRef):
     edge_class: EdgeClass
-    tile: TileRef
+
+    def _at(self, x: int, y: int) -> "EdgeRef":
+        return EdgeRef(self.graph, x, y, self.edge_class)
 
     def ends(self) -> Tuple["EndRef", "EndRef"]:
         return (
-            EndRef(self.edge_class, self.tile, True),
-            EndRef(self.edge_class, self.tile, False),
+            EndRef(self.graph, self.x, self.y, self.edge_class, True),
+            EndRef(self.graph, self.x, self.y, self.edge_class, False),
         )
 
     def vertex_pair(self) -> "EdgeVertexPair":
-        p = self.tile.graph.EDGE_VERTEX_PAIRS[self.edge_class]
-        return EdgeVertexPair(self.tile.offset(p.top), self.tile.offset(p.bottom))
+        p = self.graph.EDGE_VERTEX_PAIRS[self.edge_class]
+        return EdgeVertexPair(self.offset(p.top), self.offset(p.bottom))
 
 
 @dataclass(frozen=True)
@@ -140,8 +168,13 @@ class FilamentRef:
 class EndRef(EdgeRef):
     top: bool
 
+    def _at(self, x: int, y: int) -> "EndRef":
+        """EdgeRef's version would drop which end of the edge this is, so it
+        cannot be inherited."""
+        return EndRef(self.graph, x, y, self.edge_class, self.top)
+
     def other(self) -> "EndRef":
-        return replace(self, top=not self.top)
+        return EndRef(self.graph, self.x, self.y, self.edge_class, not self.top)
 
     def vertex(self) -> VertexRef:
         vp = self.vertex_pair()
@@ -191,7 +224,8 @@ class EndRef(EdgeRef):
         return list(left.path("R" * 5))
 
     def filament(self, idx: int) -> FilamentRef:
-        return FilamentRef(self.tile, idx, first_end=self)
+        # A real tile, not this end: a filament belongs to the tile.
+        return FilamentRef(TileRef(self.graph, self.x, self.y), idx, first_end=self)
 
 
 # An end is kind of also an 'edge with a direction'.
@@ -330,28 +364,28 @@ class Graph:
 
         self.EDGE_VERTEX_PAIRS: Dict[EdgeClass, EdgeVertexPair] = {
             EdgeClass.A: EdgeVertexPair(
-                VertexRef(VertexClass.ABF, self.THIS_TILE),
-                VertexRef(VertexClass.ABC, self.THIS_TILE),
+                self.THIS_TILE.vertex(VertexClass.ABF),
+                self.THIS_TILE.vertex(VertexClass.ABC),
             ),
             EdgeClass.B: EdgeVertexPair(
-                VertexRef(VertexClass.ABF, self.THIS_TILE),
-                VertexRef(VertexClass.ABC, self.RIGHT_TILE),
+                self.THIS_TILE.vertex(VertexClass.ABF),
+                self.RIGHT_TILE.vertex(VertexClass.ABC),
             ),
             EdgeClass.C: EdgeVertexPair(
-                VertexRef(VertexClass.ABC, self.THIS_TILE),
-                VertexRef(VertexClass.CDE, self.THIS_TILE),
+                self.THIS_TILE.vertex(VertexClass.ABC),
+                self.THIS_TILE.vertex(VertexClass.CDE),
             ),
             EdgeClass.D: EdgeVertexPair(
-                VertexRef(VertexClass.CDE, self.THIS_TILE),
-                VertexRef(VertexClass.DEF, self.THIS_TILE),
+                self.THIS_TILE.vertex(VertexClass.CDE),
+                self.THIS_TILE.vertex(VertexClass.DEF),
             ),
             EdgeClass.E: EdgeVertexPair(
-                VertexRef(VertexClass.CDE, self.RIGHT_TILE),
-                VertexRef(VertexClass.DEF, self.THIS_TILE),
+                self.RIGHT_TILE.vertex(VertexClass.CDE),
+                self.THIS_TILE.vertex(VertexClass.DEF),
             ),
             EdgeClass.F: EdgeVertexPair(
-                VertexRef(VertexClass.DEF, self.THIS_TILE),
-                VertexRef(VertexClass.ABF, self.DOWN_TILE),
+                self.THIS_TILE.vertex(VertexClass.DEF),
+                self.DOWN_TILE.vertex(VertexClass.ABF),
             ),
         }
 

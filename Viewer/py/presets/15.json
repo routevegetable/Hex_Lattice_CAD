@@ -1,27 +1,37 @@
 {
   "ccs": {
-    "10": 93,
+    "10": 61,
     "16": 127,
     "17": 62,
     "18": 86,
-    "19": 33,
+    "19": 0,
     "71": 91,
     "72": 3,
-    "73": 73,
-    "74": 0,
+    "73": 84,
+    "74": 61,
     "75": 0,
-    "76": 38,
+    "76": 0,
     "77": 43,
-    "79": 1,
+    "79": 21,
     "91": 2,
     "93": 0,
-    "102": 92,
-    "114": 65
+    "102": 25,
+    "103": 5,
+    "104": 25,
+    "114": 38
   },
   "slots": {
-    "bg_waves.hue": "rotary",
+    "bg_waves.hue": 0.55,
     "bg_waves.value": "fader_a",
-    "bg_waves.flow": 0.0,
+    "bg_waves.flow": {
+      "op": "div",
+      "a": {
+        "op": "add",
+        "a": "burst",
+        "b": "ripple"
+      },
+      "b": 0.34
+    },
     "pluck.a_amp": "wipe2",
     "pluck.b_amp": "wipe1",
     "pluck.c_amp": "wipe1",
@@ -41,30 +51,22 @@
       "a": 0.3,
       "b": "ripple"
     },
-    "prob_zaps.prob": 0.15,
+    "prob_zaps.prob": {
+      "op": "mul",
+      "a": "strobe0",
+      "b": 0.42
+    },
     "map_fiber.value": {
       "op": "div",
       "a": {
-        "op": "sub",
-        "a": "scope",
-        "b": 0.64
+        "op": "mul",
+        "a": "fader_b",
+        "b": "loops"
       },
       "b": 0.8
     },
-    "map_fiber.hue": {
-      "op": "add",
-      "a": {
-        "op": "mul",
-        "a": "rotary",
-        "b": 0.1
-      },
-      "b": 0.0
-    },
-    "map_fiber.sat": {
-      "op": "sub",
-      "a": 1.0,
-      "b": "wipe1"
-    },
+    "map_fiber.hue": 0.37,
+    "map_fiber.sat": 1.0,
     "map_fiber2.value": {
       "op": "mul",
       "a": "v_edges",
@@ -86,23 +88,29 @@
     "map_fiber2.sat": 0.91,
     "prob_zaps.value": {
       "op": "mul",
-      "a": {
-        "op": "mul",
-        "a": "burst",
-        "b": "strobe0"
-      },
-      "b": 0.57
+      "a": "burst",
+      "b": 0.34
     },
-    "prob_zaps.hue": 0.69,
+    "prob_zaps.hue": 0.89,
+    "bg_waves2.value": {
+      "op": "mul",
+      "a": "loops",
+      "b": "fader_b"
+    },
+    "bg_waves2.hue": 0.28,
+    "bg_waves2.flow": 0.62,
     "bg_waves.sat": 1,
-    "bg_waves2.sat": 1,
-    "net.sat": 0.7
+    "bg_waves2.sat": 1
   },
   "cc_map": {
-    "burst.decay": 73
+    "burst.decay": 73,
+    "fader_a.value": 10,
+    "loops.speed": 79
   },
   "active": [
-    "prob_zaps",
-    "map_fiber"
-  ]
+    "bg_waves",
+    "map_fiber",
+    "prob_zaps"
+  ],
+  "name": "cubes"
 }

@@ -150,35 +150,23 @@ while True:
         frames = 0
         counted_from = now
 
-    time.sleep(0.004)
-
     # Do GC every frame
     t1 = time.time_ns()
-    gc_step()
-    dt_gc = time.time_ns() - t1
     dt_render = t1 - t0
     
-    
+    gc_step()
+    dt_gc = time.time_ns() - t1
     
     # To sec
-    dt = (t1 - t0) / 1000000000
+    dt = (dt_render + dt_gc) / 1000000000
 
-    PERIOD = 0.001
+    PERIOD = 0.005
     if dt < PERIOD:
+        # We rendered faster than period
+        # Sleep for the rest of it
         time.sleep(PERIOD - dt)
-
-    continue
-
-    # Background effects
-
-    # Note effects
-
-    # Impulse effects
-
-    bg_waves(graph, lattice, now, param_field, note_wipe)
-
-    # run_boom_zaps(now)
-    prob_zaps(now, polytouch_field * note_wipe)
-
-    lattice.show()
-    time.sleep(0.05)
+    else:
+        # We rendered slower than period
+        # dt = PERIOD + x
+        # Skip a frame for each frame slower we were
+        time.sleep(PERIOD - (dt % PERIOD))

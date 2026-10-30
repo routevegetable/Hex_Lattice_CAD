@@ -1,29 +1,53 @@
 {
   "ccs": {
-    "10": 0,
+    "10": 113,
     "16": 113,
-    "17": 72,
+    "17": 49,
     "18": 127,
     "19": 113,
     "71": 75,
-    "72": 3,
-    "73": 57,
+    "72": 4,
+    "73": 69,
     "74": 80,
     "75": 24,
     "76": 0,
     "77": 69,
-    "79": 71,
-    "91": 123,
+    "79": 15,
+    "91": 66,
     "93": 10,
     "102": 13,
-    "104": 25,
-    "105": 19,
-    "114": 47
+    "104": 59,
+    "106": 0,
+    "107": 0,
+    "108": 26,
+    "110": 14,
+    "111": 28,
+    "112": 0,
+    "113": 0,
+    "114": 24,
+    "115": 0,
+    "116": 0
   },
   "slots": {
-    "bg_waves.hue": 0.5,
-    "bg_waves.value": 0.12,
-    "bg_waves.flow": "loops",
+    "bg_waves.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "ripple",
+        "b": 0.3
+      },
+      "b": 0.22
+    },
+    "bg_waves.value": {
+      "op": "add",
+      "a": "strobe0",
+      "b": 0.3
+    },
+    "bg_waves.flow": {
+      "op": "div",
+      "a": "burst",
+      "b": 0.25
+    },
     "bg_waves2.hue": 0.84,
     "bg_waves2.value": 0.0,
     "net.amp": "strobe1",
@@ -38,27 +62,11 @@
     },
     "prob_zaps.prob": {
       "op": "sub",
-      "a": {
-        "op": "div",
-        "a": "rotary",
-        "b": 0.09
-      },
-      "b": 0.99
+      "a": "loops",
+      "b": 0.52
     },
     "prob_zaps.hue": 0.11,
-    "prob_zaps.value": {
-      "op": "mul",
-      "a": "d1_edges",
-      "b": {
-        "op": "mul",
-        "a": "fader_b",
-        "b": {
-          "op": "mul",
-          "a": "strobe0",
-          "b": 0.26
-        }
-      }
-    },
+    "prob_zaps.value": 0.77,
     "map_fiber.value": 0.0,
     "map_fiber.hue": 0.0,
     "map_fiber.sat": 1.0,
@@ -114,11 +122,11 @@
   },
   "cc_map": {
     "fader_a.value": 10,
-    "loops.shape": 105
+    "loops.shape": 72,
+    "loops.speed": 79
   },
   "active": [
-    "bg_waves",
-    "prob_zaps"
+    "bg_waves"
   ],
   "name": "temp"
 }
