@@ -8,8 +8,7 @@ from pylattice.examples.midi import MIDI
 from pylattice.graph import Graph
 from pylattice.lattice_writer import LatticeWriter
 
-
-COLS = 24
+COLS = 10
 ROWS = 2
 
 graph = Graph(COLS, ROWS)

@@ -1,28 +1,46 @@
 {
   "ccs": {
-    "12": 72,
-    "13": 29,
+    "12": 0,
+    "13": 0,
     "14": 0,
-    "15": 127,
+    "15": 0,
     "16": 0,
-    "17": 54,
-    "18": 127,
-    "19": 27,
+    "17": 67,
+    "18": 13,
+    "19": 0,
+    "22": 0,
+    "23": 120,
     "24": 90,
+    "25": 0,
     "26": 127,
+    "27": 0,
+    "28": 0,
+    "29": 0,
+    "71": 37,
     "72": 3,
     "73": 0,
     "74": 127,
     "75": 24,
+    "76": 0,
     "77": 127,
     "79": 0,
-    "91": 65,
+    "91": 64,
     "93": 0,
     "102": 0,
     "103": 0,
     "104": 25,
     "105": 19,
-    "114": 92
+    "106": 0,
+    "107": 0,
+    "108": 0,
+    "109": 0,
+    "110": 0,
+    "111": 0,
+    "112": 0,
+    "113": 0,
+    "114": 92,
+    "115": 0,
+    "116": 0
   },
   "slots": {
     "bg_waves.hue": 0.5,
@@ -44,13 +62,17 @@
     },
     "net.value": {
       "op": "mul",
-      "a": 0.95,
+      "a": 0.6,
       "b": "fader_a"
     },
     "net.sat": {
       "op": "add",
-      "a": "param_b",
-      "b": 0.9
+      "a": {
+        "op": "mul",
+        "a": 0.1,
+        "b": "strobe0"
+      },
+      "b": 0.88
     },
     "net.amp": {
       "op": "add",
@@ -103,7 +125,7 @@
             },
             "b": 0.36
           },
-          "b": "d1_edges"
+          "b": "trace"
         },
         "b": 0.71
       },
@@ -111,7 +133,7 @@
     },
     "map_fiber.sat": 1.0,
     "map_fiber2.hue": 0.0,
-    "map_fiber2.value": 0.0,
+    "map_fiber2.value": "trace",
     "map_fiber2.sat": 0.0,
     "map_fiber3.hue": 0.0,
     "map_fiber3.value": 0.0,
@@ -126,19 +148,31 @@
     "sparks.hue": 0.67
   },
   "cc_map": {
-    "fader_a.value": 18,
-    "param_a.value": 12,
-    "param_b.value": 13,
+    "fader_a.value": 12,
     "wipe1.speed": 26,
     "rotary.period": 24,
     "v_gradient.origin": 26,
-    "scope.pattern": 72,
-    "fader_b.value": 19
+    "scope.pattern": 22,
+    "fader_b.value": 13,
+    "param_a.value": 14,
+    "param_b.value": 15,
+    "rotary.shape": 23,
+    "v_rotary.shape": 25,
+    "v_rotary.period": 26,
+    "scope.speed": 27,
+    "rotary.parts": 28,
+    "v_rotary.parts": 29,
+    "scope.attack": 16,
+    "strobe0.attack": 17,
+    "strobe0.decay": 18,
+    "strobe1.attack": 19,
+    "strobe1.decay": 15
   },
   "active": [
     "net",
     "prob_zaps",
-    "map_fiber"
+    "map_fiber",
+    "map_fiber2"
   ],
   "muted": [],
   "name": "flight-fm-1"
