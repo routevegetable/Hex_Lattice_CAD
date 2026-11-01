@@ -25,19 +25,6 @@ def outer_bounce(graph: Graph) -> Iterator[tuple[int, int]]:
         yield (x, 0 if x % 2 == 0 else top)
 
 
-def _next_nonadjacent(
-    graph: Graph, from_hex: tuple[int, int], row: int
-) -> tuple[int, int]:
-    """The first hex on `row`, searching forward from from_hex's column,
-    that doesn't touch from_hex."""
-    width = graph.width
-    for step in range(width):
-        candidate = ((from_hex[0] + step) % width, row)
-        if not graph.HEX.is_adjacent(from_hex, candidate):
-            return candidate
-    raise ValueError("lattice too narrow to place a non-adjacent hex")
-
-
 def _bounce_rows(top: int) -> Iterator[int]:
     """0, 1, ..., top, top - 1, ..., 0, 1, ... forever."""
     y, direction = 0, 1
@@ -55,12 +42,12 @@ def sparse_climb(graph: Graph) -> Iterator[tuple[int, int]]:
     top = 2 * (graph.height - 1)
     rows = _bounce_rows(top)
 
-    current = (0, next(rows))
-    yield current
-
-    for row in itertools.islice(rows, graph.width - 1):
-        current = _next_nonadjacent(graph, current, row)
-        yield current
+    x = 0
+    for dx, y in zip(itertools.cycle([2, 1]), rows):
+        x = x + dx
+        if x >= graph.width:
+            return
+        yield x, y
 
 
 class HexesField(ScalarField):
