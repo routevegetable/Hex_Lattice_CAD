@@ -102,7 +102,7 @@ class NoteRippleField(ScalarField):
         crossing = self.SPEED.at(self._speed_cc().data)
 
         # What a vertex holds at once it has finished ramping up.
-        pressure = self._poly() / 127
+        pressure = 1#  = self._poly() / 127
 
         output = 0
         for i, latch in enumerate(self._latches):

@@ -93,7 +93,8 @@ class CombinedField(ScalarField):
         return self._b
 
     def get(self, now: Event, end: EndRef) -> float:
-        return self._op(self._a.get(now, end), self._b.get(now, end))
+        res = self._op(self._a.get(now, end), self._b.get(now, end))
+        return min(max(res, 0), 1)
 
     def __repr__(self) -> str:
         return f"({self._a!r} {self._op.__name__} {self._b!r})"

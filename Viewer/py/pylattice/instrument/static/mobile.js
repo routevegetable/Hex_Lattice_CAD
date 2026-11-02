@@ -28,6 +28,7 @@ let picking = null;         // {key, path} while the field picker is up
 let presetsUp = false;      // the preset list uses the same modal
 let addingUp = false;       // so does the list of effects to add
 let renamingUp = false;     // and the box for naming what is playing
+let texting = null;         // the slot being typed at rather than tapped
 let mapping = null;         // a control waiting for a knob to be turned at it
 let mappingSince = 0;       // ... and when it started waiting
 let knobs = {};             // every cc number as it stands - the only CC store
@@ -223,6 +224,163 @@ function describe(node, nested = false) {
   const shown = `${describe(node.a, true)} ${OPS[node.op]} ${describe(node.b, true)}`;
 
   return nested ? `(${shown})` : shown;
+}
+
+// ---- the expression as text ----------------------------------------------
+
+// On screen the operators are the ones a sum is written with; typed, they are
+// the ones a keyboard has.
+const TEXT_OPS = {add: '+', sub: '-', mul: '*', div: '/', avg: '~'};
+const FROM_TEXT = Object.fromEntries(Object.entries(TEXT_OPS).map(([k, v]) => [v, k]));
+
+// Brackets on every operator but the outermost, as the preview does - so what
+// comes out reads back in as the same tree whatever precedence says.
+function toText(node, nested = false) {
+  if (node === null) return '';
+  if (typeof node === 'number') return String(node);
+  if (typeof node === 'string') return node;
+
+  const shown = `${toText(node.a, true)} ${TEXT_OPS[node.op]} ${toText(node.b, true)}`;
+
+  return nested ? `(${shown})` : shown;
+}
+
+function tokens(text) {
+  const grab = /\s*([()]|[+\-*/~]|[A-Za-z_][\w.]*|\d*\.?\d+)/y;
+  const out = [];
+  let at = 0;
+
+  while (at < text.length) {
+    grab.lastIndex = at;
+    const m = grab.exec(text);
+
+    if (!m) throw new Error(`cannot read "${text.slice(at).trim().split(/\s/)[0]}"`);
+
+    out.push(m[1]);
+    at = grab.lastIndex;
+  }
+
+  return out;
+}
+
+// The tree itself has no precedence - it is nested, not parsed - but someone
+// typing expects × to bind tighter than +, so that is what is read here, and
+// toText puts the brackets back in so nothing is left to assume.
+function parse(text) {
+  const t = tokens(text.trim());
+  let i = 0;
+
+  const operand = () => {
+    const tok = t[i++];
+
+    if (tok === undefined) throw new Error('the expression stops short');
+
+    if (tok === '(') {
+      const inner = sum();
+      if (t[i++] !== ')') throw new Error('a ( with no )');
+      return inner;
+    }
+
+    if (tok === ')') throw new Error('a ) with no (');
+    if (FROM_TEXT[tok]) throw new Error(`"${tok}" needs something in front of it`);
+    if (/^[\d.]/.test(tok)) return parseFloat(tok);
+    if (!rig.fields.some(f => f.name === tok)) throw new Error(`no field called "${tok}"`);
+
+    return tok;
+  };
+
+  const binary = (ops, next) => () => {
+    let left = next();
+
+    while (ops.includes(t[i]))
+      left = {op: FROM_TEXT[t[i++]], a: left, b: next()};
+
+    return left;
+  };
+
+  const product = binary(['*', '/'], operand);
+  const sum = binary(['+', '-', '~'], product);
+
+  const tree = sum();
+
+  if (i < t.length) throw new Error(`"${t[i]}" is one too many`);
+
+  return tree;
+}
+
+// Brackets coloured by how deep they are, so a long expression can be read
+// without counting. One beyond the last colour wraps round to the first.
+const PAREN_COLOURS = 5;
+
+function highlight(text) {
+  const safe = (c) => c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c;
+  let depth = 0;
+  let out = '';
+
+  for (const ch of text) {
+    if (ch === ')') depth -= 1;
+
+    out += (ch === '(' || ch === ')')
+        ? `<span class="${depth < 0 ? 'bad' : 'p' + (depth % PAREN_COLOURS)}">${safe(ch)}</span>`
+        : safe(ch);
+
+    if (ch === '(') depth += 1;
+  }
+
+  return out;
+}
+
+// A textarea with its own text made invisible, over a pre holding the same
+// text with the brackets coloured. The two have to be laid out identically or
+// the caret drifts off the letters.
+function textEditor(key, tree) {
+  const wrap = document.createElement('div');
+  wrap.className = 'typing';
+
+  const box = document.createElement('div');
+  box.className = 'exprbox';
+
+  const shown = document.createElement('pre');
+  const area = document.createElement('textarea');
+  area.value = toText(tree);
+  area.spellcheck = false;
+
+  const bad = document.createElement('div');
+  bad.className = 'hint';
+
+  const paint = () => {
+    shown.innerHTML = highlight(area.value) + ' ';   // a space, or the last line collapses
+    area.style.height = 'auto';
+    area.style.height = shown.offsetHeight + 'px';
+  };
+
+  const apply = () => {
+    if (!area.value.trim()) { texting = null; write(key, null); return; }
+
+    let parsed;
+    try { parsed = parse(area.value); }
+    catch (e) { bad.textContent = e.message; return; }
+
+    texting = null;
+    write(key, parsed);
+  };
+
+  area.oninput = () => { paint(); bad.textContent = ''; };
+  area.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); apply(); }
+    if (e.key === 'Escape') { texting = null; drawSlots(); }
+  };
+
+  const set = document.createElement('button');
+  set.className = 'setexpr';
+  set.textContent = 'set';
+  set.onclick = apply;
+
+  box.append(shown, area);
+  wrap.append(box, set, bad);
+
+  setTimeout(() => { paint(); area.focus(); }, 0);
+  return wrap;
 }
 
 // ---- reading and writing one node of a slot's tree ------------------------
@@ -450,10 +608,32 @@ function drawSlots() {
     row.innerHTML = `<span class="name">${slotOf(key)}</span>` +
                     `<span class="value">${describe(tree)}</span>` +
                     `<span class="chev">${open === key ? '▾' : '▸'}</span>`;
-    row.onclick = () => { open = open === key ? null : key; delete editing[key]; drawSlots(); };
-    el.append(row);
+    row.onclick = () => {
+      open = open === key ? null : key;
+      texting = null;
+      delete editing[key];
+      drawSlots();
+    };
 
     if (open === key) {
+      // Type it instead of tapping it. One or the other, never both.
+      const pencil = document.createElement('button');
+      pencil.className = 'pencil' + (texting === key ? ' on' : '');
+      pencil.textContent = '\u270e';
+      pencil.title = texting === key ? 'back to tapping' : 'type the expression';
+      pencil.onclick = (e) => {
+        e.stopPropagation();
+        texting = texting === key ? null : key;
+        drawSlots();
+      };
+      row.append(pencil);
+    }
+
+    el.append(row);
+
+    if (open === key && texting === key) {
+      el.append(textEditor(key, tree));
+    } else if (open === key) {
       const tree_ = document.createElement('div');
       tree_.className = 'tree';
       tree_.append(nodeView(key, tree, []));

@@ -1,0 +1,142 @@
+{
+  "ccs": {
+    "10": 127,
+    "16": 127,
+    "17": 98,
+    "18": 86,
+    "19": 48,
+    "71": 0,
+    "72": 0,
+    "73": 26,
+    "74": 127,
+    "75": 1,
+    "76": 38,
+    "77": 86,
+    "79": 18,
+    "91": 68,
+    "93": 121,
+    "102": 97,
+    "103": 4,
+    "104": 51,
+    "105": 10,
+    "106": 0,
+    "107": 42,
+    "108": 22,
+    "109": 31,
+    "110": 9,
+    "111": 38,
+    "112": 10,
+    "113": 64,
+    "114": 20,
+    "115": 0,
+    "116": 0,
+    "117": 0
+  },
+  "slots": {
+    "bg_waves.hue": 0.56,
+    "bg_waves.sat": 1.0,
+    "bg_waves.flow": {
+      "op": "mul",
+      "a": "ripple",
+      "b": 0.52
+    },
+    "bg_waves.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": 0.48,
+        "b": {
+          "op": "mul",
+          "a": "d2_edges",
+          "b": "fader_a"
+        }
+      },
+      "b": {
+        "op": "sub",
+        "a": {
+          "op": "add",
+          "a": "param_a",
+          "b": "rotary"
+        },
+        "b": 0.5
+      }
+    },
+    "bg_waves2.hue": 0.98,
+    "bg_waves2.sat": 1.0,
+    "bg_waves2.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": {
+          "op": "mul",
+          "a": "d1_edges",
+          "b": 0.51
+        },
+        "b": "fader_a"
+      },
+      "b": {
+        "op": "sub",
+        "a": {
+          "op": "add",
+          "a": "param_a",
+          "b": "rotary"
+        },
+        "b": 0.5
+      }
+    },
+    "bg_waves2.flow": {
+      "op": "mul",
+      "a": "ripple",
+      "b": 0.58
+    },
+    "map_fiber.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": {
+          "op": "mul",
+          "a": {
+            "op": "sub",
+            "a": "loops",
+            "b": 0.71
+          },
+          "b": 0.6
+        },
+        "b": {
+          "op": "sub",
+          "a": 1.0,
+          "b": "strobe1"
+        }
+      },
+      "b": "fader_b"
+    },
+    "map_fiber.hue": 0.05,
+    "map_fiber.sat": {
+      "op": "sub",
+      "a": 1.0,
+      "b": {
+        "op": "mul",
+        "a": "loops",
+        "b": 0.1
+      }
+    },
+    "map_fiber2.sat": 0.5,
+    "map_fiber2.value": 0.5,
+    "prob_zaps.prob": {
+      "op": "mul",
+      "a": "burst",
+      "b": 0.59
+    },
+    "prob_zaps.hue": 0.91,
+    "prob_zaps.value": 1.0
+  },
+  "cc_map": {},
+  "active": [
+    "bg_waves",
+    "bg_waves2",
+    "map_fiber",
+    "prob_zaps"
+  ],
+  "muted": [],
+  "name": "Otomo"
+}
