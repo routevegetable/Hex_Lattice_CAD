@@ -59,6 +59,12 @@ class FIELDS:
     # CC fields
     fader_a = CCField(midi.for_("fader_a"), value=KA1)
     fader_b = CCField(midi.for_("fader_b"), value=KA2)
+    fader_c = CCField(midi.for_("fader_c"), value=14)
+    fader_d = CCField(midi.for_("fader_d"), value=15)
+    fader_e = CCField(midi.for_("fader_e"), value=16)
+    fader_f = CCField(midi.for_("fader_f"), value=17)
+    fader_g = CCField(midi.for_("fader_g"), value=18)
+    fader_h = CCField(midi.for_("fader_h"), value=19)
     param_a = CCField(midi.for_("param_a"), value=KA3)
     param_b = CCField(midi.for_("param_b"), value=KA4)
 
@@ -74,32 +80,38 @@ class FIELDS:
     wipe2 = NoteWipeField(midi.for_("wipe2"), note=PB4, speed=KB4)
 
     # A particle tracing a path of its own from wherever it spawned
-    trace = RandomTraceField(graph, midi.for_("trace"), note=PB5, speed=KB5, aim=KB6,
-                             attack=108)
+    trace = RandomTraceField(
+        graph, midi.for_("trace"), note=PB5, speed=KB5, aim=KB6, attack=108
+    )
 
     # A spot going round and round one flat line of the lattice
-    scope = ScopeFieldBetter(graph, midi.for_("scope"), speed=KB7, pattern=KB8,
-                             attack=106)
+    scope = ScopeFieldBetter(
+        graph, midi.for_("scope"), speed=KB7, pattern=KB8, attack=106
+    )
 
     # Rotated versions of scope
     scope180 = ScopeFieldBetter(
-        graph, midi.for_("scope"), speed=KB7, pattern=KB8, attack=106,
-        phase_offset=0.5
+        graph, midi.for_("scope"), speed=KB7, pattern=KB8, attack=106, phase_offset=0.5
     )
     scope120 = ScopeFieldBetter(
-        graph, midi.for_("scope"), speed=KB7, pattern=KB8, attack=106,
-        phase_offset=0.3
+        graph, midi.for_("scope"), speed=KB7, pattern=KB8, attack=106, phase_offset=0.3
     )
     scope240 = ScopeFieldBetter(
-        graph, midi.for_("scope"), speed=KB7, pattern=KB8, attack=106,
-        phase_offset=0.6
+        graph, midi.for_("scope"), speed=KB7, pattern=KB8, attack=106, phase_offset=0.6
     )
 
     # Closed figures scattered about, each with a trail going round it. Every
     # knob on the box is spoken for, so these three start off the desk - map
     # them onto something from the expression editor.
-    loops = LoopsField(graph, midi.for_("loops"),
-                       note=PA4, shape=103, copies=104, speed=105, attack=107)
+    loops = LoopsField(
+        graph,
+        midi.for_("loops"),
+        note=PA4,
+        shape=103,
+        copies=104,
+        speed=105,
+        attack=107,
+    )
 
     # Complete hexes, selected by the same pattern knob as scope
     hexes = HexesField(graph, midi.for_("hexes"), pattern=KB8)
@@ -132,12 +144,9 @@ class FIELDS:
     d1_edges = EdgeMaskField({EdgeClass.A, EdgeClass.C, EdgeClass.E, EdgeClass.F})
     d2_edges = EdgeMaskField({EdgeClass.B, EdgeClass.C, EdgeClass.D, EdgeClass.F})
 
-    strobe0 = StrobeField(midi.for_("strobe0"), strobe=PA1,
-                           attack=110, decay=111)
-    strobe1 = StrobeField(midi.for_("strobe1"), strobe=PA2,
-                           attack=112, decay=113)
-    strobe2 = StrobeField(midi.for_("strobe2"), strobe=PA3,
-                           attack=115, decay=116)
+    strobe0 = StrobeField(midi.for_("strobe0"), strobe=PA1, attack=110, decay=111)
+    strobe1 = StrobeField(midi.for_("strobe1"), strobe=PA2, attack=112, decay=113)
+    strobe2 = StrobeField(midi.for_("strobe2"), strobe=PA3, attack=115, decay=116)
 
     v_gradient = VGradientField(midi.for_("v_gradient"), origin=KA6)
 
