@@ -1,6 +1,6 @@
 {
   "ccs": {
-    "12": 75,
+    "12": 0,
     "13": 0,
     "14": 0,
     "15": 0,
@@ -44,7 +44,11 @@
       "a": "fader_b",
       "b": "fire"
     },
-    "map_fiber.value": "loops",
+    "map_fiber.value": {
+      "op": "mul",
+      "a": "loops",
+      "b": "fader_a"
+    },
     "map_fiber.hue": {
       "op": "add",
       "a": {

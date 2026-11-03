@@ -1,0 +1,95 @@
+{
+  "ccs": {
+    "12": 0,
+    "13": 127,
+    "14": 0,
+    "15": 12,
+    "72": 0,
+    "73": 0,
+    "75": 127,
+    "77": 127,
+    "79": 0,
+    "91": 65,
+    "93": 35,
+    "102": 0,
+    "103": 0,
+    "104": 25,
+    "105": 19,
+    "106": 0,
+    "107": 0,
+    "108": 26,
+    "109": 0,
+    "110": 14,
+    "111": 28,
+    "112": 0,
+    "113": 0,
+    "114": 92,
+    "115": 0,
+    "116": 0,
+    "117": 0
+  },
+  "slots": {
+    "map_fiber.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "v_gradient",
+        "b": 0.2
+      },
+      "b": 0.72
+    },
+    "map_fiber.value": {
+      "op": "sub",
+      "a": {
+        "op": "add",
+        "a": {
+          "op": "sub",
+          "a": "param_a",
+          "b": "v_gradient"
+        },
+        "b": 0.2
+      },
+      "b": "v_edges"
+    },
+    "map_fiber.sat": 1.0,
+    "map_fiber2.hue": 0.05,
+    "map_fiber2.sat": 1.0,
+    "map_fiber2.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": {
+          "op": "mul",
+          "a": "d1_edges",
+          "b": "strobe0"
+        },
+        "b": {
+          "op": "mul",
+          "a": {
+            "op": "sub",
+            "a": 1.0,
+            "b": "strobe0"
+          },
+          "b": "d2_edges"
+        }
+      },
+      "b": "fader_b"
+    }
+  },
+  "cc_map": {
+    "fader_a.value": 12,
+    "fader_b.value": 13,
+    "param_a.value": 14,
+    "param_b.value": 15,
+    "wipe2.speed": 106,
+    "trace.speed": 107,
+    "ripple2.speed": 108,
+    "wipe1.speed": 109
+  },
+  "active": [
+    "map_fiber",
+    "map_fiber2"
+  ],
+  "muted": [],
+  "name": "subzero-1"
+}
