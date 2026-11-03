@@ -4,12 +4,17 @@ import copy
 import math
 from typing import Callable
 
-from pylattice.examples.midi import FloatRange, MIDIFor
+from pylattice.examples.midi import CustomChoice, FloatRange, MIDIFor
 from pylattice.examples.tempo import Event
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EndRef, Graph, TileRef
 
 TAU = 2 * math.pi
+
+# Peaks at the top of the parts knob. Five, because the lattice is 20 columns
+# wide and four columns a peak is about as fine as a sine can be drawn before
+# it starts reading as a pattern of its own rather than a wave.
+MOST = 5
 
 
 class Rotation:
@@ -46,8 +51,8 @@ class Rotation:
 
 
 class RotaryField(ScalarField):
-    """A sine wave wrapped once round the lattice, either vertically
-    or horizontally, rotating at a certain period.
+    """A sine wave wrapped round the lattice, either vertically or
+    horizontally, rotating at a certain period.
 
     The phase is accumulated rather than worked out from the clock: each frame
     it moves on by however long that frame took, divided by the period the knob
@@ -61,13 +66,40 @@ class RotaryField(ScalarField):
     A field in no slot stands still rather than turning on unseen, and picks up
     where it left off when it is patched in again.
 
+    Parts is how many peaks are on the lattice at once: one is a single wave
+    wrapped round it, two is two of them chasing each other, and so on. It
+    only ever lands on a whole number, because the wave has to meet itself
+    where the lattice wraps - two and a half peaks would leave a step there.
+
+    Turned up, a vertical rotary runs out of lattice before a horizontal one
+    does: eight rows deep against twenty columns across, so past two peaks the
+    vertical copy has too few rows left to draw one. The knob is shared, so
+    that is a thing to know rather than something it can stop.
+
     CC:
         * period - 0.5s a rotation up to 16s
-        * parts  - unused
+        * parts  - how many peaks at once, 1 to 5
         * shape  - unused
 
     vert keyword: whether to loop up-to-down instead of left-to-right
     """
+
+    # A count, not a sweep: two and a half peaks is not a thing. Naming which
+    # knob position means which number keeps it on whole peaks and gives the
+    # UI something to step between. MOST lives outside the class because a
+    # comprehension in a class body cannot see the class's own names.
+    PARTS = CustomChoice({round(i * 127 / (MOST - 1)): str(i + 1)
+                          for i in range(MOST)})
+
+    @classmethod
+    def _count(cls, value: int) -> int:
+        """How many peaks the knob is asking for.
+
+        Read out of the same list the UI draws from, by the same nearest-one
+        rule, so the number on screen is the number on the lattice.
+        """
+        nearest = min(cls.PARTS.items, key=lambda key: abs(key - value))
+        return int(cls.PARTS.items[nearest])
 
     def __init__(
         self,
@@ -82,7 +114,7 @@ class RotaryField(ScalarField):
         self._width = graph.width
         self._height = graph.height
         self._rotation = Rotation(midi.cc(period, "period", meta=Rotation.PERIOD))
-        self._parts = midi.cc(parts, "parts")
+        self._parts = midi.cc(parts, "parts", meta=self.PARTS)
         self._shape = midi.cc(shape, "shape")
 
         # How far round from the rotation itself this copy sits, 0-1.
@@ -111,4 +143,10 @@ class RotaryField(ScalarField):
         else:
             offset = end.vertex().physical()[1] / (TileRef.HEIGHT * self._height)
 
-        return math.sin(TAU * (self._rotation.phase + self._turn + offset)) / 2 + 0.5
+        # Peaks multiply the distance, not the turn: a turned copy is a fraction
+        # of a cycle round whatever the wave is doing, so rotary180 stays
+        # opposite however many peaks there are.
+        parts = self._count(self._parts().data)
+
+        return math.sin(
+            TAU * (self._rotation.phase + self._turn + offset * parts)) / 2 + 0.5
