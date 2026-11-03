@@ -1,0 +1,173 @@
+{
+  "ccs": {
+    "12": 0,
+    "13": 0,
+    "14": 127,
+    "15": 0,
+    "16": 0,
+    "17": 31,
+    "18": 0,
+    "19": 127,
+    "22": 11,
+    "23": 2,
+    "24": 39,
+    "25": 16,
+    "26": 42,
+    "27": 61,
+    "28": 1,
+    "29": 0,
+    "72": 3,
+    "73": 57,
+    "75": 24,
+    "77": 69,
+    "79": 71,
+    "91": 123,
+    "93": 10,
+    "102": 13,
+    "103": 0,
+    "104": 25,
+    "105": 19,
+    "106": 0,
+    "107": 0,
+    "108": 0,
+    "109": 0,
+    "110": 0,
+    "111": 0,
+    "112": 0,
+    "113": 0,
+    "114": 47,
+    "115": 0,
+    "116": 0,
+    "117": 0
+  },
+  "slots": {
+    "sparks.prob": 60.0,
+    "sparks.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": "strobe0",
+        "b": "param_a"
+      },
+      "b": 2.0
+    },
+    "bg_waves.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": "burst",
+        "b": "fader_b"
+      },
+      "b": 0.5
+    },
+    "bg_waves.hue": 0.02,
+    "sparks.sat": 1.0,
+    "sparks.hue": {
+      "op": "mul",
+      "a": "rotary",
+      "b": 0.02
+    },
+    "map_fiber.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": "hexes",
+        "b": "param_b"
+      },
+      "b": 0.23
+    },
+    "map_fiber.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": {
+          "op": "mul",
+          "a": "v_gradient",
+          "b": "rotary"
+        },
+        "b": 0.08
+      },
+      "b": 0.99
+    },
+    "map_fiber.sat": 1.0,
+    "map_fiber2.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "v_gradient",
+        "b": 0.04
+      },
+      "b": 1.0
+    },
+    "map_fiber2.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": "fire",
+        "b": {
+          "op": "sub",
+          "a": 1.0,
+          "b": {
+            "op": "mul",
+            "a": "wipe1",
+            "b": 10.0
+          }
+        }
+      },
+      "b": 0.5
+    },
+    "map_fiber2.sat": 1.0,
+    "bg_waves.sat": 0.99,
+    "prob_zaps.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": {
+          "op": "mul",
+          "a": {
+            "op": "sub",
+            "a": "v_gradient",
+            "b": 0.4
+          },
+          "b": "strobe1"
+        },
+        "b": "fader_a"
+      },
+      "b": 0.5
+    },
+    "prob_zaps.prob": 0.3,
+    "prob_zaps.hue": 0.78,
+    "map_fiber3.hue": 0.02
+  },
+  "cc_map": {
+    "fader_a.value": 12,
+    "fader_b.value": 13,
+    "param_a.value": 14,
+    "param_b.value": 15,
+    "wipe2.speed": 106,
+    "trace.speed": 107,
+    "ripple2.speed": 108,
+    "burst.decay": 22,
+    "burst.attack": 23,
+    "strobe0.attack": 24,
+    "strobe0.decay": 25,
+    "rotary.parts": 28,
+    "hexes.pattern": 29,
+    "v_gradient.origin": 17,
+    "fire.rate": 16,
+    "v_rotary.shape": 12,
+    "strobe1.attack": 29,
+    "strobe1.decay": 12,
+    "rotary.shape": 26,
+    "rotary.period": 27
+  },
+  "active": [
+    "bg_waves",
+    "map_fiber2",
+    "map_fiber",
+    "sparks",
+    "prob_zaps"
+  ],
+  "muted": [],
+  "name": "inferno-1"
+}

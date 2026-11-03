@@ -42,11 +42,12 @@ def sparse_climb(graph: Graph) -> Iterator[tuple[int, int]]:
     top = 2 * (graph.height - 1)
     rows = _bounce_rows(top)
 
-    x = 0
+    x = -2
     for dx, y in zip(itertools.cycle([2, 1]), rows):
         x = x + dx
         if x >= graph.width:
             return
+        print(x, y)
         yield x, y
 
 
