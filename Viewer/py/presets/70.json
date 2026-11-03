@@ -1,0 +1,142 @@
+{
+  "ccs": {
+    "10": 0,
+    "16": 30,
+    "17": 49,
+    "18": 127,
+    "19": 110,
+    "71": 0,
+    "72": 0,
+    "73": 6,
+    "74": 0,
+    "75": 24,
+    "76": 24,
+    "77": 69,
+    "79": 9,
+    "91": 66,
+    "93": 127,
+    "102": 107,
+    "103": 0,
+    "104": 42,
+    "105": 8,
+    "106": 0,
+    "107": 35,
+    "108": 26,
+    "109": 12,
+    "110": 2,
+    "111": 28,
+    "112": 10,
+    "113": 22,
+    "114": 37,
+    "115": 0,
+    "116": 4,
+    "117": 12
+  },
+  "slots": {
+    "bg_waves.hue": {
+      "op": "add",
+      "a": 0.0,
+      "b": {
+        "op": "mul",
+        "a": "rotary",
+        "b": 0.41
+      }
+    },
+    "bg_waves.sat": 1.0,
+    "bg_waves.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": 0.5,
+        "b": {
+          "op": "add",
+          "a": {
+            "op": "mul",
+            "a": "d1_edges",
+            "b": "strobe1"
+          },
+          "b": {
+            "op": "mul",
+            "a": "d2_edges",
+            "b": {
+              "op": "sub",
+              "a": 1.0,
+              "b": "strobe1"
+            }
+          }
+        }
+      },
+      "b": {
+        "op": "add",
+        "a": "fader_a",
+        "b": "wipe1"
+      }
+    },
+    "bg_waves.flow": "strobe0",
+    "net.amp": "strobe0",
+    "net.hue": {
+      "op": "add",
+      "a": 0.5,
+      "b": {
+        "op": "mul",
+        "a": "rotary",
+        "b": "param_a"
+      }
+    },
+    "net.sat": 0.51,
+    "net.value": {
+      "op": "mul",
+      "a": {
+        "op": "sub",
+        "a": 0.24,
+        "b": {
+          "op": "mul",
+          "a": {
+            "op": "mul",
+            "a": "strobe1",
+            "b": 100.0
+          },
+          "b": "hexes"
+        }
+      },
+      "b": "fader_a"
+    },
+    "map_fiber.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": "strobe1",
+        "b": "hexes"
+      },
+      "b": 1.0
+    },
+    "map_fiber.hue": {
+      "op": "add",
+      "a": 0.02,
+      "b": {
+        "op": "mul",
+        "a": "rotary",
+        "b": 0.04
+      }
+    },
+    "map_fiber.sat": 1.0,
+    "prob_zaps.prob": {
+      "op": "mul",
+      "a": {
+        "op": "sub",
+        "a": "ripple",
+        "b": 0.44
+      },
+      "b": 0.53
+    },
+    "prob_zaps.hue": 0.5,
+    "prob_zaps.value": 0.24
+  },
+  "cc_map": {},
+  "active": [
+    "bg_waves",
+    "prob_zaps"
+  ],
+  "muted": [],
+  "name": "dubstep-2"
+}

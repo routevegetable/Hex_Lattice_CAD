@@ -1,0 +1,217 @@
+{
+  "ccs": {
+    "10": 127,
+    "16": 127,
+    "17": 98,
+    "18": 86,
+    "19": 40,
+    "71": 40,
+    "72": 0,
+    "73": 4,
+    "74": 0,
+    "75": 1,
+    "76": 38,
+    "77": 66,
+    "79": 25,
+    "91": 68,
+    "93": 121,
+    "102": 62,
+    "103": 4,
+    "104": 51,
+    "105": 8,
+    "106": 0,
+    "107": 42,
+    "108": 22,
+    "109": 15,
+    "110": 1,
+    "111": 6,
+    "112": 3,
+    "113": 49,
+    "114": 20,
+    "115": 3,
+    "116": 0,
+    "117": 62
+  },
+  "slots": {
+    "bg_waves.hue": {
+      "op": "add",
+      "a": {
+        "op": "sub",
+        "a": {
+          "op": "add",
+          "a": {
+            "op": "add",
+            "a": "param_a",
+            "b": {
+              "op": "mul",
+              "a": "d2_edges",
+              "b": 0.24
+            }
+          },
+          "b": {
+            "op": "mul",
+            "a": "burst",
+            "b": 0.21
+          }
+        },
+        "b": "strobe0"
+      },
+      "b": {
+        "op": "mul",
+        "a": "strobe1",
+        "b": 0.3
+      }
+    },
+    "bg_waves.sat": {
+      "op": "add",
+      "a": {
+        "op": "add",
+        "a": {
+          "op": "mul",
+          "a": 1.0,
+          "b": "h_edges"
+        },
+        "b": "strobe0"
+      },
+      "b": "strobe1"
+    },
+    "bg_waves.value": {
+      "op": "mul",
+      "a": "fader_a",
+      "b": {
+        "op": "add",
+        "a": {
+          "op": "add",
+          "a": 0.31,
+          "b": {
+            "op": "mul",
+            "a": "burst",
+            "b": 0.59
+          }
+        },
+        "b": {
+          "op": "mul",
+          "a": "strobe2",
+          "b": 0.2
+        }
+      }
+    },
+    "bg_waves.flow": {
+      "op": "add",
+      "a": "burst",
+      "b": "strobe2"
+    },
+    "prob_zaps.value": {
+      "op": "mul",
+      "a": 0.5,
+      "b": "fader_b"
+    },
+    "prob_zaps.hue": 0.38,
+    "prob_zaps.prob": {
+      "op": "mul",
+      "a": "loops",
+      "b": 0.4
+    },
+    "bg_waves2.hue": {
+      "op": "add",
+      "a": 0.63,
+      "b": {
+        "op": "mul",
+        "a": "rotary",
+        "b": 0.18
+      }
+    },
+    "bg_waves2.sat": {
+      "op": "sub",
+      "a": {
+        "op": "sub",
+        "a": 1.0,
+        "b": {
+          "op": "mul",
+          "a": "rotary",
+          "b": 0.47
+        }
+      },
+      "b": "burst"
+    },
+    "bg_waves2.value": {
+      "op": "add",
+      "a": {
+        "op": "add",
+        "a": {
+          "op": "mul",
+          "a": 0.2,
+          "b": "fader_a"
+        },
+        "b": {
+          "op": "mul",
+          "a": "strobe0",
+          "b": {
+            "op": "add",
+            "a": {
+              "op": "mul",
+              "a": 0.27,
+              "b": "fader_a"
+            },
+            "b": 0.07
+          }
+        }
+      },
+      "b": {
+        "op": "mul",
+        "a": "burst",
+        "b": 0.22
+      }
+    },
+    "bg_waves2.flow": {
+      "op": "add",
+      "a": "strobe0",
+      "b": {
+        "op": "div",
+        "a": "burst",
+        "b": 0.16
+      }
+    },
+    "map_fiber.value": {
+      "op": "mul",
+      "a": {
+        "op": "div",
+        "a": "fire",
+        "b": 0.7
+      },
+      "b": {
+        "op": "mul",
+        "a": "strobe1",
+        "b": 0.79
+      }
+    },
+    "map_fiber.hue": {
+      "op": "add",
+      "a": {
+        "op": "add",
+        "a": 0.0,
+        "b": {
+          "op": "mul",
+          "a": "fire",
+          "b": 0.3
+        }
+      },
+      "b": {
+        "op": "mul",
+        "a": "v_gradient",
+        "b": 0.3
+      }
+    },
+    "map_fiber.sat": 1.0
+  },
+  "cc_map": {
+    "burst.decay": 79
+  },
+  "active": [
+    "bg_waves2",
+    "prob_zaps",
+    "map_fiber"
+  ],
+  "muted": [],
+  "name": "Cobalt"
+}

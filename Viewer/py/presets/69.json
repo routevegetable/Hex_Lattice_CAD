@@ -1,0 +1,120 @@
+{
+  "ccs": {
+    "10": 127,
+    "16": 113,
+    "17": 49,
+    "18": 127,
+    "19": 107,
+    "71": 0,
+    "72": 0,
+    "73": 6,
+    "74": 0,
+    "75": 24,
+    "76": 0,
+    "77": 69,
+    "79": 9,
+    "91": 66,
+    "93": 127,
+    "102": 99,
+    "103": 0,
+    "104": 42,
+    "105": 8,
+    "106": 0,
+    "107": 35,
+    "108": 26,
+    "109": 12,
+    "110": 9,
+    "111": 34,
+    "112": 21,
+    "113": 50,
+    "114": 19,
+    "115": 0,
+    "116": 23,
+    "117": 12
+  },
+  "slots": {
+    "bg_waves.hue": {
+      "op": "add",
+      "a": 0.16,
+      "b": {
+        "op": "mul",
+        "a": "rotary",
+        "b": 0.04
+      }
+    },
+    "bg_waves.sat": 1.0,
+    "bg_waves.value": {
+      "op": "mul",
+      "a": "burst",
+      "b": 0.85
+    },
+    "bg_waves.flow": 0.0,
+    "net.amp": "strobe0",
+    "net.hue": {
+      "op": "add",
+      "a": 0.5,
+      "b": {
+        "op": "mul",
+        "a": "rotary",
+        "b": "param_a"
+      }
+    },
+    "net.sat": 0.51,
+    "net.value": {
+      "op": "mul",
+      "a": {
+        "op": "sub",
+        "a": 0.24,
+        "b": {
+          "op": "mul",
+          "a": {
+            "op": "mul",
+            "a": "strobe1",
+            "b": 100.0
+          },
+          "b": "hexes"
+        }
+      },
+      "b": "fader_a"
+    },
+    "map_fiber.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": "strobe1",
+        "b": "hexes"
+      },
+      "b": 1.0
+    },
+    "map_fiber.hue": {
+      "op": "add",
+      "a": 0.02,
+      "b": {
+        "op": "mul",
+        "a": "rotary",
+        "b": 0.04
+      }
+    },
+    "map_fiber.sat": 1.0,
+    "prob_zaps.prob": {
+      "op": "mul",
+      "a": "strobe2",
+      "b": 0.27
+    },
+    "prob_zaps.hue": {
+      "op": "add",
+      "a": "d2_edges",
+      "b": "random"
+    },
+    "prob_zaps.value": 0.24
+  },
+  "cc_map": {},
+  "active": [
+    "net",
+    "map_fiber",
+    "bg_waves",
+    "prob_zaps"
+  ],
+  "muted": [],
+  "name": "dubstep-1"
+}
