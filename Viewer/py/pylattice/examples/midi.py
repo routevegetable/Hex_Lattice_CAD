@@ -42,6 +42,14 @@ class CustomChoice:
     items: dict[int, str]
     kind: Literal["custom"] = "custom"
 
+    def at(self, value: int) -> str:
+        """What the knob means at a 0-127 position: the nearest one named.
+
+        The same rule the UI steps between them by, so what is on screen is
+        what the field is reading.
+        """
+        return self.items[min(self.items, key=lambda listed: abs(listed - value))]
+
 CCMeta = FloatRange | GradientChoice | CustomChoice
 
 

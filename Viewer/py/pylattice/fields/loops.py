@@ -96,8 +96,7 @@ class LoopsField(ScalarField):
         Read out of the same list the UI draws from, by the same nearest-one
         rule, so the number on screen is the number on the lattice.
         """
-        nearest = min(cls.COPIES.items, key=lambda key: abs(key - value))
-        return int(cls.COPIES.items[nearest])
+        return int(cls.COPIES.at(value))
 
     @classmethod
     def _spread(cls, start: EndRef) -> float:
