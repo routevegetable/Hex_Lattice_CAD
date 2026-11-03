@@ -11,14 +11,13 @@ from pylattice.fields.loops import LoopsField
 from pylattice.fields.fire import FireField
 from pylattice.fields.gradient import VGradientField
 from pylattice.fields.hexes import HexesField
-from pylattice.fields.mask import EdgeMaskField
+from pylattice.fields.mask import D1, D2, EdgeMaskField, H, RandomLinesField, V
 from pylattice.fields.random import NoteRandomField
 from pylattice.fields.ripple import NoteRippleField
 from pylattice.fields.rotary import RotaryField
 from pylattice.fields.scope import ScopeFieldBetter
-from pylattice.fields.trace import RandomTraceField
+from pylattice.fields.trace import RandomTraceField, TraceLinesField
 from pylattice.fields.wipe import NoteWipeField
-from pylattice.graph import EdgeClass
 from pylattice.instrument.hardware import (
     KA1,
     KA2,
@@ -46,6 +45,7 @@ from pylattice.instrument.hardware import (
     PB4,
     PB5,
     PB6,
+    PB7,
     PB8,
     graph,
     midi,
@@ -83,6 +83,12 @@ class FIELDS:
     trace = RandomTraceField(
         graph, midi.for_("trace"), note=PB5, speed=KB5, aim=KB6, attack=108
     )
+
+    # The same trace, kept to the lattice's straight lines. Shares trace's
+    # speed and attack - it is the same head on the same trail - and has a pad,
+    # a decay and a mode of its own.
+    trace_lines = TraceLinesField(graph, midi.for_("trace_lines"), note=PB7,
+                                  speed=KB5, attack=108, decay=121, mode=120)
 
     # A spot going round and round one flat line of the lattice
     scope = ScopeFieldBetter(
@@ -139,10 +145,15 @@ class FIELDS:
     artnet2_r, artnet2_g, artnet2_b, artnet2_v = ARTNET[2]
     artnet3_r, artnet3_g, artnet3_b, artnet3_v = ARTNET[3]
 
-    v_edges = EdgeMaskField({EdgeClass.C, EdgeClass.F})
-    h_edges = EdgeMaskField({EdgeClass.A, EdgeClass.B, EdgeClass.D, EdgeClass.E})
-    d1_edges = EdgeMaskField({EdgeClass.A, EdgeClass.C, EdgeClass.E, EdgeClass.F})
-    d2_edges = EdgeMaskField({EdgeClass.B, EdgeClass.C, EdgeClass.D, EdgeClass.F})
+    # Some number of edges from one family of lines - d1, d2 or h - re-picked
+    # by the same pad that re-rolls random.
+    random_lines = RandomLinesField(graph, midi.for_("random_lines"),
+                                    note=PB6, count=119)
+
+    v_edges = EdgeMaskField(V)
+    h_edges = EdgeMaskField(H)
+    d1_edges = EdgeMaskField(D1)
+    d2_edges = EdgeMaskField(D2)
 
     strobe0 = StrobeField(midi.for_("strobe0"), strobe=PA1, attack=110, decay=111)
     strobe1 = StrobeField(midi.for_("strobe1"), strobe=PA2, attack=112, decay=113)
