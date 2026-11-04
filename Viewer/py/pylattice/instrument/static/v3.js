@@ -1183,10 +1183,28 @@ function knobList(found) {
     const at = document.createElement('span');
     at.className = 'at';
     at.dataset.was = `cc ${c.number}${c.number === c.default ? '' : ' \u00b7 moved'}`;
-    row.append(makeDial(liveValue(c), meta), label, now, at);
+    // The raw 0-127 the knob sits at, to type over: it lands the same as a turn.
+    const typed = document.createElement('input');
+    typed.type = 'number';
+    typed.className = 'cc-box';
+    typed.min = '0'; typed.max = String(CC_MAX); typed.step = '1';
+    typed.value = liveValue(c);
+    typed.title = 'type a value, 0-127';
+    typed.onchange = () => {
+      const want = Math.max(0, Math.min(CC_MAX, Math.round(Number(typed.value))));
+      if (Number.isNaN(want) || typed.value === '') { typed.value = liveValue(c); return; }
+      typed.value = want;
+      turnKnob(c.number, want);
+      setDial(row.querySelector('.dial'), want, meta);
+      now.textContent = readOut(meta, want);
+      setTimeout(() => { if (turning?.cc === c.number) turning = null; }, 300);
+    };
+    typed.onkeydown = (e) => { if (e.key === 'Enter') typed.blur(); };
+    row.append(makeDial(liveValue(c), meta), label, now, typed, at);
 
     let from = null;
     row.onpointerdown = (e) => {
+      if (e.target === typed) return;           // typing is not a drag
       from = {y: e.clientY, value: liveValue(c), turned: false};
       row.setPointerCapture(e.pointerId);
       e.preventDefault();
@@ -1206,7 +1224,8 @@ function knobList(found) {
       from = null;
       setTimeout(() => { if (turning?.cc === c.number) turning = null; }, 300);
     };
-    row.onpointerup = () => {
+    row.onpointerup = (e) => {
+      if (e.target === typed) return;
       const tapped = from !== null && !from.turned;
       done();
 
@@ -1268,6 +1287,8 @@ function syncKnobs() {
     const meta = metaOn(el.dataset.cc);
     setDial(el.querySelector('.dial'), k.value, meta);
     el.querySelector('.now').textContent = readOut(meta, k.value);
+    const box = el.querySelector('.cc-box');
+    if (box && document.activeElement !== box) box.value = k.value;
   }
 }
 

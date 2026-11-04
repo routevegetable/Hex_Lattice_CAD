@@ -219,6 +219,9 @@ aside { min-width: 0; }
 .knob .dial .pin { stroke: var(--text); stroke-width: 2; stroke-linecap: round; }
 .knob b { font-weight: 600; }
 .knob .now { min-width: 1.8em; text-align: right; font-variant-numeric: tabular-nums; }
+.knob .cc-box { width: 3.4em; padding: 1px 3px; font: inherit; font-variant-numeric: tabular-nums;
+  background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 3px; }
+.knob .cc-box:focus { border-color: var(--accent); outline: none; }
 .knob .at { color: var(--dim); font-variant-numeric: tabular-nums; }
 .knob.waiting { border-color: var(--accent); }
 .knob.waiting .at { color: var(--accent); }
