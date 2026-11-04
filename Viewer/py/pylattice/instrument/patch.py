@@ -133,6 +133,11 @@ class Patch:
     # by its number; this is only so there is something to read.
     name: str | None = None
 
+    # effect name -> a line of the player's own words about it ("vertical lines
+    # for kick"). Only for reading: nothing renders from it. An effect with no
+    # note has no entry.
+    notes: dict[str, str] = field(default_factory=dict)
+
     def apply(self, midi: MIDI, fields: type, effects: type):
         """Put the knobs back and re-patch the slots.
 
@@ -197,14 +202,16 @@ class Patch:
                      cc_map=dict(self.cc_map),
                      active=None if self.active is None else list(self.active),
                      muted=set(self.muted),
-                     name=self.name)
+                     name=self.name,
+                     notes=dict(self.notes))
 
     def save(self, path: str):
         slots = {name: as_json(ref) for name, ref in self.slots.items()}
         out = {"ccs": self.ccs, "slots": slots, "cc_map": self.cc_map,
                "active": self.active,
                "muted": sorted(self.muted),
-               "name": self.name}
+               "name": self.name,
+               "notes": self.notes}
         Path(path).write_text(json.dumps(out, indent=2))
 
     @classmethod
@@ -218,7 +225,8 @@ class Patch:
                    cc_map=saved.get("cc_map", {}),
                    active=None if active is None else list(active),
                    muted=set(saved.get("muted", [])),
-                   name=saved.get("name"))
+                   name=saved.get("name"),
+                   notes=dict(saved.get("notes", {})))
 
 
 @dataclass
