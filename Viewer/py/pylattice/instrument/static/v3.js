@@ -1279,6 +1279,18 @@ function lastMoved() {
   return best;
 }
 
+// Frames can come faster than the screen draws; the page paints the newest once a frame.
+let knobsQueued = false;
+function paintKnobs() {
+  if (knobsQueued) return;
+  knobsQueued = true;
+  requestAnimationFrame(() => {
+    knobsQueued = false;
+    syncKnobs();
+    syncMapKnobs();
+  });
+}
+
 // After a frame from the socket: every dial on the page follows the desk.
 function syncKnobs() {
   for (const el of document.querySelectorAll('#effects .knob')) {
@@ -1300,7 +1312,7 @@ function listen() {
   wire.onmessage = (e) => {
     knobs = JSON.parse(e.data);
     if (turning && knobs[turning.cc]) knobs[turning.cc].value = turning.value;
-    syncKnobs();
+    paintKnobs();
 
     const moved = mapping && lastMoved();
     if (moved && moved.knob.age_ms < Date.now() - mapping.since) assign(mapping.name, moved.cc);
@@ -1916,6 +1928,187 @@ copyDialog.querySelector('form').onsubmit = async (e) => {
   savedTimer = setTimeout(() => { savedNote.textContent = ''; }, 4000);
 };
 
+// ---- the controller map -------------------------------------------------
+
+// A picture of the box on the desk, with each of its controls labelled by what
+// the playing preset has it drive. The picture and the table that says which
+// CC or note is which part of it come from surfaces.json; what the controls
+// drive is /controls, so assigning a knob changes the map on the next refresh.
+const SURFACES = '/static/surfaces.json';
+let surfaces = {};
+let surfaceId = (() => { try { return localStorage.getItem('surface'); } catch { return null; } })();
+const surfaceSvg = {};      // the pictures, fetched once each
+const mapBox = document.getElementById('map');
+let mapDrawn = '';          // what the map was last drawn from, so a quiet second draws nothing
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const short = (t, n = 8) => t.length > n ? t.slice(0, n - 1) + '…' : t;
+
+// A control's comment is `field.role`. Only the ones that name a field of the
+// rig can be plugged into a slot.
+const fieldOwners = (c) => {
+  const names = new Set(rig.fields.map(f => f.name));
+  return [...new Set(c.comments.map(t => knobOwner(t.split('.')[0])).filter(n => names.has(n)))];
+};
+
+// The effects each field is used by in the playing preset: a slot is
+// `effect.slot`, and its formula names the fields it reads.
+function effectsUsing() {
+  const live = views[rig.selected]?.live;
+  const by = new Map();
+  for (const [key, tree] of Object.entries(live?.slots ?? {}))
+    for (const f of fieldsIn(tree).map(knobOwner)) by.set(f, (by.get(f) ?? new Set()).add(key.split('.')[0]));
+  return by;
+}
+
+// The fields the playing preset's slots name, whatever their depth.
+function fieldsInUse() {
+  const live = views[rig.selected]?.live;
+  const used = new Set();
+  for (const tree of Object.values(live?.slots ?? {})) fieldsIn(tree).forEach(n => used.add(knobOwner(n)));
+  return used;
+}
+
+async function loadSurfaces() {
+  try {
+    surfaces = await get(SURFACES);
+    if (!(surfaceId in surfaces)) surfaceId = Object.keys(surfaces)[0] ?? null;
+    if (surfaceId && !surfaceSvg[surfaceId])
+      surfaceSvg[surfaceId] = await fetch(surfaces[surfaceId].svg).then(r => r.text());
+  } catch (e) { /* no map; the rest of the page works without one */ }
+}
+
+function drawMap() {
+  const surface = surfaces[surfaceId];
+  if (!surface || !surfaceSvg[surfaceId]) return;
+
+  const used = fieldsInUse();
+  const effectsBy = effectsUsing();
+  const here = controls.filter(c => !c.hidden);
+  const key = JSON.stringify([surfaceId, [...used], [...effectsBy].map(([f, e]) => [f, [...e]]), here.map(c => [c.kind, c.number, c.comments])]);
+  if (key === mapDrawn) return;
+  mapDrawn = key;
+
+  mapBox.replaceChildren();
+  const head = document.createElement('div');
+  head.className = 'map-head';
+  const pick = document.createElement('select');
+  for (const [id, s] of Object.entries(surfaces)) {
+    const opt = document.createElement('option');
+    opt.value = id; opt.textContent = s.name; opt.selected = id === surfaceId;
+    pick.append(opt);
+  }
+  pick.onchange = async () => {
+    surfaceId = pick.value;
+    try { localStorage.setItem('surface', surfaceId); } catch { /* remembering is a courtesy */ }
+    mapDrawn = '';
+    await loadSurfaces();
+    drawMap();
+  };
+  head.append(pick);
+  mapBox.append(head);
+
+  const holder = document.createElement('div');
+  holder.className = 'surface';
+  holder.innerHTML = surfaceSvg[surfaceId];
+  mapBox.append(holder);
+
+  // Every knob and fader the picture has follows the desk.
+  for (const [cc, id] of Object.entries(surface.ccs)) {
+    const spot = holder.querySelector(`#${CSS.escape(id)}`);
+    if (spot) spot.dataset.cc = cc;
+  }
+
+    const roles = new Map();          // spot -> the [field, role] of everything on it
+  for (const c of here) {
+    // A note can be several pads: the Akai's pads fold onto fewer BSP notes.
+    const ids = [].concat((c.kind === 'cc' ? surface.ccs : surface.notes ?? {})[c.number] ?? []);
+    const spots = ids.map(id => holder.querySelector(`#${CSS.escape(id)}`)).filter(Boolean);
+    if (!spots.length) continue;
+
+    for (const spot of spots) {
+      spot.classList.add('assigned');
+      if (fieldOwners(c).some(n => used.has(n))) spot.classList.add('lit');
+      roles.set(spot, [...(roles.get(spot) ?? []), ...c.comments.map(t => t.split('.'))]);
+    }
+  }
+
+  for (const [spot, rs] of roles) {
+    if (!rs.length) continue;
+    const tag = spot.querySelector('.tag');
+    const x = tag.getAttribute('x'), y = Number(tag.getAttribute('y'));
+    const fx = [...new Set(rs.flatMap(r => [...(effectsBy.get(knobOwner(r[0])) ?? [])]))];
+    spot.dataset.effects = fx.join(', ');
+    [rs[0][0] + (rs.length > 1 ? ` +${rs.length - 1}` : ''), rs[0][1] ?? '', fx.join(', ')]
+      .forEach((text, i) => {
+        if (!text || (i && spot.classList.contains('pad'))) return;   // pads have no room; the legend has the role and effects
+        const t = document.createElementNS(SVG_NS, 'text');
+        t.setAttribute('class', i ? 'what role' + (i > 1 ? ' fx' : '') : 'what');
+        t.setAttribute('x', x); t.setAttribute('y', y + 12 + 11 * i);
+        t.textContent = short(text, Number(spot.dataset.chars ?? 8));
+        spot.append(t);
+      });
+    const title = document.createElementNS(SVG_NS, 'title');
+    title.textContent = rs.map(r => r.join('.')).join('\n') + (spot.dataset.effects ? `\nin ${spot.dataset.effects}` : '');
+    spot.append(title);
+    // A tooltip belongs to the shape under the pointer, so the whole pad, not
+    // just its text, needs one.
+    for (const shape of spot.querySelectorAll('rect, circle, line'))
+      shape.append(title.cloneNode(true));
+  }
+  // The picture has no room for whole names, so the same assignments are listed
+  // in full beneath it: control, what it moves, and the effects that use it.
+  // Pads come first, in the Akai's own numbering, then the knobs and faders as drawn.
+  const isPad = s => s.classList.contains('pad');
+  const padNo = s => Number(s.id.replace(/\D/g, ''));
+  const rows = [...holder.querySelectorAll('.spot.assigned')].filter(s => roles.get(s)?.length)
+    .sort((a, b) => isPad(b) - isPad(a) || (isPad(a) && padNo(a) - padNo(b)));
+  if (rows.length) {
+    const legend = document.createElement('table');
+    legend.className = 'map-legend';
+    for (const spot of rows) {
+      const rs = roles.get(spot);
+      const tr = legend.insertRow();
+      tr.classList.toggle('lit', spot.classList.contains('lit'));
+      const hover = on => { tr.classList.toggle('hover', on); spot.classList.toggle('hover', on); };
+      tr.onmouseenter = () => hover(true); tr.onmouseleave = () => hover(false);
+      spot.onmouseenter = () => hover(true); spot.onmouseleave = () => hover(false);
+      const cells = [
+        spot.querySelector('.tag')?.textContent ?? spot.id,
+        rs.map(r => r.join('.')).join(', '),
+        spot.dataset.effects || '',
+      ];
+      cells.forEach((text, i) => {
+        const td = tr.insertCell();
+        td.textContent = text;
+        if (i === 2) td.className = 'fx';
+      });
+    }
+    mapBox.append(legend);
+  }
+
+  syncMapKnobs();
+}
+
+// The knobs and faders follow the desk.
+function syncMapKnobs() {
+  for (const spot of mapBox.querySelectorAll('.spot.assigned[data-cc]')) {
+    const k = knobs[spot.dataset.cc];
+    if (!k || spot._shown === k.value) continue;
+    spot._shown = k.value;
+    const frac = fracOf(metaOn(spot.dataset.cc), k.value);
+    const pointer = spot.querySelector('.pointer');
+    const cap = spot.querySelector('.cap');
+    if (pointer) pointer.setAttribute('transform',
+        `rotate(${-135 + 270 * frac} ${cap.getAttribute('cx')} ${cap.getAttribute('cy')})`);
+    const thumb = spot.querySelector('.thumb');
+    if (thumb) {
+      const lo = Number(spot.dataset.lo), hi = Number(spot.dataset.hi);
+      thumb.setAttribute('y', lo - (lo - hi) * frac);
+    }
+  }
+}
+
 // ---- keeping up ----------------------------------------------------------
 
 // Which preset the half-built formulas belong to. Another one has its own slots.
@@ -1934,6 +2127,7 @@ async function refresh() {
     formulasFor = rig.selected;
   }
   drawPresets();
+  drawMap();
   if (!adding && !picking && !dragging && !reordering && !turning && !inUse()) {
     // Where the knobs sit is not part of what the list shows - the dials follow
     // the socket - so a knob moving must not tear the list down.
@@ -1951,7 +2145,7 @@ async function drawStats() {
   document.getElementById('fps').textContent = `${s.fps.toFixed(0)} fps`;
 }
 
-refresh(); drawStats();
+loadSurfaces().then(refresh); drawStats();
 
 // The preset can change from the controller - a program change - so the bar
 // follows it rather than showing what it was at load.
