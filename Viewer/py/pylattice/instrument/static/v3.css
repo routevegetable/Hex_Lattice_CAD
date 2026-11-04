@@ -289,3 +289,28 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 .map-legend tr.lit td:nth-child(2) { color: #cfe3ff; }
 .box .spot.hover .cap, .box .spot.hover .thumb { stroke: var(--accent); stroke-width: 2; }
 .map-legend tr.hover td { background: rgba(106, 143, 208, .22); }
+
+/* typing a formula instead of building it. The pre holds the coloured text and
+   the textarea sits exactly on top with its own text invisible, so the caret
+   lands on the letters you can see. Both must be laid out the same way. */
+.slot-head .pencil { margin-left: auto; padding: 1px 8px; font-size: 13px; }
+.slot-head .pencil.on { background: #2f5597; color: #fff; }
+.typing { padding: 4px 0; }
+.exprbox { position: relative; }
+.exprbox pre, .exprbox textarea {
+  margin: 0; padding: 6px 8px; border: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px; line-height: 1.35;
+  white-space: pre-wrap; overflow-wrap: anywhere; }
+.exprbox pre { background: #11161f; color: #dee; min-height: 30px; border-radius: 4px; }
+.exprbox textarea { position: absolute; inset: 0; width: 100%; background: transparent;
+                    color: transparent; caret-color: #cfe3ff; resize: none;
+                    overflow: hidden; outline-offset: -1px; }
+.exprbox .p0 { color: #e0b070; }
+.exprbox .p1 { color: #7fc7a0; }
+.exprbox .p2 { color: #8fb3e8; }
+.exprbox .p3 { color: #d08fd0; }
+.exprbox .p4 { color: #d6cf7a; }
+.exprbox .bad { color: #e06060; background: #3a1a1a; }
+.typing .setexpr { margin-top: 6px; padding: 2px 14px; }
+.typing .hint { color: #e06060; font-size: 12px; padding: 4px 0 0; }

@@ -714,6 +714,154 @@ function setFormula(key, tree) {
   else drawEffects();
 }
 
+// ---- the expression as text ------------------------------------------------
+
+// The same text as the mobile page: on screen the operators are the ones a sum is
+// written with; typed, they are the ones a keyboard has.
+const TEXT_OPS = {add: '+', sub: '-', mul: '*', div: '/', avg: '~'};
+const FROM_TEXT = Object.fromEntries(Object.entries(TEXT_OPS).map(([k, v]) => [v, k]));
+
+const texting = new Set();              // slots whose formula is being typed
+
+// Brackets on every operator but the outermost, so what comes out reads back in
+// as the same tree whatever precedence says.
+function toText(node, nested = false) {
+  if (node === null || node === undefined) return '';
+  if (typeof node === 'number') return String(node);
+  if (typeof node === 'string') return node;
+  if (isGradient(node)) return describeGradient(node);
+
+  const shown = `${toText(node.a, true)} ${TEXT_OPS[node.op]} ${toText(node.b, true)}`;
+  return nested ? `(${shown})` : shown;
+}
+
+function tokens(text) {
+  const grab = /\s*([()]|[+\-*/~]|[A-Za-z_][\w.]*|\d*\.?\d+)/y;
+  const out = [];
+  let at = 0;
+
+  while (at < text.length) {
+    grab.lastIndex = at;
+    const m = grab.exec(text);
+    if (!m) throw new Error(`cannot read "${text.slice(at).trim().split(/\s/)[0]}"`);
+    out.push(m[1]);
+    at = grab.lastIndex;
+  }
+  return out;
+}
+
+// The tree itself has no precedence - it is nested, not parsed - but someone
+// typing expects * to bind tighter than +, so that is what is read here.
+function parseText(text) {
+  const t = tokens(text.trim());
+  const names = new Set(rig.fields.map(f => f.name));
+  let i = 0;
+
+  const operand = () => {
+    const tok = t[i++];
+    if (tok === undefined) throw new Error('the expression stops short');
+
+    if (tok === '(') {
+      const inner = sum();
+      if (t[i++] !== ')') throw new Error('a ( with no )');
+      return inner;
+    }
+    if (tok === ')') throw new Error('a ) with no (');
+    if (FROM_TEXT[tok]) throw new Error(`"${tok}" needs something in front of it`);
+    if (/^[\d.]/.test(tok)) return parseFloat(tok);
+    if (!names.has(tok)) throw new Error(`no field called "${tok}"`);
+    return tok;
+  };
+
+  const binary = (ops, next) => () => {
+    let left = next();
+    while (ops.includes(t[i])) left = {op: FROM_TEXT[t[i++]], a: left, b: next()};
+    return left;
+  };
+
+  const sum = binary(['+', '-', '~'], binary(['*', '/'], operand));
+  const tree = sum();
+  if (i < t.length) throw new Error(`"${t[i]}" is one too many`);
+  return tree;
+}
+
+// Brackets coloured by how deep they are; one beyond the last colour wraps round.
+const PAREN_COLOURS = 5;
+
+function highlight(text) {
+  const safe = (c) => c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c;
+  let depth = 0;
+  let out = '';
+
+  for (const ch of text) {
+    if (ch === ')') depth -= 1;
+    out += (ch === '(' || ch === ')')
+        ? `<span class="${depth < 0 ? 'bad' : 'p' + (depth % PAREN_COLOURS)}">${safe(ch)}</span>`
+        : safe(ch);
+    if (ch === '(') depth += 1;
+  }
+  return out;
+}
+
+// A textarea with its own text made invisible, over a pre holding the same text
+// with the brackets coloured. The two have to be laid out identically or the
+// caret drifts off the letters.
+function textEditor(key, tree) {
+  const wrap = document.createElement('div');
+  wrap.className = 'typing';
+
+  const box = document.createElement('div');
+  box.className = 'exprbox';
+
+  const shown = document.createElement('pre');
+  const area = document.createElement('textarea');
+  area.value = toText(tree);
+  area.spellcheck = false;
+
+  const bad = document.createElement('div');
+  bad.className = 'hint';
+
+  const paint = () => {
+    shown.innerHTML = highlight(area.value) + ' ';   // a space, or the last line collapses
+    area.style.height = 'auto';
+    area.style.height = shown.offsetHeight + 'px';
+  };
+
+  const apply = () => {
+    if (!area.value.trim()) {
+      texting.delete(key);
+      leaveFormula(key);
+      writeSlot(key, null);
+      return;
+    }
+
+    let parsed;
+    try { parsed = parseText(area.value); }
+    catch (e) { bad.textContent = e.message; return; }
+
+    texting.delete(key);
+    if (!isLeaf(parsed)) formulaOpen.add(key);
+    setFormula(key, parsed);
+  };
+
+  area.oninput = () => { paint(); bad.textContent = ''; };
+  area.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); apply(); }
+    if (e.key === 'Escape') { texting.delete(key); drawEffects(); }
+  };
+
+  const set = document.createElement('button');
+  set.className = 'setexpr';
+  set.textContent = 'set';
+  set.onclick = apply;
+
+  box.append(shown, area);
+  wrap.append(box, set, bad);
+
+  setTimeout(() => { paint(); area.focus(); }, 0);
+  return wrap;
+}
+
 // A small constant | field switch, the same idea as a slot's own.
 function makeSeg(mode, parts, small) {
   const seg = document.createElement('span');
@@ -1520,7 +1668,22 @@ function slotRow(key, saved) {
   head.className = 'slot-head';
   head.append(name, seg);
 
+  // Type the formula instead of building it.
+  const pencil = document.createElement('button');
+  pencil.className = 'pencil' + (texting.has(key) ? ' on' : '');
+  pencil.textContent = '\u270e';
+  pencil.title = texting.has(key) ? 'back to the editor' : 'type the formula';
+  pencil.onclick = () => {
+    if (texting.has(key)) texting.delete(key); else texting.add(key);
+    drawEffects();
+  };
+  head.append(pencil);
+
   row.append(head, ctl);
+  if (texting.has(key)) {
+    ctl.hidden = true;
+    row.append(textEditor(key, shown));
+  }
 
   const found = controlsFor(shown);
   if (found.length) row.append(knobList(found));
