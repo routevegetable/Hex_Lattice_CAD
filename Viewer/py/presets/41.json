@@ -1,0 +1,98 @@
+{
+  "ccs": {
+    "12": 0,
+    "13": 0,
+    "14": 0,
+    "15": 0,
+    "22": 127,
+    "23": 3,
+    "24": 0,
+    "25": 25,
+    "26": 0,
+    "27": 0,
+    "28": 34,
+    "72": 4,
+    "73": 69,
+    "75": 24,
+    "77": 69,
+    "79": 15,
+    "91": 66,
+    "93": 10,
+    "102": 13,
+    "103": 0,
+    "104": 59,
+    "105": 0,
+    "106": 0,
+    "107": 0,
+    "108": 26,
+    "109": 0,
+    "110": 14,
+    "111": 28,
+    "112": 0,
+    "113": 0,
+    "114": 24,
+    "115": 0,
+    "116": 0,
+    "117": 0
+  },
+  "slots": {
+    "glitter.hue_1": 0.92,
+    "glitter.hue_2": 0.05,
+    "glitter.spin_rate": 10.0,
+    "glitter.value": {
+      "op": "mul",
+      "a": "fader_b",
+      "b": "fire"
+    },
+    "map_fiber.value": {
+      "op": "mul",
+      "a": "loops",
+      "b": "fader_a"
+    },
+    "map_fiber.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "loops",
+        "b": -0.6
+      },
+      "b": 0.95
+    },
+    "map_fiber.sat": 1.0,
+    "bg_waves.sat": 1.0,
+    "bg_waves.hue": 0.05,
+    "bg_waves.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": "ripple",
+        "b": "v_gradient"
+      },
+      "b": 2.0
+    }
+  },
+  "cc_map": {
+    "fader_a.value": 12,
+    "fader_b.value": 13,
+    "param_a.value": 14,
+    "param_b.value": 15,
+    "wipe2.speed": 106,
+    "trace.speed": 107,
+    "ripple2.speed": 108,
+    "wipe1.speed": 109,
+    "fire.rate": 22,
+    "loops.shape": 23,
+    "loops.speed": 24,
+    "loops.attack": 26,
+    "loops.copies": 25,
+    "ripple.speed": 27,
+    "v_gradient.origin": 28
+  },
+  "active": [
+    "glitter",
+    "map_fiber",
+    "bg_waves"
+  ],
+  "muted": [],
+  "name": "baby-1"
+}

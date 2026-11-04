@@ -1,0 +1,110 @@
+{
+  "ccs": {
+    "12": 22,
+    "13": 0,
+    "14": 0,
+    "15": 0,
+    "16": 0,
+    "17": 0,
+    "18": 0,
+    "19": 82,
+    "22": 63,
+    "23": 101,
+    "71": 86,
+    "72": 2,
+    "73": 0,
+    "75": 127,
+    "76": 0,
+    "77": 68,
+    "79": 62,
+    "91": 65,
+    "93": 62,
+    "102": 0,
+    "103": 0,
+    "104": 25,
+    "105": 19,
+    "106": 62,
+    "107": 61,
+    "108": 1,
+    "109": 102,
+    "110": 0,
+    "111": 56,
+    "112": 4,
+    "113": 12,
+    "114": 2,
+    "115": 0,
+    "116": 0,
+    "117": 40,
+    "119": 18,
+    "120": 0,
+    "121": 0
+  },
+  "slots": {
+    "bg_waves.hue": "param_a",
+    "bg_waves.value": "ripple",
+    "bg_waves.sat": 1.0,
+    "map_fiber.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "param_a",
+        "b": 0.08
+      },
+      "b": 0.01
+    },
+    "map_fiber.value": {
+      "op": "mul",
+      "a": "ripple",
+      "b": "fader_h"
+    },
+    "map_fiber.sat": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "param_b",
+        "b": 0.02
+      },
+      "b": 0.98
+    },
+    "glitter.hue_1": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "fader_b",
+        "b": 0.05
+      },
+      "b": 0.02
+    },
+    "glitter.hue_2": {
+      "op": "add",
+      "a": "fader_c",
+      "b": 0.99
+    },
+    "glitter.value": {
+      "op": "mul",
+      "a": 1.0,
+      "b": "fader_a"
+    },
+    "glitter.spin_rate": "fader_d"
+  },
+  "cc_map": {
+    "fader_a.value": 12,
+    "fader_b.value": 13,
+    "wipe2.speed": 106,
+    "trace.speed": 107,
+    "ripple2.speed": 108,
+    "wipe1.speed": 109,
+    "param_a.value": 22,
+    "param_b.value": 23
+  },
+  "active": [
+    "map_fiber",
+    "glitter"
+  ],
+  "muted": [],
+  "name": "meaningful-moment-1",
+  "notes": {
+    "map_fiber": "ripples, changing colors",
+    "glitter": "pink/red to yellow"
+  }
+}
