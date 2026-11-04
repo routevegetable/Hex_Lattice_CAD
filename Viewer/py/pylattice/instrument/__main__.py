@@ -7,6 +7,7 @@ import traceback
 from typing import Callable
 from pylattice.effects.glitter import Glitter
 from pylattice.effects.bisexual_spin import BisexualSpin
+from pylattice.effects.light_all_fibers import LightAllFibers
 from pylattice.effects.map_fiber import MapFiber
 from pylattice.effects.map_tiles import MapTiles
 from pylattice.effects.sparks import Sparks
@@ -65,6 +66,9 @@ class EFFECTS:
     map_fiber = MapFiber()
     map_fiber2 = MapFiber()
     map_fiber3 = MapFiber()
+    light_all_fibers = LightAllFibers()
+    light_all_fibers2 = LightAllFibers()
+    light_all_fibers3 = LightAllFibers()
     glitter = Glitter()
     sparks = Sparks()
     # map_tiles = MapTiles()
