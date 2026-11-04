@@ -419,7 +419,12 @@ function fieldMenu(box, current, onPick, source = fieldSource) {
     search.placeholder = source.placeholder;
     const body = document.createElement('div');
     body.className = 'fpick-body';
-    menu.append(search, body);
+    // The same choice, made by pressing the control that drives the field.
+    const onMap = document.createElement('button');
+    onMap.className = 'fpick-map';
+    onMap.textContent = 'pick on the controller map';
+    onMap.onclick = () => { close(); startMapPick(onPick); };
+    menu.append(search, ...(source.noMap ? [] : [onMap]), body);
 
     let rows = [], cursor = 0;
 
@@ -1938,6 +1943,7 @@ const SURFACES = '/static/surfaces.json';
 let surfaces = {};
 let surfaceId = (() => { try { return localStorage.getItem('surface'); } catch { return null; } })();
 const surfaceSvg = {};      // the pictures, fetched once each
+let mapPick = null;         // the callback waiting for a control to be pressed on the map
 const mapBox = document.getElementById('map');
 let mapDrawn = '';          // what the map was last drawn from, so a quiet second draws nothing
 
@@ -2029,6 +2035,7 @@ function drawMap() {
     for (const spot of spots) {
       spot.classList.add('assigned');
       if (fieldOwners(c).some(n => used.has(n))) spot.classList.add('lit');
+      spot.dataset.owners = JSON.stringify([...new Set([...JSON.parse(spot.dataset.owners ?? '[]'), ...fieldOwners(c)])]);
       roles.set(spot, [...(roles.get(spot) ?? []), ...c.comments.map(t => t.split('.'))]);
     }
   }
@@ -2058,12 +2065,12 @@ function drawMap() {
   }
   for (const [spot, rs] of roles) spot.dataset.names = JSON.stringify(rs.map(r => r.join('.')));
   for (const spot of holder.querySelectorAll('.spot.assigned')) spot.onclick = () => {
-    if (spot.dataset.cc) unassignBar(spot);
+    if (mapPick) pressedOnMap(spot); else if (spot.dataset.cc) unassignBar(spot);
   };
   // Clicking a knob or fader nothing is on offers a control for it. Turning one
   // never asks anything.
   for (const spot of holder.querySelectorAll('.spot[data-cc]:not(.assigned)'))
-    spot.onclick = () => assignMenu(spot);
+    spot.onclick = () => { if (!mapPick) assignMenu(spot); };
 
   // The picture has no room for whole names, so the same assignments are listed
   // in full beneath it: control, what it moves, and the effects that use it.
@@ -2096,6 +2103,8 @@ function drawMap() {
     mapBox.append(legend);
   }
 
+  mapBox.classList.toggle('picking', mapPick !== null);
+  if (mapPick) showMapPrompt();
   syncMapKnobs();
 }
 
@@ -2117,6 +2126,56 @@ function syncMapKnobs() {
     }
   }
 }
+
+// ---- picking a field by pressing its control
+
+function startMapPick(onPick) {
+  mapPick = onPick;
+  mapDrawn = '';
+  drawMap();
+  mapBox.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+}
+
+function endMapPick() {
+  mapPick = null;
+  mapDrawn = '';
+  drawMap();
+}
+
+function showMapPrompt(choices = null) {
+  mapBox.querySelector('.map-prompt')?.remove();
+  const bar = document.createElement('div');
+  bar.className = 'map-prompt';
+  const msg = document.createElement('span');
+  msg.textContent = choices ? 'which field?' : 'press a control on the map to plug its field in';
+  bar.append(msg);
+  for (const name of choices ?? []) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.onclick = () => finishMapPick(name);
+    bar.append(b);
+  }
+  const cancel = document.createElement('button');
+  cancel.textContent = 'cancel';
+  cancel.onclick = endMapPick;
+  bar.append(cancel);
+  mapBox.prepend(bar);
+}
+
+function finishMapPick(name) {
+  const done = mapPick;
+  endMapPick();
+  done?.(name);
+}
+
+function pressedOnMap(spot) {
+  if (!mapPick) return;
+  const owners = JSON.parse(spot.dataset.owners ?? '[]');
+  if (owners.length === 1) finishMapPick(owners[0]);
+  else if (owners.length) showMapPrompt(owners);
+}
+
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && mapPick) endMapPick(); });
 
 const fieldOf = (name) => name.split('.')[0];
 
@@ -2185,6 +2244,7 @@ function assignMenu(spot) {
     await refresh();
   }, {
     placeholder: `put on ${surface.ccs[cc]}: search controls`,
+    noMap: true,
     entries: () => controls.filter(c => c.kind === 'cc' && !c.hidden && c.comments.length)
         .map(c => ({group: fieldOf(c.comments[0]), text: c.comments[0], hint: where(c), value: c.comments[0]}))
         .sort((a, b) => a.group.localeCompare(b.group) || a.text.localeCompare(b.text)),

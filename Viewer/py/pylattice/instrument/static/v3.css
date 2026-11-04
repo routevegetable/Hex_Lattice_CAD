@@ -258,7 +258,11 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 .box .lit .cap { fill: #24334d; stroke: var(--accent); stroke-width: 2; }
 .box .lit .pointer { stroke: #cfe3ff; }
 .box .lit .tag, .box .lit .what { fill: #cfe3ff; }
+#map.picking .spot.assigned { cursor: pointer; }
+#map.picking .spot.assigned:hover .cap { stroke: #e0b070; stroke-width: 2; }
+#map.picking { outline: 1px solid var(--accent); outline-offset: 6px; border-radius: 2px; }
 .map-prompt { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; color: var(--accent); }
+.fpick-map { display: block; width: 100%; margin: 4px 0; }
 
 /* the Akai's own picture: knobs over faders over the pads, larger type than the BeatStep's */
 .box.akai .section { fill: var(--dim); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
