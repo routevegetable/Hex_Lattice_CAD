@@ -1895,12 +1895,14 @@ async function openCopy(kind = 'copy') {
 document.getElementById('save-copy').onclick = () => openCopy('copy');
 document.getElementById('new-preset').onclick = () => openCopy('new');
 
-// A preset with nothing plugged in: every effect is in the chain, so there is a
-// card for each to open, and every slot is blank, so nothing draws until one is
-// filled. No knobs are listed - a patch that says nothing about them leaves them
-// where they are - and nothing is muted.
-const blankPatch = (name) => ({ccs: {}, slots: {}, cc_map: {}, active: Object.keys(rig.effects),
-                               muted: [], name});
+// A preset with nothing plugged in: the chain is empty, so no effect has a card
+// until it is added from the menu, and nothing is muted. No knobs are listed - a
+// patch that says nothing about them leaves them where they are. The box on the
+// desk says where its own defaults go (surfaces.json), so a new preset starts with
+// those controls on it - and with any that would land on it by accident parked on
+// a CC nothing sends.
+const blankPatch = (name) => ({ccs: {}, slots: {}, cc_map: {...surfaces[surfaceId]?.defaults},
+                               active: [], muted: [], name});
 
 copyDialog.querySelector('form').onsubmit = async (e) => {
   e.preventDefault();

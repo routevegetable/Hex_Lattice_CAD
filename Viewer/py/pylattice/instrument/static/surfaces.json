@@ -57,7 +57,17 @@
       27,
       28,
       29
-    ]
+    ],
+    "defaults": {
+      "fader_a.value": 12,
+      "fader_b.value": 13,
+      "param_a.value": 14,
+      "param_b.value": 15,
+      "wipe2.speed": 106,
+      "trace.speed": 107,
+      "ripple2.speed": 108,
+      "wipe1.speed": 109
+    }
   },
   "beatstep-pro": {
     "name": "Arturia BeatStep Pro",
