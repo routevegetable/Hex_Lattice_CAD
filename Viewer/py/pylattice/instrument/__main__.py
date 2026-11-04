@@ -1,6 +1,5 @@
 # Waves effect
 from collections.abc import Iterable
-import gc
 import math
 import time
 import traceback
@@ -118,11 +117,6 @@ def check_program():
     load_preset(chosen.data)
 
 
-# PyPy collects incrementally, so a bounded step per frame is what its GC
-# wants. CPython has no such thing - the youngest generation is the cheap
-# equivalent.
-gc_step = getattr(gc, "collect_step", None) or (lambda: gc.collect(0))
-
 frames = 0
 counted_from = Event.for_now()
 
@@ -154,12 +148,11 @@ while True:
         frames = 0
         counted_from = now
 
-    # Do GC every frame
-    t1 = time.time_ns()
-    dt_render = t1 - t0
-    
-    gc_step()
-    dt_gc = time.time_ns() - t1
+    # No explicit GC step: on PyPy gc.collect_step() is not bounded, and calling
+    # it every frame cost ~35% of the frame rate (105 vs 163 fps on a heavy
+    # preset). PyPy's own incremental collector works between frames.
+    dt_render = time.time_ns() - t0
+    dt_gc = 0
     
     # To sec
     dt = (dt_render + dt_gc) / 1000000000
