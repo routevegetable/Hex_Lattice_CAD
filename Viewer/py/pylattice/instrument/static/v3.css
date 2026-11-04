@@ -258,6 +258,7 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 .box .lit .cap { fill: #24334d; stroke: var(--accent); stroke-width: 2; }
 .box .lit .pointer { stroke: #cfe3ff; }
 .box .lit .tag, .box .lit .what { fill: #cfe3ff; }
+.map-off { font-size: 12px; margin: 8px 0 0; }
 #map.picking .spot.assigned { cursor: pointer; }
 #map.picking .spot.assigned:hover .cap { stroke: #e0b070; stroke-width: 2; }
 #map.picking { outline: 1px solid var(--accent); outline-offset: 6px; border-radius: 2px; }
@@ -278,6 +279,7 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 .map-menu { height: 0; }
 .map-menu .fpick-list { min-width: 260px; }
 .spot[data-cc]:not(.assigned) { cursor: pointer; }
+.map-off button { margin-left: 6px; }
 .spot.assigned[data-cc] { cursor: pointer; }
 .box .what.fx { fill: #6a8fd0; font-style: italic; }
 .map-legend { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }

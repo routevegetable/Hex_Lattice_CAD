@@ -295,7 +295,10 @@ async function writeSlot(key, tree) {
 
   const fresh = await get(`/presets/${n}`);
   remember(n, fresh.live);
-  const r = await put(`/presets/${n}`, {...fresh.live, slots: {...fresh.live.slots, [key]: tree}});
+  const slots = {...fresh.live.slots, [key]: tree};
+  // Controls a field brings are not placed on the box: that is done by hand, on
+  // the map (or with "assign them").
+  const r = await put(`/presets/${n}`, {...fresh.live, slots});
   if (!r.ok) { alert((await r.json()).detail); return; }
   await refresh();
 }
@@ -2025,12 +2028,13 @@ function drawMap() {
     if (spot) spot.dataset.cc = cc;
   }
 
-    const roles = new Map();          // spot -> the [field, role] of everything on it
+  const off = [];
+  const roles = new Map();          // spot -> the [field, role] of everything on it
   for (const c of here) {
     // A note can be several pads: the Akai's pads fold onto fewer BSP notes.
     const ids = [].concat((c.kind === 'cc' ? surface.ccs : surface.notes ?? {})[c.number] ?? []);
     const spots = ids.map(id => holder.querySelector(`#${CSS.escape(id)}`)).filter(Boolean);
-    if (!spots.length) continue;
+    if (!spots.length) { if (c.kind === 'cc' && fieldOwners(c).some(n => used.has(n))) off.push(c); continue; }
 
     for (const spot of spots) {
       spot.classList.add('assigned');
@@ -2101,6 +2105,17 @@ function drawMap() {
       });
     }
     mapBox.append(legend);
+  }
+
+  if (off.length) {
+    const note = document.createElement('p');
+    note.className = 'dim map-off';
+    note.textContent = `used, but not on this box: ${off.map(c => c.comments[0]).join(', ')} `;
+    const go = document.createElement('button');
+    go.textContent = 'assign them';
+    go.onclick = assignUsed;
+    note.append(go);
+    mapBox.append(note);
   }
 
   mapBox.classList.toggle('picking', mapPick !== null);
@@ -2177,7 +2192,77 @@ function pressedOnMap(spot) {
 
 document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && mapPick) endMapPick(); });
 
+// ---- putting a new field's controls on the box
+
+// The controls that want a fader, and where they would like to be: the four
+// general ones on F1-F4, the wipe speeds on any of the others, since a fader
+// shows when they are at halfway. Everything else goes on the knobs.
+const FADER_HOME = {'fader_a.value': 0, 'fader_b.value': 1, 'param_a.value': 2, 'param_b.value': 3};
+const FADER_ANY = ['wipe1.speed', 'wipe2.speed'];
+
 const fieldOf = (name) => name.split('.')[0];
+const fieldsOfSlots = (slots) => new Set(Object.values(slots).flatMap(fieldsIn).map(knobOwner));
+
+// The patch's cc_map once every control the slots use is on a fader or knob of
+// the box on the map. One already on the box stays where it is, and the CCs
+// those are on are taken; the rest go to the next free fader or knob. Returns
+// what was said about each one placed.
+function withControls(patch, slots) {
+  const surface = surfaces[surfaceId];
+  const cc_map = {...patch.cc_map};
+  const said = [];
+  if (!surface) return {cc_map, said};
+
+  const now = fieldsOfSlots(slots);
+  const effective = (c) => cc_map[c.comments[0]] ?? c.number;
+  const ours = controls.filter(c => c.kind === 'cc' && !c.hidden && c.comments.length
+                                    && now.has(knobOwner(fieldOf(c.comments[0]))));
+  const wanting = ours.filter(c => !(effective(c) in surface.ccs));
+  if (!wanting.length) return {cc_map, said};
+
+  const taking = new Set(wanting.map(c => c.comments[0]));
+  const taken = new Set(ours.filter(c => !taking.has(c.comments[0])).map(effective));
+
+  const faders = (surface.faders ?? []).filter(cc => !taken.has(cc));
+  const knobs = (surface.knobs ?? []).filter(cc => !taken.has(cc));
+  const place = (list, at) => list.splice(at >= 0 && at < list.length ? at : 0, 1)[0];
+
+  const rank = (c) => c.comments[0] in FADER_HOME ? 0 : FADER_ANY.includes(c.comments[0]) ? 1 : 2;
+  for (const c of [...wanting].sort((a, b) => rank(a) - rank(b))) {
+    const name = c.comments[0];
+    let cc;
+    if (name in FADER_HOME) {
+      // its own fader if that is free, the next one if not
+      const home = (surface.faders ?? [])[FADER_HOME[name]];
+      const at = faders.indexOf(home);
+      cc = faders.length ? place(faders, at) : knobs.length ? place(knobs, 0) : undefined;
+    } else if (FADER_ANY.includes(name)) {
+      cc = faders.length ? place(faders, 0) : knobs.length ? place(knobs, 0) : undefined;
+    } else {
+      cc = knobs.length ? place(knobs, 0) : faders.length ? place(faders, 0) : undefined;
+    }
+
+    if (cc === undefined) { said.push(`no free knob for ${name}`); continue; }
+    cc_map[name] = cc;
+    said.push(`${name} \u2192 ${surface.ccs[cc]}`);
+  }
+  return {cc_map, said};
+}
+
+// Put every control the playing preset uses, and that is not on the box, there.
+async function assignUsed() {
+  const n = rig.selected;
+  if (n === null) return;
+  const fresh = await get(`/presets/${n}`);
+  const {cc_map, said} = withControls(fresh.live, fresh.live.slots);
+  if (!said.length) return;
+  const r = await put(`/presets/${n}`, {...fresh.live, cc_map});
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  savedNote.textContent = said.join(', ');
+  clearTimeout(savedTimer);
+  savedTimer = setTimeout(() => { savedNote.textContent = ''; }, 6000);
+  await refresh();
+}
 
 // A CC nothing sends and nothing listens to: not on the box, not declared by
 // any control, not where the patch has put one.
