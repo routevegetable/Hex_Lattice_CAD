@@ -334,8 +334,11 @@ class TraceLinesField(ScalarField):
     horizontal classes are on a horizontal line, so bidirectional-h never
     starts on a C or an F.
 
-    Ten presses can be in flight together, each with its own end and its own
-    arms; the eleventh overwrites the oldest. The knobs are read live rather
+    A press fires from one vertex at the bottom of the nodes knob and from one
+    more for every step up it, each of them a whole mode's worth of arms.
+
+    Ten presses can be in flight together, each with its own vertices and its
+    own arms; the eleventh overwrites the oldest. The knobs are read live rather
     than kept with the press, so turning one moves everything still running.
 
     CC:
@@ -346,6 +349,7 @@ class TraceLinesField(ScalarField):
         * decay - how long the trail behind it takes to fade, 20ms for a bare
           head up to 2s
         * mode - straight, bidirectional or star
+        * nodes - how many vertices a press fires from, one more than the knob
     """
 
     TRACES = 10         # how many presses can be in flight at once
@@ -361,13 +365,18 @@ class TraceLinesField(ScalarField):
     # is a bare head, and a fall over no time at all is not a trail.
     DECAY = FloatRange(20, 2000, "ms", geometric=True)
 
+    # How many vertices a press fires from. The knob is the count less one, so
+    # 0 is one vertex and every step up adds another - a range rather than a
+    # list of 128 names, which reads the same and says so in the UI.
+    NODES = FloatRange(1, 128, "nodes")
+
     # Spread across the knob rather than sat on 0 to 6: seven positions is
     # seven places to put a thumb.
     MODE = CustomChoice({round(i * 127 / (len(MODE_FAMILIES) - 1)): name
                          for i, name in enumerate(MODE_FAMILIES)})
 
     def __init__(self, graph: Graph, midi: MIDIFor, *, note: int, speed: int,
-                 attack: int, decay: int, mode: int):
+                 attack: int, decay: int, mode: int, nodes: int):
         self._height = graph.height * TileRef.HEIGHT
 
         every = [
@@ -397,6 +406,7 @@ class TraceLinesField(ScalarField):
         self._attack_cc = midi.cc(attack, "attack", meta=self.ATTACK)
         self._decay_cc = midi.cc(decay, "decay", meta=self.DECAY)
         self._mode_cc = midi.cc(mode, "mode", meta=self.MODE)
+        self._nodes_cc = midi.cc(nodes, "nodes", meta=self.NODES)
 
         # The queue of presses - one latch each, a press rotates onto the next,
         # so the oldest is the one that gets overwritten. Nothing else is kept:
@@ -435,7 +445,7 @@ class TraceLinesField(ScalarField):
         holding = [classes for classes in holds if end.edge_class in classes]
         return holding[ev.rand(salt) % len(holding)]
 
-    def _star(self, ev: Event, ends: tuple[EndRef, ...]):
+    def _star(self, ev: Event, ends: tuple[EndRef, ...], salt: int = 0):
         """Three arms, one out of each end and each on a different family.
 
         Of the six ways out of a vertex there are only two ways to pick three
@@ -447,18 +457,23 @@ class TraceLinesField(ScalarField):
                        for end, (_, classes) in zip(order, FAMILIES))]
         assert len(ways) == 2, "a vertex should offer two stars"
 
-        order = ways[ev.rand(4) % len(ways)]
+        order = ways[ev.rand(salt + 4) % len(ways)]
         return [(end, classes) for end, (_, classes) in zip(order, FAMILIES)]
 
-    def _arms(self, ev: Event, mode: str):
-        """Where this press shoots from, and which line each arm holds."""
+    def _node(self, ev: Event, mode: str, which: int):
+        """One vertex's worth: where it shoots from, and the line each arm
+        holds. Mode says how many arms that is."""
         starts = self._starts[mode]
-        out = starts[ev.rand() % len(starts)]
+
+        # A salt per vertex, so the vertices of one press are drawn
+        # independently rather than all landing in the same place.
+        salt = which * 8
+        out = starts[ev.rand(salt) % len(starts)]
 
         if mode == "star":
-            return self._star(ev, out.vertex().ends_cw())
+            return self._star(ev, out.vertex().ends_cw(), salt)
 
-        classes = self._family_of(ev, out, 3, MODE_FAMILIES[mode])
+        classes = self._family_of(ev, out, salt + 3, MODE_FAMILIES[mode])
 
         if mode.startswith("bidirectional"):
             # The family's two ends at this vertex, which is the one line
@@ -467,6 +482,13 @@ class TraceLinesField(ScalarField):
                     if end.edge_class in classes]
 
         return [(out, classes)]
+
+    def _arms(self, ev: Event, mode: str, nodes: int):
+        """Where this press shoots from. A press fires from `nodes` vertices at
+        once, each of them a whole mode's worth of arms."""
+        return [arm
+                for which in range(nodes)
+                for arm in self._node(ev, mode, which)]
 
     def _regen(self, now: Event):
         """Re-trace every press in flight, if the time has moved on."""
@@ -485,6 +507,7 @@ class TraceLinesField(ScalarField):
         attack = self.ATTACK.at(self._attack_cc().data)
         decay = self.DECAY.at(self._decay_cc().data)
         mode = self.MODE.at(self._mode_cc().data)
+        nodes = round(self.NODES.at(self._nodes_cc().data))
 
         # The trail in edges, which is what a path is counted in.
         behind = decay / step
@@ -499,7 +522,7 @@ class TraceLinesField(ScalarField):
             if head + ahead <= 0 or head - behind > self._longest:
                 continue        # not off yet, or over and gone everywhere
 
-            for out, classes in self._arms(ev, mode):
+            for out, classes in self._arms(ev, mode, nodes):
                 for i, end in enumerate(along(out, classes, self._height)):
                     if i >= head + ahead:
                         break   # beyond even the rise that runs before the head
