@@ -233,6 +233,21 @@ const mutedIn = (n) => views[n]?.live.muted ?? [];
 const muted = () => mutedIn(rig.selected);
 const isMuted = (name) => muted().includes(name);
 
+// A line of the player's own words about an effect, kept in the preset beside
+// its name. Nothing renders from it.
+async function setNote(name, text) {
+  const n = rig.selected;
+  if (n === null) return;
+
+  const fresh = await get(`/presets/${n}`);
+  remember(n, fresh.live);
+  const {[name]: _gone, ...rest} = fresh.live.notes ?? {};
+  const notes = text ? {...rest, [name]: text} : rest;
+  const r = await put(`/presets/${n}`, {...fresh.live, notes});
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  await refresh();
+}
+
 async function setMuted(names) {
   const n = rig.selected;
   if (n === null) return;
@@ -2011,7 +2026,20 @@ function drawEffects() {
       return tag;
     });
 
-    head.append(cardGrip(card, head, name, names), title, ...fadeTag, count, sw, bin);
+    // Beside the name, so a folded effect still says what it is for.
+    const note = document.createElement('input');
+    note.className = 'note';
+    note.type = 'text';
+    note.placeholder = 'add a note';
+    note.spellcheck = false;
+    note.value = view.live.notes?.[name] ?? '';
+    note.onchange = () => setNote(name, note.value.trim());
+    note.onkeydown = (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); note.blur(); }
+      if (ev.key === 'Escape') { note.value = view.live.notes?.[name] ?? ''; note.blur(); }
+    };
+
+    head.append(cardGrip(card, head, name, names), title, note, ...fadeTag, count, sw, bin);
     cardDropTarget(card, name);
 
     card.append(head);
