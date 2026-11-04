@@ -258,6 +258,7 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 .box .lit .cap { fill: #24334d; stroke: var(--accent); stroke-width: 2; }
 .box .lit .pointer { stroke: #cfe3ff; }
 .box .lit .tag, .box .lit .what { fill: #cfe3ff; }
+.map-prompt { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; color: var(--accent); }
 
 /* the Akai's own picture: knobs over faders over the pads, larger type than the BeatStep's */
 .box.akai .section { fill: var(--dim); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
@@ -270,6 +271,10 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 .box.akai .pad.lit .cap { fill: #24334d; }
 .box.akai .fader.assigned .thumb { fill: #2b3441; }
 .box.akai .fader.lit .thumb { fill: #24334d; }
+.map-menu { height: 0; }
+.map-menu .fpick-list { min-width: 260px; }
+.spot[data-cc]:not(.assigned) { cursor: pointer; }
+.spot.assigned[data-cc] { cursor: pointer; }
 .box .what.fx { fill: #6a8fd0; font-style: italic; }
 .map-legend { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
 .map-legend td { padding: 3px 8px 3px 0; border-top: 1px solid var(--line); vertical-align: top; }

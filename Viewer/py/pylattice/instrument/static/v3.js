@@ -2056,6 +2056,15 @@ function drawMap() {
     for (const shape of spot.querySelectorAll('rect, circle, line'))
       shape.append(title.cloneNode(true));
   }
+  for (const [spot, rs] of roles) spot.dataset.names = JSON.stringify(rs.map(r => r.join('.')));
+  for (const spot of holder.querySelectorAll('.spot.assigned')) spot.onclick = () => {
+    if (spot.dataset.cc) unassignBar(spot);
+  };
+  // Clicking a knob or fader nothing is on offers a control for it. Turning one
+  // never asks anything.
+  for (const spot of holder.querySelectorAll('.spot[data-cc]:not(.assigned)'))
+    spot.onclick = () => assignMenu(spot);
+
   // The picture has no room for whole names, so the same assignments are listed
   // in full beneath it: control, what it moves, and the effects that use it.
   // Pads come first, in the Akai's own numbering, then the knobs and faders as drawn.
@@ -2108,6 +2117,81 @@ function syncMapKnobs() {
     }
   }
 }
+
+const fieldOf = (name) => name.split('.')[0];
+
+// A CC nothing sends and nothing listens to: not on the box, not declared by
+// any control, not where the patch has put one.
+function freeCC(cc_map) {
+  const used = new Set([...Object.keys(surfaces[surfaceId].ccs).map(Number),
+                        ...Object.values(cc_map),
+                        ...controls.filter(c => c.kind === 'cc').flatMap(c => [c.number, c.default])]);
+  for (let cc = CC_MAX; cc >= 0; cc--) if (!used.has(cc)) return cc;
+  return CC_MAX;
+}
+
+// Take a control off the knob or fader that was clicked: it goes back to the CC
+// it was declared with, which is not on this box.
+function unassignBar(spot) {
+  mapBox.querySelector('.map-menu')?.remove();
+  mapBox.querySelector('.map-prompt')?.remove();
+  const bar = document.createElement('div');
+  bar.className = 'map-prompt';
+  const msg = document.createElement('span');
+  msg.textContent = `${surfaces[surfaceId].ccs[spot.dataset.cc]}: take off`;
+  bar.append(msg);
+  for (const name of JSON.parse(spot.dataset.names ?? '[]')) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.onclick = async () => {
+      const n = rig.selected;
+      if (n === null) return;
+      const fresh = await get(`/presets/${n}`);
+      const {[name]: _, ...cc_map} = fresh.live.cc_map;
+      // Left out of the map a control goes back to the CC it was declared with, and
+      // one declared on this very knob would never leave it, so it is parked.
+      const declared = controls.find(c => c.kind === 'cc' && c.comments[0] === name)?.default;
+      if (declared === Number(spot.dataset.cc)) cc_map[name] = freeCC(cc_map);
+      const r = await put(`/presets/${n}`, {...fresh.live, cc_map});
+      if (!r.ok) { alert((await r.json()).detail); return; }
+      await refresh();
+    };
+    bar.append(b);
+  }
+  const cancel = document.createElement('button');
+  cancel.textContent = 'cancel';
+  cancel.onclick = () => bar.remove();
+  bar.append(cancel);
+  mapBox.prepend(bar);
+}
+
+// A menu of the controls, to put one on the knob or fader that was clicked.
+function assignMenu(spot) {
+  const cc = Number(spot.dataset.cc);
+  mapBox.querySelector('.map-menu')?.remove();
+  const box = document.createElement('div');
+  box.className = 'fpick map-menu';
+  mapBox.prepend(box);
+
+  const surface = surfaces[surfaceId];
+  const where = (c) => surface.ccs[(patchMap()[c.comments[0]]) ?? c.number] ?? '';
+  const open = fieldMenu(box, null, async (name) => {
+    box.remove();
+    const n = rig.selected;
+    if (n === null) return;
+    const fresh = await get(`/presets/${n}`);
+    const r = await put(`/presets/${n}`, {...fresh.live, cc_map: {...fresh.live.cc_map, [name]: cc}});
+    if (!r.ok) { alert((await r.json()).detail); return; }
+    await refresh();
+  }, {
+    placeholder: `put on ${surface.ccs[cc]}: search controls`,
+    entries: () => controls.filter(c => c.kind === 'cc' && !c.hidden && c.comments.length)
+        .map(c => ({group: fieldOf(c.comments[0]), text: c.comments[0], hint: where(c), value: c.comments[0]}))
+        .sort((a, b) => a.group.localeCompare(b.group) || a.text.localeCompare(b.text)),
+  });
+  open();
+}
+const patchMap = () => views[rig.selected]?.live?.cc_map ?? {};
 
 // ---- keeping up ----------------------------------------------------------
 
