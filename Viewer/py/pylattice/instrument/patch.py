@@ -55,7 +55,8 @@ def encode_field(field: ScalarField, names: dict[int, str]) -> FieldRef:
     raise ValueError(f"cannot write down a {type(field).__name__} that has no name")
 
 
-def decode_field(ref: FieldRef, by_name: dict[str, ScalarField]) -> ScalarField:
+def decode_field(ref: FieldRef, by_name: dict[str, ScalarField],
+                 clamp: bool = True) -> ScalarField:
     """The inverse: look the name up, or build what it describes."""
     if isinstance(ref, str):
         if ref not in by_name:
@@ -69,8 +70,8 @@ def decode_field(ref: FieldRef, by_name: dict[str, ScalarField]) -> ScalarField:
         if ref.op not in OPS:
             raise ValueError(f"no operator {ref.op!r} - try {', '.join(OPS)}")
         return CombinedField(OPS[ref.op],
-                             decode_field(ref.a, by_name),
-                             decode_field(ref.b, by_name))
+                             decode_field(ref.a, by_name, clamp),
+                             decode_field(ref.b, by_name, clamp), clamp)
 
     raise ValueError(f"cannot read a field from {ref!r}")
 
@@ -179,7 +180,9 @@ class Patch:
                 continue
 
             try:
-                field = decode_field(ref, by_name)
+                # A hue wraps round instead of saturating, so its formula is
+                # not held to 0-1 on the way.
+                field = decode_field(ref, by_name, clamp="hue" not in slot_name)
             except ValueError as e:
                 raise ValueError(f"{target}: {e}") from None
 

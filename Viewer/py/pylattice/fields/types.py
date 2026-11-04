@@ -73,12 +73,17 @@ class ConstantField(ScalarField):
 
 
 class CombinedField(ScalarField):
-    """Two fields under an operator, evaluated at the same end."""
+    """Two fields under an operator, evaluated at the same end.
 
-    def __init__(self, op, a: ScalarField, b: ScalarField):
+    The result is held to 0-1, except where it is a hue: a hue wraps round
+    rather than running out, so there `clamp` is off and 1.1 is 0.1.
+    """
+
+    def __init__(self, op, a: ScalarField, b: ScalarField, clamp: bool = True):
         self._op = op
         self._a = a
         self._b = b
+        self._clamp = clamp
 
     @property
     def op(self):
@@ -94,7 +99,7 @@ class CombinedField(ScalarField):
 
     def get(self, now: Event, end: EndRef) -> float:
         res = self._op(self._a.get(now, end), self._b.get(now, end))
-        return min(max(res, 0), 1)
+        return min(max(res, 0), 1) if self._clamp else res
 
     def __repr__(self) -> str:
         return f"({self._a!r} {self._op.__name__} {self._b!r})"
