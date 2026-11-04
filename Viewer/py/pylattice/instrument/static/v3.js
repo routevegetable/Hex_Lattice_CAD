@@ -1058,6 +1058,61 @@ const DRAG_PER_PX = 0.8;            // a touch over 150px for the whole range
 const clampCC = (v) => Math.max(0, Math.min(CC_MAX, v));
 const liveValue = (c) => knobs[c.number]?.value ?? c.value;
 
+// What a CC number is for, so its legend can say "bowtie" or "100 ms" rather
+// than 0-127. /rig says, per control name, what sort of control it is: a sweep,
+// a hue, or a list of named options. A knob two controls share may be described
+// by only one of them, so a described one wins; a stray knob is a plain 0-127.
+const PLAIN = {kind: 'float_range', start: 0, end: 127, unit: null};
+const isPlain = (m) => m.kind === 'float_range' && !m.unit && m.start === 0 && m.end === 127;
+const metaFor = (name) => rig?.control_meta?.[name] ?? PLAIN;
+const metaOf = (names) => names.map(metaFor).find(m => !isPlain(m)) ?? PLAIN;
+const metaOn = (cc) => metaOf(controls.filter(c => c.kind === 'cc' && c.number === Number(cc))
+                                      .flatMap(c => c.comments));
+
+// A gradient and a custom list are chosen from rather than swept, so these are
+// the only places a drag is allowed to stop. Empty means it sweeps.
+const DISCRETE = ['custom', 'gradient'];
+const optionsOf = (meta) => DISCRETE.includes(meta.kind)
+    ? Object.keys(meta.items ?? {}).map(Number).sort((a, b) => a - b)
+    : [];
+
+// The wire carries 0-127 whatever the list holds, and a field clamps, so the
+// nearest option is what it will actually act on.
+const nearestAt = (options, value) => options.reduce(
+    (best, k, i) => Math.abs(k - value) < Math.abs(options[best] - value) ? i : best, 0);
+
+// Where a value sits in its own range, 0-1, which is what a dial draws.
+function fracOf(meta, value) {
+  const options = optionsOf(meta);
+  if (options.length)
+    return options.length < 2 ? 0 : nearestAt(options, value) / (options.length - 1);
+  return Math.max(0, Math.min(1, value / CC_MAX));
+}
+
+// What to print for a value: the option's name, or the knob read in its own range.
+function readOut(meta, value) {
+  const options = optionsOf(meta);
+  if (options.length) return meta.items[options[nearestAt(options, value)]];
+  if (meta.kind === 'gradient') return value;       // no list declared yet
+
+  // The same curve FloatRange.at() uses on the other side.
+  const at = meta.geometric
+      ? meta.start * (meta.end / meta.start) ** (value / CC_MAX)
+      : meta.start + (meta.end - meta.start) * (value / CC_MAX);
+  const shown = Math.abs(at) >= 10 ? String(Math.round(at))
+                                   : (Number.isInteger(at) ? String(at) : at.toFixed(2));
+  return meta.unit ? `${shown} ${meta.unit}` : shown;
+}
+
+// Where a drag lands: the next option along for a list, anywhere for a sweep.
+const PER_STEP_PX = 24;             // a thumb's worth of travel per option
+function dragTo(meta, from, dy) {
+  const options = optionsOf(meta);
+  if (!options.length) return clampCC(Math.round(from + dy * DRAG_PER_PX));
+  const at = nearestAt(options, from) + Math.round(dy / PER_STEP_PX);
+  return options[Math.max(0, Math.min(options.length - 1, at))];
+}
+
 // A rev counter: three quarters of a turn with the gap at the bottom.
 const DIAL_FROM = Math.PI * 0.75, DIAL_SWEEP = Math.PI * 1.5, DIAL_R = 15;
 const dialAt = (r, a) => [20 + r * Math.cos(a), 20 + r * Math.sin(a)];
@@ -1069,7 +1124,7 @@ function arc(from, to) {
          `${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
 
-function makeDial(value) {
+function makeDial(value, meta = PLAIN) {
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('viewBox', '0 0 40 40');
@@ -1084,12 +1139,12 @@ function makeDial(value) {
   pin.setAttribute('class', 'pin');
   svg.append(track, fill, pin);
 
-  setDial(svg, value);
+  setDial(svg, value, meta);
   return svg;
 }
 
-function setDial(svg, value) {
-  const frac = Math.max(0, Math.min(1, value / CC_MAX));
+function setDial(svg, value, meta = PLAIN) {
+  const frac = fracOf(meta, value);
   const a = DIAL_FROM + DIAL_SWEEP * frac;
   svg.querySelector('.fill').setAttribute('d', frac > 0.002 ? arc(DIAL_FROM, a) : '');
 
@@ -1121,13 +1176,14 @@ function knobList(found) {
 
     const label = document.createElement('b');
     label.textContent = name;
+    const meta = metaOf(c.comments);
     const now = document.createElement('span');
     now.className = 'now';
-    now.textContent = liveValue(c);
+    now.textContent = readOut(meta, liveValue(c));
     const at = document.createElement('span');
     at.className = 'at';
     at.dataset.was = `cc ${c.number}${c.number === c.default ? '' : ' \u00b7 moved'}`;
-    row.append(makeDial(liveValue(c)), label, now, at);
+    row.append(makeDial(liveValue(c), meta), label, now, at);
 
     let from = null;
     row.onpointerdown = (e) => {
@@ -1137,12 +1193,12 @@ function knobList(found) {
     };
     row.onpointermove = (e) => {
       if (from === null) return;
-      const want = clampCC(Math.round(from.value + (from.y - e.clientY) * DRAG_PER_PX));
+      const want = dragTo(meta, from.value, from.y - e.clientY);
       if (want === liveValue(c)) return;
       from.turned = true;
       turnKnob(c.number, want);
-      setDial(row.querySelector('.dial'), want);
-      now.textContent = want;
+      setDial(row.querySelector('.dial'), want, meta);
+      now.textContent = readOut(meta, want);
     };
     // A frame already on its way may still carry the value from before the last
     // turn, so the dial is left to the drag for a moment after letting go.
@@ -1209,8 +1265,9 @@ function syncKnobs() {
   for (const el of document.querySelectorAll('#effects .knob')) {
     const k = knobs[el.dataset.cc];
     if (!k) continue;
-    setDial(el.querySelector('.dial'), k.value);
-    el.querySelector('.now').textContent = k.value;
+    const meta = metaOn(el.dataset.cc);
+    setDial(el.querySelector('.dial'), k.value, meta);
+    el.querySelector('.now').textContent = readOut(meta, k.value);
   }
 }
 
