@@ -2648,8 +2648,16 @@ let formulasFor = null;
 // is torn down and rebuilt with nothing new in it flickers under the scrolling.
 let effectsDrawn = '';
 
+// What the page has fetched, by the server's own counters (see Stats): a patch
+// is pulled again only when `revision` moves, and the knobs alone only touch the
+// selected preset, which is the one they make drift from its file.
+let seen = {revision: null, knobs: null};
+
 async function refresh() {
+  // Read before the rest, so a change landing during the fetch is seen next poll.
+  const stats = await get('/stats');
   [rig, views, controls] = await Promise.all([get('/rig'), get('/presets'), get('/controls')]);
+  seen = {revision: stats.revision, knobs: stats.knobs};
   if (rig.selected !== formulasFor) {
     editing = {};
     formulaOpen.clear();
@@ -2670,13 +2678,26 @@ async function refresh() {
   }
 }
 
-async function drawStats() {
-  const s = await get('/stats');
-  document.getElementById('fps').textContent = `${s.fps.toFixed(0)} fps`;
+// The knobs moved and the patch did not: only the playing preset's drift from
+// its file can have changed.
+async function refreshLive() {
+  const n = rig?.selected;
+  if (n === null || n === undefined) return;
+  views[n] = await get(`/presets/${n}`);
+  drawPresets();
 }
 
-loadSurfaces().then(refresh); drawStats();
+async function poll() {
+  const s = await get('/stats');
+  document.getElementById('fps').textContent = `${s.fps.toFixed(0)} fps`;
+
+  if (s.revision !== seen.revision) await refresh();
+  else if (s.knobs !== seen.knobs) { seen.knobs = s.knobs; await refreshLive(); }
+}
+
+loadSurfaces().then(refresh);
 
 // The preset can change from the controller - a program change - so the bar
-// follows it rather than showing what it was at load.
-setInterval(() => { refresh(); drawStats(); }, 1000);
+// follows it rather than showing what it was at load. One small request a second;
+// nothing else is fetched unless the server says something changed.
+setInterval(poll, 1000);

@@ -20,6 +20,13 @@ class Stats:
     fps: float = 0.0
     render_ms: float = 0.0
     gc_ms: float = 0.0
+    # Bumped whenever a preset is written, selected, committed or reverted. A UI
+    # that polls this refetches the patch only when it moves, instead of
+    # pulling every preset on a timer.
+    revision: int = 0
+    # A digest of where the watched knobs sit, so a UI can tell they moved
+    # (the playing preset drifts from its file) without fetching anything.
+    knobs: int = 0
 
     # What each slot's gets cost, by "effect.slot", for the slots that were
     # asked for something in the second just gone. Microseconds.
@@ -116,6 +123,7 @@ class Console:
         self._by_effect: dict[str, Effect] = named(effects, Effect)
         self._stats = Stats()
         self._selected: int | None = None
+        self._revision = 0
 
     def controls(self) -> list[ControlInfo]:
         """Every control the instrument watches, and what for.
@@ -213,6 +221,7 @@ class Console:
         other preset is silent - it just sits there until something selects it.
         """
         with self.lock:
+            self._revision += 1
             self._bank.put(number, patch)
 
             if number == self._selected:
@@ -221,6 +230,7 @@ class Console:
     def select_preset(self, number: int):
         """Play what is in a preset's live side."""
         with self.lock:
+            self._revision += 1
             patch = self._bank.read(number)
             self._select(number)            # before applying, so it banks here
             self._apply(patch)
@@ -228,12 +238,14 @@ class Console:
     def commit_preset(self, number: int):
         """Write a preset's live side out to its file."""
         with self.lock:
+            self._revision += 1
             self._bank.save(number)
 
     def revert_preset(self, number: int):
         """Drop a preset's edits and read its file back. If it is the one
         playing, the rig goes back with it."""
         with self.lock:
+            self._revision += 1
             patch = self._bank.revert(number)
 
             if number == self._selected:
@@ -263,15 +275,18 @@ class Console:
 
     def get_stats(self) -> Stats:
         with self.lock:
-            return Stats(self._stats.fps, self._stats.render_ms,
-                         self._stats.gc_ms, dict(self._stats.slots))
+            # Modulo keeps it inside what a JSON number in a browser holds exactly.
+            knobs = hash(tuple(sorted(self._live_ccs().items()))) % 1_000_000_007
+            return Stats(self._stats.fps, self._stats.render_ms, self._stats.gc_ms,
+                         revision=self._revision, knobs=knobs,
+                         slots=dict(self._stats.slots))
 
     def set_stats(self, fps: float, render_ms: float, gc_ms: float):
         """Take the loop's numbers for the second just gone, and close off the
         slots' own second at the same time - called once a second, which is
         what makes it the window everything here is measured over."""
         with self.lock:
-            self._stats = Stats(fps, render_ms, gc_ms, self._slot_timings())
+            self._stats = Stats(fps, render_ms, gc_ms, slots=self._slot_timings())
 
     def _slot_timings(self) -> dict[str, Timing]:
         """Every slot that was asked for something this second, by
