@@ -1,16 +1,22 @@
 {
   "ccs": {
     "12": 0,
-    "13": 127,
-    "14": 0,
-    "15": 12,
+    "13": 0,
+    "14": 96,
+    "15": 0,
+    "16": 0,
+    "17": 49,
+    "18": 127,
+    "19": 80,
+    "71": 86,
     "72": 0,
     "73": 0,
     "75": 127,
-    "77": 127,
+    "76": 0,
+    "77": 68,
     "79": 0,
     "91": 65,
-    "93": 35,
+    "93": 62,
     "102": 0,
     "103": 0,
     "104": 25,
@@ -18,78 +24,144 @@
     "106": 0,
     "107": 0,
     "108": 26,
-    "109": 0,
-    "110": 14,
-    "111": 28,
-    "112": 0,
-    "113": 0,
+    "109": 102,
+    "110": 17,
+    "111": 56,
+    "112": 22,
+    "113": 108,
     "114": 92,
     "115": 0,
     "116": 0,
-    "117": 0
+    "117": 0,
+    "127": 0
   },
   "slots": {
-    "map_fiber.hue": {
-      "op": "add",
-      "a": {
-        "op": "mul",
-        "a": "v_gradient",
-        "b": 0.2
-      },
-      "b": 0.72
-    },
+    "map_fiber.hue": 0.7,
     "map_fiber.value": {
-      "op": "sub",
-      "a": {
-        "op": "add",
-        "a": {
-          "op": "sub",
-          "a": "param_a",
-          "b": "v_gradient"
-        },
-        "b": 0.2
-      },
-      "b": "v_edges"
-    },
-    "map_fiber.sat": 1.0,
-    "map_fiber2.hue": 0.05,
-    "map_fiber2.sat": 1.0,
-    "map_fiber2.value": {
       "op": "mul",
       "a": {
         "op": "mul",
         "a": {
           "op": "mul",
-          "a": "d1_edges",
-          "b": "strobe0"
-        },
-        "b": {
-          "op": "mul",
           "a": {
-            "op": "sub",
-            "a": 1.0,
+            "op": "mul",
+            "a": {
+              "op": "sub",
+              "a": 0.6,
+              "b": "rotary"
+            },
+            "b": {
+              "op": "sub",
+              "a": 0.8,
+              "b": "v_rotary"
+            }
+          },
+          "b": "wipe1"
+        },
+        "b": 5.0
+      },
+      "b": "fader_a"
+    },
+    "map_fiber.sat": 0.5,
+    "map_fiber2.hue": 0.67,
+    "map_fiber2.sat": 0.65,
+    "map_fiber2.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": {
+          "op": "add",
+          "a": {
+            "op": "mul",
+            "a": "d1_edges",
             "b": "strobe0"
           },
-          "b": "d2_edges"
-        }
+          "b": {
+            "op": "mul",
+            "a": {
+              "op": "sub",
+              "a": 1.0,
+              "b": "strobe0"
+            },
+            "b": "d2_edges"
+          }
+        },
+        "b": 0.45
       },
       "b": "fader_b"
-    }
+    },
+    "map_fiber3.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": {
+          "op": "mul",
+          "a": {
+            "op": "mul",
+            "a": {
+              "op": "sub",
+              "a": 0.3,
+              "b": "v_gradient"
+            },
+            "b": 10.0
+          },
+          "b": "strobe0"
+        },
+        "b": "v_edges"
+      },
+      "b": "fader_c"
+    },
+    "bg_waves.value": "strobe2",
+    "map_fiber3.hue": 0.67,
+    "map_fiber3.sat": 0.6,
+    "net.hue": 0.67,
+    "net.value": {
+      "op": "mul",
+      "a": 1.0,
+      "b": "fader_d"
+    },
+    "net.sat": {
+      "op": "sub",
+      "a": 0.9,
+      "b": {
+        "op": "mul",
+        "a": 0.2,
+        "b": "strobe1"
+      }
+    },
+    "net.amp": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": "strobe1",
+        "b": 0.5
+      },
+      "b": 0.02
+    },
+    "bg_waves.sat": 1.0
   },
   "cc_map": {
     "fader_a.value": 12,
     "fader_b.value": 13,
-    "param_a.value": 14,
-    "param_b.value": 15,
     "wipe2.speed": 106,
     "trace.speed": 107,
     "ripple2.speed": 108,
-    "wipe1.speed": 109
+    "wipe1.speed": 109,
+    "fader_h.value": 127,
+    "v_gradient.origin": 19
   },
   "active": [
+    "net",
     "map_fiber",
-    "map_fiber2"
+    "map_fiber2",
+    "map_fiber3",
+    "bg_waves"
   ],
-  "muted": [],
+  "muted": [
+    "bg_waves",
+    "map_fiber",
+    "map_fiber2",
+    "net"
+  ],
   "name": "subzero-1"
 }
