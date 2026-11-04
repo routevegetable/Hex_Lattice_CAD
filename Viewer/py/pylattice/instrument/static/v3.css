@@ -61,6 +61,7 @@ aside { min-width: 0; }
 .effect-head .card-grip { font-size: 16px; padding: 4px 2px; }
 .effect-head .title { flex: 1; display: flex; align-items: center; gap: 8px; border: none;
                       background: none; text-align: left; padding: 4px 0; font-size: 14px; }
+.effect-head .fade-tag { font-size: 12px; padding: 0 6px; border-radius: 8px; background: #24334d; color: #cfe3ff; }
 .effect-head .title b { font-weight: 600; }
 .chev { width: 14px; color: var(--dim); font-size: 16px; line-height: 1; text-align: center; }
 .dim { color: var(--dim); font-size: 12px; }
@@ -96,6 +97,7 @@ aside { min-width: 0; }
 .slot.mode-field { border-left-color: #4fb3a9; }
 .slot.mode-formula { border-left-color: #b08cf0; }
 .slot-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.slot-head .fade { margin-left: auto; padding: 1px 4px; font-size: 12px; }
 .slot-head .name { color: var(--text); font-weight: 600; font-size: 13px; min-width: 44px; }
 .slot .expr { color: var(--dim); font-family: ui-monospace, monospace; font-size: 12px;
               overflow-wrap: anywhere; }
@@ -295,6 +297,7 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
    lands on the letters you can see. Both must be laid out the same way. */
 .slot-head .pencil { margin-left: auto; padding: 1px 8px; font-size: 13px; }
 .slot-head .pencil.on { background: #2f5597; color: #fff; }
+.slot-head .pencil + .fade { margin-left: 0; }
 .typing { padding: 4px 0; }
 .exprbox { position: relative; }
 .exprbox pre, .exprbox textarea {

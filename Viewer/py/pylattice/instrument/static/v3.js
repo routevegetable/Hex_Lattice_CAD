@@ -289,12 +289,20 @@ async function setActive(names) {
 
 // Change one slot of the playing preset, and nothing else - read just now, as
 // with the chain, so the knobs in it are where they are.
-async function writeSlot(key, tree) {
+//
+// A `value` slot can have a fader as its outermost step. The editor never shows
+// it, so what is written here is the rest of the expression and the fader the
+// slot already has is put back around it - unless one is passed, `null` for none.
+async function writeSlot(key, tree, fader) {
   const n = rig.selected;
   if (n === null) return;
 
   const fresh = await get(`/presets/${n}`);
   remember(n, fresh.live);
+  if (isValueSlot(key)) {
+    const outer = fader === undefined ? splitFader(fresh.live.slots[key] ?? null).fader : fader;
+    tree = withFader(tree, outer);
+  }
   const slots = {...fresh.live.slots, [key]: tree};
   // Controls a field brings are not placed on the box: that is done by hand, on
   // the map (or with "assign them").
@@ -861,6 +869,30 @@ function textEditor(key, tree) {
   setTimeout(() => { paint(); area.focus(); }, 0);
   return wrap;
 }
+
+// The faders a value slot can be put on, in the order they are offered.
+const FADERS = ['fader_a', 'fader_b', 'fader_c', 'fader_d', 'fader_e', 'fader_f', 'fader_g', 'fader_h'];
+
+// The slot called `value` is the brightness - not hue, sat, or an effect's own
+// parameter.
+const isValueSlot = (key) => key.split('.').slice(1).join('.') === 'value';
+
+// A value slot taken apart: the fader it is multiplied by as the outermost step
+// (null for none) and the rest of the expression (null when the fader is all).
+function splitFader(tree) {
+  if (typeof tree === 'string' && FADERS.includes(tree)) return {fader: tree, inner: null};
+  if (tree !== null && typeof tree === 'object' && tree.op === 'mul') {
+    if (FADERS.includes(tree.a)) return {fader: tree.a, inner: tree.b};
+    if (FADERS.includes(tree.b)) return {fader: tree.b, inner: tree.a};
+  }
+  return {fader: null, inner: tree};
+}
+
+// ... and put back together.
+const withFader = (inner, fader) =>
+    fader === null || fader === undefined ? inner
+    : inner === null || inner === undefined ? fader
+    : {op: 'mul', a: inner, b: fader};
 
 // A small constant | field switch, the same idea as a slot's own.
 function makeSeg(mode, parts, small) {
@@ -1480,7 +1512,8 @@ listen();
 
 function slotRow(key, saved) {
   // A formula half-built in the editor is what is on show, not what is saved.
-  let tree = key in editing ? editing[key] : saved;
+  const {fader, inner} = isValueSlot(key) ? splitFader(saved) : {fader: null, inner: saved};
+  let tree = key in editing ? editing[key] : inner;
 
   // A hue slot in a shape the wheel can show gets the wheel, and keeps it while
   // the formula editor is open below, for as long as the formula stays valid. An
@@ -1668,7 +1701,8 @@ function slotRow(key, saved) {
   head.className = 'slot-head';
   head.append(name, seg);
 
-  // Type the formula instead of building it.
+  // Type the formula instead of building it. On a value slot the fader is not
+  // part of the text, as it is not part of the editor.
   const pencil = document.createElement('button');
   pencil.className = 'pencil' + (texting.has(key) ? ' on' : '');
   pencil.textContent = '\u270e';
@@ -1678,6 +1712,34 @@ function slotRow(key, saved) {
     drawEffects();
   };
   head.append(pencil);
+
+  // A fader over the whole of a brightness slot, as the outermost step. It is
+  // not drawn in the expression; it is chosen here, and only here.
+  if (isValueSlot(key)) {
+    const pick = document.createElement('select');
+    pick.className = 'fade';
+    pick.title = 'multiply the whole slot by a fader, as the outermost step';
+    // A fader another slot already reads - another effect's brightness, or
+    // anything else - is greyed out; this slot's own is not "elsewhere".
+    const elsewhere = new Set();
+    for (const [k, t] of Object.entries(views[rig.selected]?.live.slots ?? {})) {
+      if (k === key) continue;
+      fieldsIn(t).forEach(n => elsewhere.add(n));
+    }
+    for (const f of [null, ...FADERS]) {
+      const o = document.createElement('option');
+      if (f !== null && elsewhere.has(f)) {
+        o.disabled = true;
+        o.title = 'already used by another slot';
+      }
+      o.value = f ?? '';
+      o.textContent = f ?? 'no fader';
+      pick.append(o);
+    }
+    pick.value = fader ?? '';
+    pick.onchange = () => writeSlot(key, inner, pick.value || null);
+    head.append(pick);
+  }
 
   row.append(head, ctl);
   if (texting.has(key)) {
@@ -1938,7 +2000,18 @@ function drawEffects() {
       setActive(names.filter(n => n !== name));
     };
 
-    head.append(cardGrip(card, head, name, names), title, count, sw, bin);
+    // The fader over the brightness stays in view when the effect is folded.
+    const faders = keys.filter(isValueSlot)
+        .map(k => splitFader(view.live.slots[k] ?? null).fader).filter(f => f !== null);
+    const fadeTag = faders.map(f => {
+      const tag = document.createElement('span');
+      tag.className = 'fade-tag';
+      tag.textContent = f;
+      tag.title = `brightness is on ${f}`;
+      return tag;
+    });
+
+    head.append(cardGrip(card, head, name, names), title, ...fadeTag, count, sw, bin);
     cardDropTarget(card, name);
 
     card.append(head);
