@@ -1,4 +1,5 @@
 """What a field is: the protocols it implements, and how fields combine."""
+
 import operator
 from typing import Protocol, runtime_checkable
 
@@ -52,6 +53,7 @@ class ColorField(Protocol):
     """
     Something that has a color for each end.
     """
+
     def get(self, now: Event, end: EndRef) -> RGB: ...
 
 
@@ -75,25 +77,16 @@ class ConstantField(ScalarField):
 class CombinedField(ScalarField):
     """Two fields under an operator, evaluated at the same end."""
 
-    def __init__(self, op, a: ScalarField, b: ScalarField):
+    def __init__(self, op, a: ScalarField, b: ScalarField, mod: bool):
         self._op = op
         self._a = a
         self._b = b
-
-    @property
-    def op(self):
-        return self._op
-
-    @property
-    def a(self) -> ScalarField:
-        return self._a
-
-    @property
-    def b(self) -> ScalarField:
-        return self._b
+        self._mod = mod
 
     def get(self, now: Event, end: EndRef) -> float:
         res = self._op(self._a.get(now, end), self._b.get(now, end))
+        if self._mod:
+            return res % 1
         return min(max(res, 0), 1)
 
     def __repr__(self) -> str:
@@ -131,6 +124,7 @@ def _combine(op, a: "ScalarField | float", b: "ScalarField | float") -> ScalarFi
         return NotImplemented
     return CombinedField(op, a, b)
 
+
 class Slot(ScalarField):
     """A mutable cell an effect owns, holding whatever field drives it.
 
@@ -157,7 +151,8 @@ class Slot(ScalarField):
         if resolved is None:
             raise TypeError(
                 f"slot {self.name!r} takes a ScalarField or a number,"
-                f" not {type(field).__name__}")
+                f" not {type(field).__name__}"
+            )
         self._field = resolved
         return resolved
 
