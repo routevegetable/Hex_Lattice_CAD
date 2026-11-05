@@ -3,20 +3,20 @@
     "12": 0,
     "13": 0,
     "14": 0,
-    "15": 39,
+    "15": 0,
     "16": 0,
     "17": 0,
     "18": 0,
-    "19": 127,
-    "22": 65,
-    "23": 101,
+    "19": 0,
+    "22": 63,
+    "23": 41,
     "71": 86,
-    "72": 2,
+    "72": 3,
     "73": 0,
     "75": 127,
     "76": 0,
     "77": 68,
-    "79": 62,
+    "79": 0,
     "91": 65,
     "93": 2,
     "102": 0,
@@ -35,9 +35,16 @@
     "115": 0,
     "116": 0,
     "117": 40,
+    "118": 0,
     "119": 1,
     "120": 0,
-    "121": 0
+    "121": 0,
+    "122": 0,
+    "123": 0,
+    "124": 0,
+    "125": 0,
+    "126": 127,
+    "127": 0
   },
   "slots": {
     "bg_waves.hue": "param_a",
@@ -48,45 +55,60 @@
       "a": {
         "op": "mul",
         "a": "param_a",
-        "b": 0.08
+        "b": 0.05,
+        "mod": false
       },
-      "b": 0.01
+      "b": 0.01,
+      "mod": false
     },
     "map_fiber.value": {
       "op": "mul",
       "a": "ripple",
-      "b": "fader_h"
+      "b": "fader_h",
+      "mod": false
     },
     "map_fiber.sat": {
       "op": "add",
       "a": {
         "op": "mul",
         "a": "param_b",
-        "b": 0.3
+        "b": 0.3,
+        "mod": false
       },
-      "b": 0.98
+      "b": 0.96,
+      "mod": false
     },
     "glitter.hue_1": {
       "op": "add",
       "a": {
         "op": "mul",
         "a": "fader_b",
-        "b": 0.05
+        "b": 0.05,
+        "mod": false
       },
-      "b": 0.02
+      "b": 0.98,
+      "mod": false
     },
     "glitter.hue_2": {
       "op": "add",
-      "a": "fader_c",
-      "b": 0.99,
+      "a": {
+        "op": "mul",
+        "a": "fader_c",
+        "b": 0.04,
+        "mod": false
+      },
+      "b": 1.01,
       "mod": true
     },
     "glitter.value": {
       "op": "mul",
       "a": 1.0,
-      "b": "fader_a"
+      "b": "fader_a",
+      "mod": false
     },
-    "glitter.spin_rate": "fader_d"
+    "glitter.spin_rate": "fader_d",
+    "glitter.sat_1": 1.0,
+    "glitter.sat_2": 1.0
   },
   "cc_map": {
     "fader_a.value": 12,

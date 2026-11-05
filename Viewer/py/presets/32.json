@@ -1,8 +1,8 @@
 {
   "ccs": {
-    "12": 0,
-    "13": 127,
-    "14": 127,
+    "12": 63,
+    "13": 0,
+    "14": 0,
     "15": 0,
     "16": 0,
     "17": 0,
@@ -39,9 +39,16 @@
     "115": 0,
     "116": 0,
     "117": 0,
+    "118": 0,
     "119": 1,
     "120": 0,
-    "121": 0
+    "121": 0,
+    "122": 0,
+    "123": 0,
+    "124": 0,
+    "125": 0,
+    "126": 127,
+    "127": 0
   },
   "slots": {
     "bg_waves.hue": {
@@ -51,13 +58,31 @@
         "a": {
           "op": "mul",
           "a": "rotary",
-          "b": "v_rotary"
+          "b": "v_rotary",
+          "mod": false
         },
-        "b": 0.05
+        "b": 0.05,
+        "mod": false
       },
-      "b": 0.67
+      "b": 0.67,
+      "mod": false
     },
-    "bg_waves.value": "fader_a",
+    "bg_waves.value": {
+      "op": "mul",
+      "a": {
+        "op": "mul",
+        "a": 1.0,
+        "b": {
+          "op": "mul",
+          "a": "hexes",
+          "b": "fader_b",
+          "mod": false
+        },
+        "mod": false
+      },
+      "b": "fader_a",
+      "mod": false
+    },
     "bg_waves.sat": 1.0,
     "bg_waves.flow": 0.1,
     "map_fiber.value": {
@@ -65,9 +90,11 @@
       "a": {
         "op": "mul",
         "a": "hexes",
-        "b": "fader_b"
+        "b": "fader_b",
+        "mod": false
       },
-      "b": "fader_b"
+      "b": "fader_b",
+      "mod": false
     },
     "map_fiber.sat": 1.0,
     "map_fiber.hue": {
@@ -77,14 +104,17 @@
         "a": {
           "op": "mul",
           "a": "v_rotary",
-          "b": 0.3
+          "b": 0.3,
+          "mod": false
         },
-        "b": 0.65
+        "b": 0.65,
+        "mod": false
       },
       "b": {
         "op": "mul",
         "a": "param_a",
-        "b": 0.1
+        "b": 0.1,
+        "mod": false
       },
       "mod": true
     },
@@ -93,14 +123,17 @@
       "a": {
         "op": "mul",
         "a": "scope",
-        "b": 0.35
+        "b": 0.35,
+        "mod": false
       },
-      "b": 0.63
+      "b": 0.63,
+      "mod": false
     },
     "map_fiber2.value": {
       "op": "mul",
       "a": "scope",
-      "b": "param_b"
+      "b": "param_b",
+      "mod": false
     },
     "map_fiber2.sat": 1.0
   },

@@ -1,10 +1,14 @@
 {
   "ccs": {
-    "10": 127,
+    "10": 0,
+    "12": 8,
+    "13": 0,
+    "14": 0,
+    "15": 0,
     "16": 127,
     "17": 36,
     "18": 86,
-    "19": 127,
+    "19": 114,
     "71": 127,
     "72": 0,
     "73": 0,
@@ -15,8 +19,35 @@
     "79": 18,
     "91": 68,
     "93": 0,
+    "100": 0,
+    "101": 0,
     "102": 0,
-    "114": 65
+    "103": 0,
+    "104": 3,
+    "105": 19,
+    "106": 62,
+    "107": 61,
+    "108": 1,
+    "109": 102,
+    "110": 0,
+    "111": 103,
+    "112": 4,
+    "113": 12,
+    "114": 65,
+    "115": 0,
+    "116": 0,
+    "117": 40,
+    "118": 0,
+    "119": 1,
+    "120": 0,
+    "121": 0,
+    "122": 0,
+    "123": 0,
+    "124": 0,
+    "125": 0,
+    "126": 127,
+    "127": 0,
+    "99": 0
   },
   "slots": {
     "bg_waves.hue": {
@@ -24,22 +55,22 @@
       "a": {
         "op": "mul",
         "a": "wipe1",
-        "b": 0.38
+        "b": 0.38,
+        "mod": false
       },
-      "b": 0.16
+      "b": 0.16,
+      "mod": false
     },
     "bg_waves.value": {
-      "op": "mul",
+      "op": "add",
       "a": {
-        "op": "add",
-        "a": {
-          "op": "mul",
-          "a": 0.69,
-          "b": "wipe1"
-        },
-        "b": 0.09
+        "op": "mul",
+        "a": 0.69,
+        "b": "wipe1",
+        "mod": false
       },
-      "b": "fader_b"
+      "b": 0.09,
+      "mod": false
     },
     "bg_waves.sat": 1.0,
     "bg_waves.flow": 0.0,
@@ -48,9 +79,11 @@
       "a": {
         "op": "mul",
         "a": "wipe1",
-        "b": 0.0
+        "b": 0.0,
+        "mod": false
       },
-      "b": 2.0
+      "b": 2.0,
+      "mod": false
     },
     "bg_waves2.value": {
       "op": "mul",
@@ -59,11 +92,14 @@
         "a": {
           "op": "mul",
           "a": "wipe1",
-          "b": 0.69
+          "b": 0.69,
+          "mod": false
         },
-        "b": 0.09
+        "b": 0.09,
+        "mod": false
       },
-      "b": "fader_a"
+      "b": "fader_a",
+      "mod": false
     },
     "bg_waves2.sat": 1.0,
     "bg_waves2.flow": 0.0,
@@ -80,9 +116,11 @@
       "a": {
         "op": "mul",
         "a": 0.53,
-        "b": "strobe0"
+        "b": "strobe0",
+        "mod": false
       },
-      "b": "h_edges"
+      "b": "h_edges",
+      "mod": false
     },
     "prob_zaps.prob": 1.0,
     "map_fiber.hue": {
@@ -90,7 +128,8 @@
       "a": {
         "op": "mul",
         "a": "wipe1",
-        "b": 0.21
+        "b": 0.21,
+        "mod": false
       },
       "b": 0.91,
       "mod": true
@@ -105,16 +144,21 @@
           "b": {
             "op": "mul",
             "a": "wipe1",
-            "b": 0.5
-          }
+            "b": 0.5,
+            "mod": false
+          },
+          "mod": false
         },
-        "b": "fader_a"
+        "b": "fader_a",
+        "mod": false
       },
       "b": {
         "op": "sub",
         "a": 1.0,
-        "b": "strobe2"
-      }
+        "b": "strobe2",
+        "mod": false
+      },
+      "mod": false
     },
     "map_fiber.sat": 1.0,
     "map_fiber2.hue": {
@@ -122,9 +166,11 @@
       "a": {
         "op": "mul",
         "a": "wipe1",
-        "b": 0.38
+        "b": 0.38,
+        "mod": false
       },
-      "b": 0.17
+      "b": 0.17,
+      "mod": false
     },
     "map_fiber2.value": {
       "op": "mul",
@@ -133,11 +179,14 @@
         "a": {
           "op": "mul",
           "a": 0.33,
-          "b": "wipe1"
+          "b": "wipe1",
+          "mod": false
         },
-        "b": 0.09
+        "b": 0.09,
+        "mod": false
       },
-      "b": "fader_b"
+      "b": "fader_b",
+      "mod": false
     },
     "map_fiber2.sat": 1.0,
     "map_fiber3.hue": {
@@ -145,14 +194,17 @@
       "a": {
         "op": "mul",
         "a": "rotary",
-        "b": 0.38
+        "b": 0.38,
+        "mod": false
       },
-      "b": 0.6
+      "b": 0.6,
+      "mod": false
     },
     "map_fiber3.value": {
       "op": "mul",
       "a": "strobe1",
-      "b": 0.58
+      "b": 0.58,
+      "mod": false
     },
     "map_fiber3.sat": 0.98,
     "glitter.hue_1": 0.0,
@@ -164,7 +216,13 @@
     "sparks.prob": 0.0,
     "sparks.hue": 0.0
   },
-  "cc_map": {},
+  "cc_map": {
+    "fader_b.value": 13,
+    "fader_a.value": 12,
+    "fader_e.value": 101,
+    "fader_g.value": 100,
+    "fader_h.value": 99
+  },
   "active": [
     "bg_waves",
     "prob_zaps",
@@ -173,5 +231,6 @@
     "map_fiber3"
   ],
   "muted": [],
-  "name": "kidney-1"
+  "name": "kidney-1",
+  "notes": {}
 }

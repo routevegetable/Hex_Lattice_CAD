@@ -1,9 +1,9 @@
 {
   "ccs": {
-    "12": 43,
+    "12": 0,
     "13": 0,
     "14": 0,
-    "15": 39,
+    "15": 0,
     "16": 0,
     "17": 0,
     "18": 0,
@@ -23,18 +23,17 @@
     "107": 0,
     "108": 26,
     "109": 0,
-    "110": 14,
-    "111": 28,
+    "110": 108,
+    "111": 87,
     "112": 0,
     "113": 0,
-    "114": 92,
+    "114": 20,
     "115": 0,
     "116": 0,
     "117": 0,
     "119": 1,
     "120": 0,
-    "121": 0,
-    "125": 0
+    "121": 0
   },
   "slots": {
     "bg_waves.sat": 0.9,
@@ -46,29 +45,56 @@
         "op": "mul",
         "a": {
           "op": "mul",
-          "a": "rotary",
-          "b": {
-            "op": "mul",
-            "a": "burst",
-            "b": 0.5,
+          "a": {
+            "op": "add",
+            "a": {
+              "op": "mul",
+              "a": "rotary",
+              "b": "v_gradient",
+              "mod": false
+            },
+            "b": "fire",
             "mod": false
           },
-          "mod": false
+          "b": 10.0,
+          "mod": true
         },
-        "b": 0.39,
+        "b": 0.25,
         "mod": false
       },
-      "b": 0.61,
-      "mod": false
-    },
-    "light_all_fibers.value": 1.0,
-    "light_all_fibers.sat": 1.0,
-    "light_all_fibers.hue": {
-      "op": "mul",
-      "a": "rotary",
-      "b": 2.0,
+      "b": 0.55,
       "mod": true
-    }
+    },
+    "light_all_fibers.value": 0.2,
+    "light_all_fibers.sat": 0.99,
+    "light_all_fibers.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": {
+          "op": "mul",
+          "a": {
+            "op": "add",
+            "a": {
+              "op": "mul",
+              "a": "rotary",
+              "b": "v_gradient",
+              "mod": false
+            },
+            "b": "fire",
+            "mod": false
+          },
+          "b": 10.0,
+          "mod": true
+        },
+        "b": 0.25,
+        "mod": false
+      },
+      "b": 0.55,
+      "mod": true
+    },
+    "map_fiber.sat": 1.0,
+    "map_fiber.value": 0.5
   },
   "cc_map": {
     "fader_a.value": 12,
@@ -87,8 +113,9 @@
   ],
   "muted": [
     "bg_waves",
-    "map_fiber"
+    "light_all_fibers"
   ],
+  "muted": [],
   "name": "v-gradient-test",
   "notes": {}
 }
