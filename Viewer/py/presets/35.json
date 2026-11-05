@@ -51,7 +51,8 @@
         "a": "v_gradient",
         "b": 0.01
       },
-      "b": 1.0
+      "b": 1.0,
+      "mod": true
     },
     "net.sat": 1.0,
     "net.amp": {

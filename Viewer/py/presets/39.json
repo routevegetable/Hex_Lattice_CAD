@@ -47,13 +47,13 @@
     },
     "net.amp": "fader_a",
     "net.hue": {
-      "op": "add",
-      "a": {
+      "op": "sub",
+      "a": 0.6,
+      "b": {
         "op": "mul",
         "a": "fader_a",
-        "b": -0.2
-      },
-      "b": 0.6
+        "b": 0.2
+      }
     },
     "bg_waves.value": {
       "op": "mul",

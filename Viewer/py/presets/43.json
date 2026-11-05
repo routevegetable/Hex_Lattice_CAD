@@ -71,7 +71,8 @@
         "a": "param_a",
         "b": 0.1
       },
-      "b": 1.05
+      "b": 1.05,
+      "mod": true
     },
     "map_fiber2.sat": {
       "op": "add",

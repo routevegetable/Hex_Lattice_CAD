@@ -85,7 +85,8 @@
         "op": "mul",
         "a": "param_a",
         "b": 0.1
-      }
+      },
+      "mod": true
     },
     "map_fiber2.hue": {
       "op": "add",

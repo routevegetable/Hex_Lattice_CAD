@@ -78,7 +78,8 @@
     "glitter.hue_2": {
       "op": "add",
       "a": "fader_c",
-      "b": 0.99
+      "b": 0.99,
+      "mod": true
     },
     "glitter.value": {
       "op": "mul",

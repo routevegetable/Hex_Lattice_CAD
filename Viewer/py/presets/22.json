@@ -36,7 +36,8 @@
         "a": "param_a",
         "b": 0.05
       },
-      "b": 1.0
+      "b": 1.0,
+      "mod": true
     },
     "net.value": {
       "op": "mul",
@@ -82,7 +83,8 @@
         },
         "b": 0.36
       },
-      "b": 0.67
+      "b": 0.67,
+      "mod": true
     },
     "map_fiber.value": {
       "op": "mul",
