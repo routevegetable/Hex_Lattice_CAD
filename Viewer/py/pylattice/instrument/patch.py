@@ -99,7 +99,7 @@ def as_ref(raw) -> FieldRef:
             op=raw.get("op", ""),
             a=as_ref(raw.get("a")),
             b=as_ref(raw.get("b")),
-            mod=raw.get("mod", ""),
+            mod=bool(raw.get("mod", False)),
         )
 
     return raw

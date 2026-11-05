@@ -325,3 +325,6 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 .effect-head .note:focus { color: var(--text); border-color: var(--accent); background: #11161f; outline: none; }
 .effect-head .note::placeholder { color: transparent; }
 .effect-head .note:hover::placeholder, .effect-head .note:focus::placeholder { color: var(--dim); }
+
+.ops .mod { margin-left: 4px; color: var(--dim); font-size: 12px; }
+.ops .mod.on { color: var(--g); border-color: var(--g); }

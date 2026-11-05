@@ -147,7 +147,7 @@ function describe(node) {
   if (typeof node === 'number') return fmt(node);
   if (typeof node === 'string') return node;
   if (isGradient(node)) return describeGradient(node);
-  return `(${describe(node.a)} ${OPS[node.op]} ${describe(node.b)})`;
+  return `(${describe(node.a)} ${OPS[node.op]} ${describe(node.b)})${node.mod ? ' mod 1' : ''}`;
 }
 
 // ---- undo ----------------------------------------------------------------
@@ -755,11 +755,13 @@ function toText(node, nested = false) {
   if (isGradient(node)) return describeGradient(node);
 
   const shown = `${toText(node.a, true)} ${TEXT_OPS[node.op]} ${toText(node.b, true)}`;
+  // A % in front of the bracket wraps the result round instead of holding it to 0-1.
+  if (node.mod) return `%(${shown})`;
   return nested ? `(${shown})` : shown;
 }
 
 function tokens(text) {
-  const grab = /\s*([()]|[+\-*/~]|[A-Za-z_][\w.]*|\d*\.?\d+)/y;
+  const grab = /\s*([()%]|[+\-*/~]|[A-Za-z_][\w.]*|\d*\.?\d+)/y;
   const out = [];
   let at = 0;
 
@@ -784,9 +786,14 @@ function parseText(text) {
     const tok = t[i++];
     if (tok === undefined) throw new Error('the expression stops short');
 
-    if (tok === '(') {
+    if (tok === '(' || tok === '%') {
+      if (tok === '%' && t[i++] !== '(') throw new Error('a % goes in front of a ( ... )');
       const inner = sum();
       if (t[i++] !== ')') throw new Error('a ( with no )');
+      if (tok === '%') {
+        if (isLeaf(inner)) throw new Error('a % needs an operation in its brackets');
+        return {...inner, mod: true};
+      }
       return inner;
     }
     if (tok === ')') throw new Error('a ) with no (');
@@ -1155,6 +1162,7 @@ function groupedText(node, depth = 0) {
   };
   out.append(paren('('), groupedText(node.a, depth + 1), ` ${OPS[node.op]} `,
              groupedText(node.b, depth + 1), paren(')'));
+  if (node.mod) out.append(' mod 1');
   return out;
 }
 
@@ -1199,7 +1207,18 @@ function nodeEditor(key, tree, path, depth = 0) {
   outer.textContent = '+ outer';
   outer.title = 'add a term outside this whole operation: all of it becomes the first half of a new operation, and you choose the other half';
   outer.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', a: node, b: null}));
-  head.append(outer, flip);
+  // Held to 0-1 by default; with this on, the result wraps round instead (1.1 is 0.1).
+  const mod = document.createElement('button');
+  mod.className = 'mod' + (node.mod ? ' on' : '');
+  mod.textContent = 'mod';
+  mod.title = node.mod ? 'wraps round past 1 (1.1 becomes 0.1): click to clamp to 0-1 instead'
+                       : 'clamped to 0-1: click to wrap round instead (1.1 becomes 0.1)';
+  mod.setAttribute('aria-pressed', String(!!node.mod));
+  mod.onclick = () => {
+    const {mod: was, ...rest} = node;
+    setFormula(key, replace(tree, path, was ? rest : {...rest, mod: true}));
+  };
+  head.append(outer, mod, flip);
 
   const drop = document.createElement('button');
   drop.className = 'drop';
