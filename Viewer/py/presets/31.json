@@ -1,11 +1,13 @@
 {
   "ccs": {
-    "12": 0,
-    "13": 0,
-    "14": 0,
-    "15": 0,
-    "16": 0,
+    "12": 26,
+    "13": 127,
+    "14": 15,
+    "15": 102,
+    "16": 90,
     "17": 0,
+    "18": 0,
+    "19": 127,
     "22": 0,
     "23": 120,
     "24": 0,
@@ -16,6 +18,7 @@
     "72": 3,
     "73": 57,
     "75": 24,
+    "76": 38,
     "77": 69,
     "79": 71,
     "91": 123,
@@ -28,36 +31,55 @@
     "107": 0,
     "108": 0,
     "109": 0,
-    "114": 47,
-    "117": 0,
-    "110": 0,
-    "111": 0,
+    "110": 6,
+    "111": 6,
     "112": 0,
     "113": 0,
+    "114": 47,
     "115": 0,
-    "116": 0
+    "116": 0,
+    "117": 0,
+    "118": 0,
+    "119": 1,
+    "120": 0,
+    "121": 0,
+    "122": 0,
+    "123": 0,
+    "124": 0,
+    "125": 0,
+    "126": 127,
+    "127": 0
   },
   "slots": {
-    "sparks.value": 1.0,
+    "sparks.value": {
+      "op": "mul",
+      "a": 1.0,
+      "b": "fader_b",
+      "mod": false
+    },
     "sparks.prob": {
       "op": "mul",
-      "a": 50.0,
-      "b": "fader_a"
+      "a": 100.0,
+      "b": "fader_a",
+      "mod": false
     },
     "sparks.hue": 0.05,
     "sparks.sat": {
       "op": "mul",
-      "a": 0.5,
-      "b": "fader_b"
+      "a": "fader_h",
+      "b": 0.5,
+      "mod": false
     },
     "bg_waves.hue": {
       "op": "mul",
       "a": {
         "op": "mul",
         "a": "rotary",
-        "b": "v_rotary"
+        "b": "v_rotary",
+        "mod": false
       },
-      "b": 0.37
+      "b": 0.37,
+      "mod": false
     },
     "bg_waves.value": {
       "op": "mul",
@@ -67,10 +89,13 @@
         "b": {
           "op": "sub",
           "a": "v_rotary180",
-          "b": 0.2
-        }
+          "b": 0.2,
+          "mod": false
+        },
+        "mod": false
       },
-      "b": "param_a"
+      "b": "fader_c",
+      "mod": false
     },
     "bg_waves.sat": 0.98,
     "bg_waves2.sat": 0.27,
@@ -79,19 +104,28 @@
       "op": "mul",
       "a": {
         "op": "mul",
-        "a": 0.21,
-        "b": "ripple"
+        "a": 0.66,
+        "b": "ripple",
+        "mod": false
       },
-      "b": "param_b"
+      "b": "fader_d",
+      "mod": false
     },
     "prob_zaps.value": {
       "op": "mul",
-      "a": 0.72,
-      "b": {
+      "a": {
         "op": "mul",
-        "a": "h_edges",
-        "b": "strobe0"
-      }
+        "a": 0.72,
+        "b": {
+          "op": "mul",
+          "a": "h_edges",
+          "b": "strobe0",
+          "mod": false
+        },
+        "mod": false
+      },
+      "b": "fader_e",
+      "mod": false
     },
     "prob_zaps.prob": 0.13
   },
@@ -99,7 +133,6 @@
     "fader_a.value": 12,
     "fader_b.value": 13,
     "param_a.value": 14,
-    "param_b.value": 15,
     "wipe2.speed": 17,
     "trace.speed": 107,
     "ripple2.speed": 108,
@@ -119,5 +152,11 @@
     "prob_zaps"
   ],
   "muted": [],
-  "name": "takk-3"
+  "name": "takk-3",
+  "notes": {
+    "bg_waves": "rotary waves (red to yellow-y green)",
+    "sparks": "sparks, going white to yellow",
+    "prob_zaps": "horizontal line zaps vs strobe",
+    "bg_waves2": "ripple bg waves"
+  }
 }

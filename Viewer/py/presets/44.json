@@ -1,22 +1,22 @@
 {
   "ccs": {
-    "12": 43,
-    "13": 30,
+    "12": 0,
+    "13": 0,
     "14": 0,
-    "15": 71,
+    "15": 0,
     "16": 0,
     "17": 0,
     "18": 0,
-    "19": 89,
-    "22": 65,
-    "23": 101,
+    "19": 0,
+    "22": 63,
+    "23": 41,
     "71": 86,
-    "72": 2,
+    "72": 3,
     "73": 0,
     "75": 127,
     "76": 0,
     "77": 68,
-    "79": 62,
+    "79": 0,
     "91": 65,
     "93": 2,
     "102": 0,
@@ -31,7 +31,7 @@
     "111": 103,
     "112": 4,
     "113": 12,
-    "114": 25,
+    "114": 2,
     "115": 0,
     "116": 0,
     "117": 40,
@@ -42,7 +42,9 @@
     "122": 0,
     "123": 0,
     "124": 0,
-    "125": 0
+    "125": 0,
+    "126": 127,
+    "127": 0
   },
   "slots": {
     "bg_waves.hue": "param_a",
@@ -53,7 +55,7 @@
       "a": {
         "op": "mul",
         "a": "param_a",
-        "b": 0.08,
+        "b": 0.05,
         "mod": false
       },
       "b": 0.01,
@@ -61,8 +63,8 @@
     },
     "map_fiber.value": {
       "op": "mul",
-      "a": "fader_h",
-      "b": "ripple",
+      "a": "ripple",
+      "b": "fader_h",
       "mod": false
     },
     "map_fiber.sat": {
@@ -73,7 +75,7 @@
         "b": 0.3,
         "mod": false
       },
-      "b": 0.98,
+      "b": 0.96,
       "mod": false
     },
     "glitter.hue_1": {
@@ -84,7 +86,7 @@
         "b": 0.05,
         "mod": false
       },
-      "b": 0.02,
+      "b": 0.98,
       "mod": false
     },
     "glitter.hue_2": {
@@ -92,11 +94,11 @@
       "a": {
         "op": "mul",
         "a": "fader_c",
-        "b": 0.2,
+        "b": 0.04,
         "mod": false
       },
-      "b": 0.99,
-      "mod": false
+      "b": 1.01,
+      "mod": true
     },
     "glitter.value": {
       "op": "mul",
@@ -106,7 +108,7 @@
     },
     "glitter.spin_rate": "fader_d",
     "glitter.sat_1": 1.0,
-    "glitter.sat_2": 0.98
+    "glitter.sat_2": 1.0
   },
   "cc_map": {
     "fader_a.value": 12,
@@ -116,12 +118,11 @@
     "ripple2.speed": 108,
     "wipe1.speed": 109,
     "param_a.value": 22,
-    "param_b.value": 23,
-    "fader_c.value": 14
+    "param_b.value": 23
   },
   "active": [
-    "glitter",
-    "map_fiber"
+    "map_fiber",
+    "glitter"
   ],
   "muted": [],
   "name": "meaningful-moment-1",

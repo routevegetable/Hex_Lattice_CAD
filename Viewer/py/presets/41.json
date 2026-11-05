@@ -1,7 +1,7 @@
 {
   "ccs": {
     "12": 75,
-    "13": 0,
+    "13": 24,
     "14": 0,
     "15": 0,
     "16": 0,
@@ -38,45 +38,65 @@
     "115": 0,
     "116": 0,
     "117": 0,
+    "118": 0,
     "119": 1,
     "120": 0,
-    "121": 0
+    "121": 0,
+    "122": 0,
+    "123": 0,
+    "124": 0,
+    "125": 0,
+    "126": 127,
+    "127": 0
   },
   "slots": {
     "glitter.hue_1": 0.92,
-    "glitter.hue_2": 0.05,
+    "glitter.hue_2": 0.97,
     "glitter.spin_rate": 10.0,
     "glitter.value": {
       "op": "mul",
-      "a": "fader_b",
-      "b": "fire"
+      "a": "fire",
+      "b": "fader_b",
+      "mod": false
     },
     "map_fiber.value": {
       "op": "mul",
       "a": "loops",
-      "b": "fader_a"
+      "b": "fader_a",
+      "mod": false
     },
     "map_fiber.hue": {
-      "op": "sub",
-      "a": 0.95,
-      "b": {
-        "op": "mul",
-        "a": "loops",
-        "b": 0.6
-      }
+      "op": "add",
+      "a": {
+        "op": "sub",
+        "a": 0.95,
+        "b": {
+          "op": "mul",
+          "a": "loops",
+          "b": 0.6,
+          "mod": false
+        },
+        "mod": false
+      },
+      "b": 0.0,
+      "mod": false
     },
     "map_fiber.sat": 1.0,
     "bg_waves.sat": 1.0,
-    "bg_waves.hue": 0.05,
+    "bg_waves.hue": 0.03,
     "bg_waves.value": {
       "op": "mul",
       "a": {
         "op": "mul",
         "a": "ripple",
-        "b": "v_gradient"
+        "b": "v_gradient",
+        "mod": false
       },
-      "b": 2.0
-    }
+      "b": 2.0,
+      "mod": false
+    },
+    "glitter.sat_1": 1.0,
+    "glitter.sat_2": 0.4
   },
   "cc_map": {
     "fader_a.value": 12,
@@ -96,9 +116,9 @@
     "v_gradient.origin": 28
   },
   "active": [
+    "bg_waves",
     "glitter",
-    "map_fiber",
-    "bg_waves"
+    "map_fiber"
   ],
   "muted": [],
   "name": "baby-1",
