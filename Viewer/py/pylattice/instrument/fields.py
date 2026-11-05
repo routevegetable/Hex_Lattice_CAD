@@ -71,8 +71,8 @@ class FIELDS:
     param_b = CCField(midi.for_("param_b"), value=KA4)
 
     # Ripples
-    ripple = NoteRippleField(graph, midi.for_("ripple"), note=PB1, speed=KB1)
-    ripple2 = NoteRippleField(graph, midi.for_("ripple2"), note=PB2, speed=KB2)
+    ripple = NoteRippleField(graph, midi.for_("ripple"), note=PB1, speed=KB1, decay=126)
+    ripple2 = NoteRippleField(graph, midi.for_("ripple2"), note=PB2, speed=KB2, decay=127)
 
     # Every edge jumps to a new random number
     random = NoteRandomField(midi.for_("random"), note=PB6, period=KA8)

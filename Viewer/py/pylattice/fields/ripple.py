@@ -1,4 +1,5 @@
 """A front spreading outwards from wherever a note landed."""
+
 import math
 
 from pylattice.examples.midi import FloatRange, MIDIFor
@@ -24,16 +25,20 @@ class NoteRippleField(ScalarField):
     CC:
         * speed - how long the front takes to cross the lattice,
           2000ms at 0 down to 250ms at 127
+        * decay - how long a vertex takes to fall back to 0 once the note is
+          let go, 50ms at 0 up to 2000ms at 127
     """
 
-    RAMP = 300          # ms a vertex takes to go 0 -> 1 once the front reaches it
-    DECAY = 500         # ms to fall back to 0 once the note is let go
+    RAMP = 300  # ms a vertex takes to go 0 -> 1 once the front reaches it
+    DECAY = FloatRange(50, 2000, "ms", geometric=True)  # fall back to 0 once let go
 
-    SLOWEST = 2000      # ms to cross the lattice at CC 0
-    FASTEST = 250       # ms to cross the lattice at CC 127
+    SLOWEST = 2000  # ms to cross the lattice at CC 0
+    FASTEST = 250  # ms to cross the lattice at CC 127
     SPEED = FloatRange(SLOWEST, FASTEST, "ms", geometric=True)
 
-    def __init__(self, graph: Graph, midi: MIDIFor, *, note: int, speed: int):
+    def __init__(
+        self, graph: Graph, midi: MIDIFor, *, note: int, speed: int, decay: int
+    ):
         self._vertexes = list(graph.vertexes())
         self._width = graph.width * TileRef.WIDTH
         self._height = graph.height * TileRef.HEIGHT
@@ -45,6 +50,7 @@ class NoteRippleField(ScalarField):
         self._note = midi.note(note, "trigger")
         self._poly = midi.polytouch(note, "intensity")
         self._speed_cc = midi.cc(speed, "speed", meta=self.SPEED)
+        self._decay_cc = midi.cc(decay, "decay", meta=self.DECAY)
         self._latches = [EventLatch() for _ in range(4)]
         self._releases = [EventLatch() for _ in range(4)]
         self._last_latch = 0
@@ -68,7 +74,7 @@ class NoteRippleField(ScalarField):
             self._seen = on
             self._current = self._last_latch
             self._latches[self._current].latch(on)
-            self._releases[self._current].clear()    # a fresh press is not over
+            self._releases[self._current].clear()  # a fresh press is not over
             self._last_latch = (self._last_latch + 1) % 4
 
         if release is not None and self._current is not None:
@@ -101,15 +107,18 @@ class NoteRippleField(ScalarField):
         # How long the front takes to cross the whole lattice.
         crossing = self.SPEED.at(self._speed_cc().data)
 
+        # How long a vertex takes to fade once the note is let go.
+        fall = self.DECAY.at(self._decay_cc().data)
+
         # What a vertex holds at once it has finished ramping up.
-        pressure = 1#  = self._poly() / 127
+        pressure = 1  #  = self._poly() / 127
 
         output = 0
         for i, latch in enumerate(self._latches):
             ev = latch.read()
 
             if ev is None:
-                continue        # this latch has not been used yet
+                continue  # this latch has not been used yet
 
             # The front reaches a vertex later the further out it is, and the
             # vertex ramps up once it arrives.
@@ -126,10 +135,10 @@ class NoteRippleField(ScalarField):
                 # Letting the note go always falls from 1, however far up the
                 # ramp got, and whatever the pad is reporting - but somewhere
                 # the front never reached has nothing to fall from.
-                decay = sweep(now, released, self.DECAY, 1, 0, 1)
-                level = decay if attack > 0 else 0
+                faded = sweep(now, released, int(fall), 1, 0, 1)
+                level = faded if attack > 0 else 0
 
             output = max(output, level)
-            #print
+            # print
 
         return output
