@@ -1843,6 +1843,10 @@ copyDialog.querySelector('form').onsubmit = async (e) => {
 // Which preset the half-built formulas belong to. Another one has its own slots.
 let formulasFor = null;
 
+// What the effects list was last drawn from. The poll comes every second; a list that
+// is torn down and rebuilt with nothing new in it flickers under the scrolling.
+let effectsDrawn = '';
+
 async function refresh() {
   [rig, views, controls] = await Promise.all([get('/rig'), get('/presets'), get('/controls')]);
   if (rig.selected !== formulasFor) {
@@ -1852,7 +1856,16 @@ async function refresh() {
     formulasFor = rig.selected;
   }
   drawPresets();
-  if (!adding && !picking && !dragging && !reordering && !turning && !inUse()) drawEffects();
+  if (!adding && !picking && !dragging && !reordering && !turning && !inUse()) {
+    // Where the knobs sit is not part of what the list shows - the dials follow
+    // the socket - so a knob moving must not tear the list down.
+    const key = JSON.stringify([
+      rig,
+      Object.values(views).map(v => ({...v, live: {...v.live, ccs: null}})),
+      controls.map(({value, ...c}) => c),
+    ]);
+    if (key !== effectsDrawn) { effectsDrawn = key; drawEffects(); }
+  }
 }
 
 async function drawStats() {
