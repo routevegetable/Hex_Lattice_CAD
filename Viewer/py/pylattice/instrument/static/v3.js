@@ -1383,9 +1383,9 @@ function turnKnob(cc, value) {
   if (wire && wire.readyState === WebSocket.OPEN) wire.send(JSON.stringify({cc: Number(cc), value}));
 }
 
-function knobList(found) {
+function knobList(found, compact = false) {
   const box = document.createElement('div');
-  box.className = 'knobs';
+  box.className = compact ? 'knobs mini' : 'knobs';
 
   for (const c of found) {
     const name = c.comments[0] ?? `cc ${c.number}`;
@@ -1781,7 +1781,8 @@ function slotRow(key, saved) {
     row.append(textEditor(key, shown));
   }
 
-  const found = controlsFor(shown);
+  // The fader is not in the expression, but it is still turned from here.
+  const found = controlsFor(fader === null ? shown : withFader(shown, fader));
   if (found.length) row.append(knobList(found));
   return row;
 }
@@ -2058,7 +2059,12 @@ function drawEffects() {
       if (ev.key === 'Escape') { note.value = view.live.notes?.[name] ?? ''; note.blur(); }
     };
 
-    head.append(cardGrip(card, head, name, names), title, note, ...fadeTag, count, sw, bin);
+    // ... and so does its dial, to turn it without opening the effect.
+    const faderDials = controlsFor(faders.reduce((t, f) => t === null ? f : {op: 'add', a: t, b: f}, null));
+    const dials = faderDials.length ? knobList(faderDials, true) : null;
+
+    head.append(cardGrip(card, head, name, names), title, note, ...fadeTag, ...(dials ? [dials] : []),
+                count, sw, bin);
     cardDropTarget(card, name);
 
     card.append(head);

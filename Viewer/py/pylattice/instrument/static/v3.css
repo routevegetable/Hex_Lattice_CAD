@@ -328,3 +328,5 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 
 .ops .mod { margin-left: 4px; color: var(--dim); font-size: 12px; }
 .ops .mod.on { color: var(--g); border-color: var(--g); }
+.knobs.mini { margin-top: 0; flex-wrap: nowrap; }
+.knobs.mini .knob b, .knobs.mini .knob .at { display: none; }
