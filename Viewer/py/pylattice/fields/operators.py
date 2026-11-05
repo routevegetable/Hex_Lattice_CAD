@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from enum import StrEnum, auto
 
 from pylattice.examples.midi import (
@@ -9,6 +8,7 @@ from pylattice.examples.midi import (
     MIDIFor,
 )
 from pylattice.examples.tempo import ZERO, Event, EventLatch, periodic, sweep
+from pylattice.fields.gradients import GradientLibrary
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EndRef, Graph
 
@@ -186,48 +186,45 @@ class Select(Operator):
             # Probably missing the requested arg
             return 0
         
-@dataclass
-class Gradient:
-    """
-    This is deserialized from json
-    """
-
-    def get_h(self, x: float) -> float: ...
-    def get_s(self, x: float) -> float: ...
-
-    
 class GradientChooser(Operator):
-    """
-    Long lived thing that can also be called with arguments.
-    Passing fields to fields is now possible :O
+    """The hue or the saturation of a gradient, at wherever its argument says.
+
+    A knob picks which gradient, by position (see `fields/gradients.py`), and
+    the argument says where along it to be: `gradient_1_h(wipe1)` is the hue
+    of whatever gradient knob 1 is on, at the place wipe1 reads. Hue and
+    saturation are separate operators so a slot can take either alone, or
+    mix one with something else; the two that share a knob are named after it
+    (`gradient_1_h`, `gradient_1_s`), which is why they share an owner on the
+    desk - see docs/CONTROLS.md.
+
+    Reads the gradient out of the library on every call, so a preset's own
+    gradients are the ones heard once it is playing. With no gradient at all
+    to land on it reads 0, which is dark, not a crash.
     """
 
     # The one field it reads the gradient at.
     arity = Arity.UNARY
 
-    def __init__(self, hue: bool, midi: MIDIFor, select: int):
+    def __init__(
+        self,
+        hue: bool,
+        midi: MIDIFor,
+        select: int,
+        library: GradientLibrary,
+    ):
         self._hue = hue
+        self._library = library
         self._select_cc = midi.cc(select, "select", GradientChoice())
 
     def get(self, now: Event, end: EndRef, *args: ScalarField) -> float:
-        # Stuff to look up a given gradient in the currently selected patch
+        gradient = self._library.at(self._select_cc().data)
 
-        try:
-            # Something like:
-            g: Gradient = self._bank.playing().get_gradient(self._select_cc().read())
+        if gradient is None:
+            return 0.0
 
-            # Get our parameter
-            f = args[0]
-            assert isinstance(f, ScalarField)
+        hue, sat = gradient.at(args[0].get(now, end))
 
-            # Evaluate it
-            x = f.get(now, end)
-
-            return g.get_h(x) if self._hue else g.get_s(x)
-        except:
-            # Nope
-            # TODO: Do something smarter with this
-            return 0
+        return hue if self._hue else sat
 
 
 class OperatorField(ScalarField):
