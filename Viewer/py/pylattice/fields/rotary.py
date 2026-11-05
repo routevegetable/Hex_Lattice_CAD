@@ -86,10 +86,15 @@ class RotaryField(ScalarField):
 
     # A count, not a sweep: two and a half peaks is not a thing. Naming which
     # knob position means which number keeps it on whole peaks and gives the
-    # UI something to step between. MOST lives outside the class because a
-    # comprehension in a class body cannot see the class's own names.
-    PARTS = CustomChoice({round(i * 127 / (MOST - 1)): str(i + 1)
-                          for i in range(MOST)})
+    # UI something to step between.
+    #
+    # The position is the count, counting from zero, rather than the counts
+    # being spread over 0-127. Spread, raising MOST would move every position
+    # below the top one, and a recording of this knob would come back meaning
+    # a different number of peaks. Counting from zero, a sixth peak only
+    # appends. MOST lives outside the class because a comprehension in a class
+    # body cannot see the class's own names.
+    PARTS = CustomChoice({i: str(i + 1) for i in range(MOST)})
 
     @classmethod
     def _count(cls, value: int) -> int:

@@ -64,10 +64,14 @@ class LoopsField(ScalarField):
     # A count, not a sweep: half a copy is not a thing. Spelling out which
     # knob position means which number keeps the knob on whole copies and
     # gives the UI something to step between, rather than 128 positions of
-    # which only sixteen differ. MOST lives outside the class because a
+    # which only sixteen differ.
+    #
+    # The position is the count, counting from zero, rather than the counts
+    # being spread over 0-127. Spread, raising MOST would move every position
+    # below the top one, and a recording of this knob would come back asking
+    # for a different number of copies. MOST lives outside the class because a
     # comprehension in a class body cannot see the class's own names.
-    COPIES = CustomChoice({round(i * 127 / (MOST - 1)): str(i + 1)
-                           for i in range(MOST)})
+    COPIES = CustomChoice({i: str(i + 1) for i in range(MOST)})
 
     def __init__(self, graph: Graph, midi: MIDIFor, *,
                  note: int, shape: int, copies: int, speed: int, attack: int):

@@ -370,10 +370,10 @@ class TraceLinesField(ScalarField):
     # list of 128 names, which reads the same and says so in the UI.
     NODES = FloatRange(1, 128, "nodes")
 
-    # Spread across the knob rather than sat on 0 to 6: seven positions is
-    # seven places to put a thumb.
-    MODE = CustomChoice({round(i * 127 / (len(MODE_FAMILIES) - 1)): name
-                         for i, name in enumerate(MODE_FAMILIES)})
+    # The position is an index into MODE_FAMILIES, not a sweep over 0-127: a
+    # mode added later then appends, rather than moving every position below
+    # the top one and leaving a recording of this knob on some other mode.
+    MODE = CustomChoice({i: name for i, name in enumerate(MODE_FAMILIES)})
 
     def __init__(self, graph: Graph, midi: MIDIFor, *, note: int, speed: int,
                  attack: int, decay: int, mode: int, nodes: int):

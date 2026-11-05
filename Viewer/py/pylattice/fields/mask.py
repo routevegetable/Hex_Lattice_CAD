@@ -172,9 +172,13 @@ class RandomLinesField(ScalarField):
         # A count, not a sweep: half a line is not a thing. Spelled out as far
         # as the largest family goes, so the knob steps over whole lines and
         # the UI has something to step between.
+        #
+        # The position is the count itself, rather than the counts being
+        # spread over 0-127: a wider lattice has more lines in a family, and
+        # spread, that would move every position below the top one - the same
+        # knob on a bigger lattice would light a different number of lines.
         most = max(len(family) for _, family in self._families)
-        self._count = CustomChoice({round(i * 127 / most): str(i)
-                                    for i in range(most + 1)})
+        self._count = CustomChoice({i: str(i) for i in range(most + 1)})
         self._count_cc = midi.cc(count, "count", meta=self._count)
 
         # Every end on a lit line, and how far down the shuffle its line came.
