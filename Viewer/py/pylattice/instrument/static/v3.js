@@ -637,9 +637,11 @@ function buildHue({field, start, width, mod}) {
   return tree;
 }
 
-// The band between two thumbs, painted with the part of the wheel it covers.
+// The band between two thumbs, painted with the part of the wheel it covers. The
+// formula can say more than the wheel has (a start of 2.4, a width of 3); the band
+// stops at the ends of the axis, 0 and 2, and the formula is left as typed.
 function paintBand(band, from, to) {
-  const lo = Math.min(from, to), hi = Math.max(from, to);
+  const lo = clampAxis(Math.min(from, to)), hi = clampAxis(Math.max(from, to));
   const frac = Math.max((hi - lo) / AXIS, 0.002);
   band.style.left = `${lo / AXIS * 100}%`;
   band.style.width = `${frac * 100}%`;
