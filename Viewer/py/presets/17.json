@@ -92,7 +92,8 @@
         "a": "wipe1",
         "b": 0.21
       },
-      "b": 0.91
+      "b": 0.91,
+      "mod": true
     },
     "map_fiber.value": {
       "op": "mul",

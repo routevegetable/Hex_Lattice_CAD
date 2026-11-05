@@ -10,10 +10,13 @@
   html,body { margin:0; height:100%; overflow:hidden; background:var(--bg);
               color:var(--ink); font:13px/1.4 system-ui, sans-serif; }
   #app { display:flex; height:100%; }
-  #view { flex:1; position:relative; }
+  #view { flex:1; position:relative; min-width:0; }
   #view canvas { display:block; }
-  #panel { width:320px; background:var(--panel); padding:16px; overflow-y:auto;
+  #panel { width:320px; flex-shrink:0; background:var(--panel); padding:16px; overflow-y:auto;
            border-left:1px solid #00000040; }
+  #app.no-panel #panel { display:none; }
+  #panelToggle { position:absolute; right:0; top:12px; z-index:5; width:auto; margin:0;
+                 padding:6px 8px; border-radius:6px 0 0 6px; background:#282c34cc; color:var(--ink); }
   h1 { font-size:15px; margin:0 0 4px; }
   .sub { color:var(--muted); margin:0 0 16px; font-size:12px; }
   h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em;
@@ -51,7 +54,8 @@
 </head>
 <body>
 <div id="app">
-  <div id="view"><div id="status">Loading segment…</div></div>
+  <div id="view"><div id="status">Loading segment…</div>
+    <button id="panelToggle" title="Hide / show the settings panel">Hide panel ▸</button></div>
   <div id="panel">
     <h1>Hinge Hexagon Lattice</h1>
     <p class="sub">Repeating segment · vertical hinges every 992.4&nbsp;mm · stacks every 1320&nbsp;mm</p>
@@ -999,6 +1003,23 @@ function resize() {
   camera.aspect = w / h; camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
+
+// ---- hide / show the settings panel ----
+{
+  const app = document.getElementById('app'), btn = document.getElementById('panelToggle');
+  const apply = hidden => {
+    app.classList.toggle('no-panel', hidden);
+    btn.textContent = hidden ? '◂ Show panel' : 'Hide panel ▸';
+    resize();
+  };
+  btn.onclick = () => {
+    const hidden = !app.classList.contains('no-panel');
+    apply(hidden);
+    try { localStorage.setItem('hexviewer.panelHidden', hidden ? '1' : '0'); } catch {}
+  };
+  let saved = false; try { saved = localStorage.getItem('hexviewer.panelHidden') === '1'; } catch {}
+  if (saved) apply(true);
+}
 
 let lastT = performance.now();
 function tick() {

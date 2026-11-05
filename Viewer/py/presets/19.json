@@ -29,7 +29,8 @@
         "a": "v_rotary",
         "b": 0.41
       },
-      "b": 0.62
+      "b": 0.62,
+      "mod": true
     },
     "bg_waves.value": {
       "op": "mul",
@@ -75,7 +76,8 @@
         "a": "loops",
         "b": 0.41
       },
-      "b": 0.62
+      "b": 0.62,
+      "mod": true
     },
     "map_fiber.value": {
       "op": "mul",

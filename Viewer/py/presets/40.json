@@ -87,7 +87,8 @@
         },
         "b": 0.08
       },
-      "b": 0.99
+      "b": 0.99,
+      "mod": true
     },
     "map_fiber.sat": 1.0,
     "map_fiber2.hue": {
@@ -97,7 +98,8 @@
         "a": "v_gradient",
         "b": 0.04
       },
-      "b": 1.0
+      "b": 1.0,
+      "mod": true
     },
     "map_fiber2.value": {
       "op": "mul",

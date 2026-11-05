@@ -63,7 +63,8 @@
         "a": "v_rotary",
         "b": 0.22
       },
-      "b": 0.8
+      "b": 0.8,
+      "mod": true
     },
     "map_fiber.value": {
       "op": "mul",
@@ -117,7 +118,8 @@
         "a": "v_rotary",
         "b": 0.45
       },
-      "b": 0.67
+      "b": 0.67,
+      "mod": true
     },
     "sparks.value": "param_a",
     "sparks.sat": 0.98

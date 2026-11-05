@@ -84,7 +84,8 @@
         "a": "rotary",
         "b": 0.42
       },
-      "b": 0.6
+      "b": 0.6,
+      "mod": true
     },
     "map_fiber2.value": "trace",
     "map_fiber2.sat": 1.0,

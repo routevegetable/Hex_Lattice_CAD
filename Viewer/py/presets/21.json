@@ -59,7 +59,8 @@
         "a": "param_a",
         "b": 0.1
       },
-      "b": 1.0
+      "b": 1.0,
+      "mod": true
     },
     "net.value": {
       "op": "mul",
@@ -99,17 +100,18 @@
       "b": 0.1
     },
     "map_fiber.hue": {
-      "op": "add",
-      "a": {
+      "op": "sub",
+      "a": 1.06,
+      "b": {
         "op": "mul",
         "a": {
           "op": "mul",
           "a": "v_rotary",
           "b": "rotary"
         },
-        "b": -0.23
+        "b": 0.23
       },
-      "b": 1.06
+      "mod": true
     },
     "map_fiber.value": {
       "op": "mul",
