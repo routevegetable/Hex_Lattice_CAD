@@ -601,7 +601,8 @@ const usableSource = (src) => typeof src === 'string' ||
 // A source and the width it is squeezed into: x x k, x / k, or k x x. Anything
 // else is a source of its own, at width 1.
 function peelWidth(x) {
-  if (x && typeof x === 'object' && (x.op === 'mul' || x.op === 'div')) {
+  // A layer that wraps round is a source of its own: the wheel has no way to say so.
+  if (x && typeof x === 'object' && !x.mod && (x.op === 'mul' || x.op === 'div')) {
     const [f, k] = [x.a, x.b];
     if (typeof k === 'number' && (x.op === 'mul' || k !== 0))
       return {field: f, width: x.op === 'mul' ? k : 1 / k};
