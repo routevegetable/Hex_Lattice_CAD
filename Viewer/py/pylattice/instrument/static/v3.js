@@ -618,19 +618,21 @@ function parseHue(t) {
   const options = [];
   if (t && typeof t === 'object' && t.op === 'add') {
     for (const [x, c] of [[t.a, t.b], [t.b, t.a]])
-      if (typeof c === 'number') options.push({...peelWidth(x), start: c});
+      if (typeof c === 'number') options.push({...peelWidth(x), start: c, mod: !!t.mod});
   }
-  options.push({...peelWidth(t), start: 0}, {field: t, width: 1, start: 0});
+  options.push({...peelWidth(t), start: 0, mod: !!t?.mod}, {field: t, width: 1, start: 0});
 
   return options.find(o => usableSource(o.field)) ?? null;
 }
 
-function buildHue({field, start, width}) {
+function buildHue({field, start, width, mod}) {
   if (field === null) return start;
   const w = Math.round(width * 1000) / 1000, st = Math.round(start * 1000) / 1000;
   let tree = field;
   if (w !== 1) tree = {op: 'mul', a: tree, b: w};
   if (st !== 0) tree = {op: 'add', a: tree, b: st};
+  // The wrap-round switch belongs to the outermost step, whichever that turned out to be.
+  if (mod && tree !== null && typeof tree === 'object' && !isGradient(tree)) tree = {...tree, mod: true};
   return tree;
 }
 
@@ -1248,7 +1250,7 @@ const modeOf = (tree) => typeof tree === 'string' ? 'field'
 // width, then moved to a start. Spelled out in full even when the width is 1
 // and the start is 0, so the editor always shows the same three things.
 const hueTree = (h) => ({op: 'add', a: {op: 'mul', a: h.field, b: Math.round(h.width * 1000) / 1000},
-                         b: Math.round(h.start * 1000) / 1000});
+                         b: Math.round(h.start * 1000) / 1000, ...(h.mod ? {mod: true} : {})});
 
 // ---- turning a field's knobs ----------------------------------------------
 // A field takes its values from knobs on the desk, and its slot can show them:
@@ -1590,7 +1592,7 @@ function slotRow(key, saved) {
     if (compound && !confirm('Replace this formula with that field? The formula is lost.')) return;
     // A hue keeps its editor open across a new field; anything else is done with it.
     if (hue) delete editing[key]; else leaveFormula(key);
-    writeSlot(key, !hue ? v : buildHue({field: v, start: hue.start, width: hue.field ? hue.width : 1}));
+    writeSlot(key, !hue ? v : buildHue({field: v, start: hue.start, width: hue.field ? hue.width : 1, mod: hue.mod}));
   });
 
   const seg = makeSeg(open && hue ? [mode, 'formula'] : mode, [
@@ -1654,14 +1656,14 @@ function slotRow(key, saved) {
 
           // The formula follows the thumbs as they move, not when they are let go.
           if (editor) {
-            const range = {field: hue.field, start: s0, width: e0 - s0};
+            const range = {field: hue.field, start: s0, width: e0 - s0, mod: hue.mod};
             const t = trimmed.has(key) ? buildHue(range) : hueTree(range);
             summary.replaceChildren(groupedText(t));
             words.textContent = hueWords({field: hue.field, start: s0, width: e0 - s0});
             editor.replaceChildren(nodeEditor(key, t, []));
           }
         },
-        (s0, e0) => writeSlot(key, buildHue({field: hue.field, start: s0, width: e0 - s0}))));
+        (s0, e0) => writeSlot(key, buildHue({field: hue.field, start: s0, width: e0 - s0, mod: hue.mod}))));
   };
 
   if (mode === 'field') {
