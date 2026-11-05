@@ -479,6 +479,10 @@ function fieldMenu(box, current, onPick, source = fieldSource) {
     picking?.();
     picking = close;
 
+    // What is chosen now, worked out as the menu opens: for a control that can be
+    // turned at the desk, it is not what it was when the page was drawn.
+    const selected = typeof current === 'function' ? current() : current;
+
     const menu = document.createElement('div');
     menu.className = 'fpick-list';
     const search = document.createElement('input');
@@ -496,11 +500,14 @@ function fieldMenu(box, current, onPick, source = fieldSource) {
 
     let rows = [], cursor = 0;
 
-    const item = (text, hint, value, on, remove) => {
+    const item = (text, hint, value, on, remove, swatch, edit) => {
       const row = document.createElement('div');
       row.className = 'fpick-item' + (on ? ' on' : '');
+      // A gradient shows what it looks like, drawn by the same walk the rig does.
+      if (swatch) row.append(strip(swatch, 72, 12));
       const t = document.createElement('span');
       t.textContent = text;
+      t.className = 'fpick-text';
       row.append(t);
       if (hint) {
         const h = document.createElement('span');
@@ -509,6 +516,17 @@ function fieldMenu(box, current, onPick, source = fieldSource) {
         row.append(h);
       }
       row.onclick = () => choose(value);
+
+      // An entry that can be opened without choosing it - a gradient to look at
+      // or change - has a button for that, which does not also choose it.
+      if (edit) {
+        const open = document.createElement('button');
+        open.className = 'fpick-edit';
+        open.textContent = edit.label ?? 'edit';
+        open.title = edit.title ?? 'open';
+        open.onclick = (ev) => { ev.stopPropagation(); close(); edit.run(); };
+        row.append(open);
+      }
 
       // An entry that can be taken away has a bin of its own, which does not
       // also choose it.
@@ -537,7 +555,7 @@ function fieldMenu(box, current, onPick, source = fieldSource) {
           head.textContent = group;
           body.append(head);
         }
-        body.append(item(e.text, e.hint, e.value, e.value === current, e.remove));
+        body.append(item(e.text, e.hint, e.value, e.value === selected, e.remove, e.swatch, e.edit));
       }
 
       rows = [...body.querySelectorAll('.fpick-item')];
@@ -1500,7 +1518,7 @@ function fracOf(meta, value) {
 function readOut(meta, value) {
   const options = optionsOf(meta);
   if (options.length) return meta.items[options[nearestAt(options, value)]];
-  if (meta.kind === 'gradient') return value;       // no list declared yet
+  if (meta.kind === 'gradient') return gradientAt(value)?.name ?? String(value);
 
   // The same curve FloatRange.at() uses on the other side.
   const at = meta.geometric
@@ -1609,9 +1627,22 @@ function knobList(found, compact = false) {
     typed.onkeydown = (e) => { if (e.key === 'Enter') typed.blur(); };
     row.append(makeDial(liveValue(c), meta), label, now, typed, at);
 
+    // A gradient is chosen by looking at it, not by turning to a number: the
+    // preview and its menu go where the bare name would, and the name is theirs.
+    if (meta.kind === 'gradient') {
+      now.hidden = true;
+      row.insertBefore(gradientPicker(c.number, (position) => {
+        turnKnob(c.number, position);
+        setDial(row.querySelector('.dial'), position, meta);
+        syncGradientPickers();
+        typed.value = position;
+        setTimeout(() => { if (turning?.cc === c.number) turning = null; }, 300);
+      }), typed);
+    }
+
     let from = null;
     row.onpointerdown = (e) => {
-      if (e.target === typed) return;           // typing is not a drag
+      if (e.target === typed || e.target.closest('.gpickwrap')) return;   // typing and picking are not drags
       from = {y: e.clientY, value: liveValue(c), turned: false};
       row.setPointerCapture(e.pointerId);
       e.preventDefault();
@@ -1694,6 +1725,7 @@ function paintKnobs() {
   requestAnimationFrame(() => {
     knobsQueued = false;
     syncKnobs();
+    syncGradientPickers();
     syncMapKnobs();
   });
 }
@@ -2255,10 +2287,626 @@ function drawEffects() {
     card.append(head);
 
     if (open) {
+      // A colour is a hue and a saturation, so each pair gets a row of its own
+      // to put a gradient on both at once. Both slots stay editable below it.
+      for (const pair of gradientPairs(keys)) card.append(gradientRow(name, pair, view.live));
       for (const key of keys) card.append(slotRow(key, view.live.slots[key] ?? null));
     }
     list.append(card);
   }
+}
+
+// ---- colour gradients ------------------------------------------------------
+// A gradient is stops of [frac, hue, sat]: what colour every place along 0..1 is.
+// One knob (gradient_1 to gradient_3) picks which gradient a pair of operators
+// reads, by position. The pair row puts those operators in a hue and a saturation
+// slot together, and the editor makes and changes a preset's own.
+//
+// The server only plays what it is given: the declared gradients, with a
+// preset's own laid over them. The rules about what a preset's own may be are
+// this page's, and it keeps them - see GRADIENT_POSITIONS and the editor's save.
+
+// Declared in the server's code at 0-63. A preset's own are kept to 64-127, so
+// the two never share a position and neither moves when the other changes.
+const GRADIENT_POSITIONS = {declared: [0, 63], own: [64, 127]};
+const GRADIENT_NAME = /^[A-Za-z0-9_-]{1,40}$/;
+
+const mk = (tag, cls, text) => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+};
+const round4 = (x) => Math.round(x * 10000) / 10000;
+const clamp01 = (x) => Math.max(0, Math.min(1, x));
+
+// The same walk as gradient_hs on the server: eased with smoothstep between
+// stops, two stops at one frac make a hard step, and the ends clamp.
+function gradientHs(stops, t) {
+  if (t <= stops[0][0]) return [stops[0][1], stops[0][2]];
+  for (let i = 1; i < stops.length; i++) {
+    const [f0, h0, s0] = stops[i - 1], [f1, h1, s1] = stops[i];
+    if (f0 <= t && t < f1) {
+      const u = (t - f0) / (f1 - f0);
+      const k = u * u * (3 - 2 * u);
+      return [h0 + (h1 - h0) * k, s0 + (s1 - s0) * k];
+    }
+  }
+  const last = stops[stops.length - 1];
+  return [last[1], last[2]];
+}
+
+// Full brightness: a gradient has no value of its own, so what is drawn here is
+// the colour before whatever draws it says how bright.
+function hsvRgb(h, s, v = 1) {
+  h = ((h % 1) + 1) % 1;
+  const i = Math.floor(h * 6), f = h * 6 - i;
+  const p = v * (1 - s), q = v * (1 - f * s), u = v * (1 - (1 - f) * s);
+  return [[v, u, p], [q, v, p], [p, v, u], [p, q, v], [u, p, v], [v, p, q]][i % 6]
+      .map(c => Math.round(c * 255));
+}
+const rgbCss = (h, s) => `rgb(${hsvRgb(h, s).join(',')})`;
+
+// One column per pixel, so a hard step is a hard step.
+function paintStrip(canvas, stops) {
+  const ctx = canvas.getContext('2d');
+  for (let x = 0; x < canvas.width; x++) {
+    const [h, s] = gradientHs(stops, canvas.width > 1 ? x / (canvas.width - 1) : 0);
+    ctx.fillStyle = rgbCss(h, s);
+    ctx.fillRect(x, 0, 1, canvas.height);
+  }
+}
+
+function strip(stops, w = 96, h = 14) {
+  const c = mk('canvas', 'gstrip');
+  c.width = w;
+  c.height = h;
+  paintStrip(c, stops);
+  return c;
+}
+
+// ---- which gradients there are
+
+const localGradients = () => Object.entries(views[rig.selected]?.live.gradients ?? {})
+    .map(([name, g]) => ({name, position: g.position, stops: g.stops, scope: 'preset'}))
+    .sort((a, b) => a.position - b.position);
+const globalGradients = () => (rig?.gradients ?? []).map(g => ({...g, scope: 'global'}));
+const allGradients = () => [...globalGradients(), ...localGradients()]
+    .sort((a, b) => a.position - b.position);
+
+// What a knob at `value` is on: the nearest position a gradient is at, the lower
+// one on a tie. The server reads the knob the same way.
+function gradientAt(value) {
+  let best = null;
+  for (const g of allGradients())
+    if (best === null || Math.abs(g.position - value) < Math.abs(best.position - value)) best = g;
+  return best;
+}
+
+const freePosition = (range, taken) => {
+  for (let p = range[0]; p <= range[1]; p++) if (!taken.includes(p)) return p;
+  return null;
+};
+
+// The CC a gradient knob is on, which a preset may have moved.
+const channelCC = (n) => controls.find(c => c.kind === 'cc'
+                                            && c.comments.includes(`gradient_${n}.select`))?.number ?? null;
+const ccValue = (cc) => knobs[cc]?.value
+    ?? controls.find(c => c.kind === 'cc' && c.number === Number(cc))?.value ?? 0;
+
+// Point a gradient knob at a position, as turning it would.
+function setChannel(n, position) {
+  const cc = channelCC(n);
+  if (cc === null) return;
+  turnKnob(cc, position);
+  syncGradientPickers();                // now, as a dial is, not when the desk next says
+  setTimeout(() => { if (turning?.cc === cc) turning = null; }, 300);
+}
+
+// ---- writing
+
+// Change the playing preset's own gradients: `change` is handed a copy of them
+// and returns what they should be. Nothing checks them but the editor that made
+// them, so it has already seen to the name, the position and the stops.
+async function writeGradients(change) {
+  const n = rig.selected;
+  if (n === null) return false;
+
+  const fresh = await get(`/presets/${n}`);
+  remember(n, fresh.live);
+  const r = await put(`/presets/${n}`, {...fresh.live, gradients: change({...(fresh.live.gradients ?? {})})});
+  if (!r.ok) { alert((await r.json()).detail); return false; }
+  await refresh();
+  return true;
+}
+
+// Change several slots of the playing preset in one write.
+async function writeSlots(changes) {
+  const n = rig.selected;
+  if (n === null) return false;
+
+  const fresh = await get(`/presets/${n}`);
+  remember(n, fresh.live);
+  const r = await put(`/presets/${n}`, {...fresh.live, slots: {...fresh.live.slots, ...changes}});
+  if (!r.ok) { alert((await r.json()).detail); return false; }
+  await refresh();
+  return true;
+}
+
+// ---- the picker: a gradient as it looks, and a menu of the rest
+
+// Every gradient there is, the preset's own first, each with what it looks like.
+// Choosing one is choosing its position; the first entry makes a new one.
+const gradientSource = {
+  placeholder: 'search gradients',
+  noMap: true,
+  entries: () => {
+    const entry = (g, group, label, title) => ({
+      group, text: g.name, hint: `at ${g.position}`, value: g.position, swatch: g.stops,
+      edit: {label, title, run: () => openGradientEditor({gradient: g})},
+    });
+    return [
+      {group: 'new', text: 'new gradient…', hint: '', value: 'new'},
+      ...localGradients().map(g => entry(g, 'this preset', 'edit', 'change this gradient')),
+      ...globalGradients().map(g => entry(g, 'global', 'view', 'look at it, or copy it')),
+    ];
+  },
+};
+
+// A button showing what the knob on `cc` is on, opening the menu of gradients.
+// `pick` is told the position chosen - or made, if it was a new one.
+function gradientPicker(cc, pick) {
+  const wrap = mk('span', 'gpickwrap fpick');
+  wrap.dataset.cc = cc;
+  const btn = mk('button', 'gpick');
+  btn.title = 'choose a gradient';
+  wrap.append(btn);
+
+  btn.onclick = fieldMenu(wrap, () => gradientAt(ccValue(cc))?.position ?? null, (value) => {
+    if (value === 'new') openGradientEditor({onSaved: (g) => pick(g.position)});
+    else pick(value);
+  }, gradientSource);
+
+  paintGradientPicker(wrap);
+  return wrap;
+}
+
+// Redrawn only when what it shows has changed: a socket frame comes ten times a second.
+function paintGradientPicker(wrap) {
+  const g = gradientAt(ccValue(wrap.dataset.cc));
+  const shown = g ? `${g.name}|${g.position}|${JSON.stringify(g.stops)}` : '';
+  if (wrap._shown === shown) return;
+  wrap._shown = shown;
+
+  const btn = wrap.querySelector('.gpick');
+  btn.replaceChildren(...(g ? [strip(g.stops, 64, 12), mk('span', 'gname', g.name)]
+                            : [mk('span', 'gname dim', 'no gradient')]),
+                      mk('span', 'caret', '▾'));
+}
+
+function syncGradientPickers() {
+  for (const wrap of document.querySelectorAll('.gpickwrap[data-cc]')) paintGradientPicker(wrap);
+}
+
+// ---- a hue and a saturation, together
+
+const slotName = (key) => key.split('.').slice(1).join('.');
+
+// Slots that make a colour: `hue` with `sat`, `hue_1` with `sat_1`. An effect with
+// only a hue, like prob_zaps, has no pair.
+function gradientPairs(keys) {
+  const pairs = [];
+  for (const hue of keys) {
+    const m = /^hue(_.+)?$/.exec(slotName(hue));
+    if (!m) continue;
+    const suffix = m[1] ?? '';
+    const sat = keys.find(k => ['sat', 'saturation'].some(n => n + suffix === slotName(k)));
+    if (sat) pairs.push({hue, sat, label: suffix ? `colour ${suffix.slice(1)}` : 'colour'});
+  }
+  return pairs;
+}
+
+const gradientOp = (n, channel, driver) => ({op: `gradient_${n}_${channel}`, args: [driver], mod: false});
+
+// {n, driver} if a tree is `gradient_N_h(...)` or `_s`, as asked for.
+function gradientOf(tree, channel) {
+  if (tree === null || typeof tree !== 'object') return null;
+  const m = /^gradient_(\d+)_([hs])$/.exec(tree.op);
+  return m && m[2] === channel && tree.args.length === 1 ? {n: Number(m[1]), driver: tree.args[0]} : null;
+}
+
+// A pair is on a gradient when its hue and saturation are the two operators of one
+// channel reading the same thing. Anything else is the pair doing its own thing.
+function pairState(live, pair) {
+  const h = live.slots[pair.hue] ?? null, s = live.slots[pair.sat] ?? null;
+  const gh = gradientOf(h, 'h'), gs = gradientOf(s, 's');
+
+  if (gh && gs && gh.n === gs.n && JSON.stringify(gh.driver) === JSON.stringify(gs.driver))
+    return {on: true, n: gh.n, driver: gh.driver};
+
+  return {on: false, driver: typeof h === 'string' ? h : null,
+          formula: [h, s].some(t => t !== null && typeof t === 'object')};
+}
+
+// Effects that read channel `n` somewhere other than `except`.
+function channelUsers(live, n, except) {
+  const out = new Set();
+  for (const [key, tree] of Object.entries(live.slots))
+    if (!except.includes(key) && opsIn(tree).some(o => o.startsWith(`gradient_${n}_`)))
+      out.add(key.split('.')[0]);
+  return [...out];
+}
+
+// Channels are shared - a dozen pairs and three knobs - so a new pair takes one
+// nothing else reads if there is one, and says so if it has to share.
+const defaultChannel = (live, pair) =>
+    [1, 2, 3].find(n => channelUsers(live, n, [pair.hue, pair.sat]).length === 0) ?? 1;
+
+function gradientRow(effect, pair, live) {
+  const state = pairState(live, pair);
+  const row = mk('div', 'slot gpair');
+  const head = mk('div', 'slot-head');
+  head.append(mk('span', 'name', `${pair.label} gradient`));
+  row.append(head);
+
+  // With no gradient on yet there is one thing to do. The driver is the field the
+  // hue was already following, or a fader, and can be changed straight after.
+  if (!state.on) {
+    const wrap = mk('span', 'fpick');
+    const btn = mk('button', 'gpick', 'use a gradient ▾');
+    btn.title = `put a gradient on this effect's ${pair.label}: its hue and saturation are set together`;
+    btn.onclick = fieldMenu(wrap, null, async (value) => {
+      if (state.formula && !confirm(`Replace the ${slotName(pair.hue)} and ${slotName(pair.sat)} `
+                                    + 'formulas with a gradient? They are lost.')) return;
+
+      const n = defaultChannel(live, pair);
+      const driver = state.driver ?? FADERS[0];
+      const apply = async (position) => {
+        if (await writeSlots({[pair.hue]: gradientOp(n, 'h', driver),
+                              [pair.sat]: gradientOp(n, 's', driver)}))
+          setChannel(n, position);
+      };
+
+      if (value === 'new') openGradientEditor({onSaved: (g) => apply(g.position)});
+      else apply(value);
+    }, gradientSource);
+    wrap.append(btn);
+    head.append(wrap);
+    return row;
+  }
+
+  const {n, driver} = state;
+  const cc = channelCC(n);
+  const move = (changes) => writeSlots(changes);
+
+  head.append(cc === null ? mk('span', 'dim', `gradient_${n} has no knob`)
+                          : gradientPicker(cc, (position) => setChannel(n, position)));
+
+  head.append(makeSeg(String(n), [1, 2, 3].map(m => ({
+    label: String(m), id: String(m), title: `read gradient knob ${m}`,
+    onclick: () => move({[pair.hue]: gradientOp(m, 'h', driver), [pair.sat]: gradientOp(m, 's', driver)}),
+  })), true));
+
+  // The field that says where along the gradient to be, for both slots at once.
+  head.append(mk('span', 'dim', 'moved by'));
+  const by = mk('span', 'fpick');
+  const chip = mk('button', 'chip', `${describe(driver)} ▾`);
+  chip.onclick = fieldMenu(by, typeof driver === 'string' ? driver : null, (field) =>
+      move({[pair.hue]: gradientOp(n, 'h', field), [pair.sat]: gradientOp(n, 's', field)}));
+  by.append(chip);
+  head.append(by);
+
+  const edit = mk('button', null, 'edit');
+  edit.title = 'change the gradient this knob is on';
+  edit.onclick = () => { const g = gradientAt(ccValue(cc)); if (g) openGradientEditor({gradient: g}); };
+  const off = mk('button', 'bin', '✕');
+  off.title = 'take the gradient off: back to a plain hue';
+  off.onclick = () => move({[pair.hue]: typeof driver === 'string' ? driver : 0, [pair.sat]: 1});
+  head.append(...(cc === null ? [] : [edit]), off);
+
+  // One knob for every pair on the channel, so choosing here chooses there.
+  const others = channelUsers(live, n, [pair.hue, pair.sat]);
+  if (others.length) {
+    const note = mk('div', 'dim gshared',
+                    `knob ${n} is shared: the gradient moves ${others.join(', ')} too`);
+    row.append(note);
+  }
+  return row;
+}
+
+// ---- the editor
+
+// Make a gradient of the preset's own, change one, or look at a global one and
+// take a copy. Stops are dragged along the bar and coloured on the wheel; two
+// stops at one place make a hard step.
+function openGradientEditor({gradient = null, copy = false, onSaved = null} = {}) {
+  document.getElementById('gradient-dialog')?.remove();
+
+  const readonly = gradient?.scope === 'global' && !copy;
+  const existing = gradient?.scope === 'preset' ? gradient : null;
+  const locals = localGradients();
+  const takenNames = [...globalGradients(), ...locals].map(g => g.name);
+
+  const unique = (base) => {
+    let name = base, i = 2;
+    while (takenNames.includes(name)) name = `${base}_${i++}`;
+    return name;
+  };
+  const startName = existing ? existing.name
+      : unique(gradient ? `${gradient.name}_copy` : 'gradient');
+
+  const stops = (gradient?.stops ?? [[0, 0.08, 1], [1, 0.75, 1]])
+      .map(([frac, hue, sat]) => ({frac, hue, sat}));
+  let sel = stops[0];
+  const sorted = () => [...stops].sort((a, b) => a.frac - b.frac);     // stable: a hard step keeps its sides
+  const asStops = () => sorted().map(s => [s.frac, s.hue, s.sat]);
+
+  const dlg = mk('dialog', 'gdlg');
+  dlg.id = 'gradient-dialog';
+  const shut = () => { dlg.close(); dlg.remove(); };
+  const title = readonly ? `global gradient · ${gradient.name}`
+      : existing ? `gradient · ${existing.name}` : 'new gradient';
+  dlg.append(mk('h3', null, title));
+
+  const nameIn = mk('input');
+  nameIn.type = 'text';
+  nameIn.maxLength = 40;
+  nameIn.value = startName;
+  nameIn.disabled = readonly;
+  nameIn.placeholder = 'letters, digits, - and _';
+  const where = existing ? `position ${existing.position}`
+      : readonly ? `position ${gradient.position}, global`
+      : `position ${freePosition(GRADIENT_POSITIONS.own, locals.map(g => g.position)) ?? 'none free'}`;
+  const nameRow = mk('label', 'gfield');
+  nameRow.append(mk('span', null, 'name'), nameIn, mk('span', 'dim', `${where} · the knob value that picks it`));
+  dlg.append(nameRow);
+
+  // the path: the gradient itself, with a handle for each stop
+  const bar = mk('div', 'gbar');
+  const barCanvas = mk('canvas', 'gbarstrip');
+  barCanvas.width = 480;
+  barCanvas.height = 34;
+  const handles = mk('div', 'ghandles');
+  bar.append(barCanvas, handles);
+
+  const chips = mk('div', 'gchips');
+  const wheel = mk('canvas', 'gwheel');
+  const SZ = 150;
+  wheel.width = wheel.height = SZ;
+  const fracIn = mk('input');
+  fracIn.type = 'number';
+  fracIn.min = '0'; fracIn.max = '100'; fracIn.step = '0.5';
+  const readout = mk('span', 'dim');
+  const removeBtn = mk('button', null, 'remove stop');
+  const splitBtn = mk('button', null, 'hard step');
+  splitBtn.title = 'put a copy of this stop at the same place: the two make a hard edge, and you colour each side';
+
+  // the wheel: angle is hue, distance from the middle is saturation
+  const wheelImg = document.createElement('canvas');
+  wheelImg.width = wheelImg.height = SZ;
+  {
+    const ctx = wheelImg.getContext('2d'), img = ctx.createImageData(SZ, SZ), r0 = SZ / 2;
+    for (let y = 0; y < SZ; y++) for (let x = 0; x < SZ; x++) {
+      const dx = x - r0 + 0.5, dy = y - r0 + 0.5, d = Math.hypot(dx, dy) / r0, i = (y * SZ + x) * 4;
+      if (d > 1) continue;
+      img.data.set([...hsvRgb(Math.atan2(dy, dx) / (2 * Math.PI), d), 255], i);
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  const drawBar = () => paintStrip(barCanvas, asStops());
+  const drawWheel = () => {
+    const ctx = wheel.getContext('2d'), r0 = SZ / 2;
+    ctx.clearRect(0, 0, SZ, SZ);
+    ctx.drawImage(wheelImg, 0, 0);
+    const a = sel.hue * 2 * Math.PI, rr = sel.sat * r0;
+    ctx.beginPath();
+    ctx.arc(r0 + Math.cos(a) * rr, r0 + Math.sin(a) * rr, 7, 0, 7);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#fff';
+    ctx.stroke();
+  };
+
+  const drawHandles = () => {
+    handles.replaceChildren();
+    stops.forEach((s) => {
+      const hd = mk('div', 'ghandle' + (s === sel ? ' on' : ''));
+      hd.style.left = `${s.frac * 100}%`;
+      hd.style.background = rgbCss(s.hue, s.sat);
+      if (!readonly) {
+        hd.onpointerdown = (ev) => {
+          ev.stopPropagation();
+          sel = s;
+          hd.setPointerCapture(ev.pointerId);
+          hd.onpointermove = (e) => {
+            const r = bar.getBoundingClientRect();
+            s.frac = round4(clamp01((e.clientX - r.left) / r.width));
+            hd.style.left = `${s.frac * 100}%`;
+            fracIn.value = String(round4(s.frac * 100));
+            drawBar();
+          };
+          hd.onpointerup = () => {
+            hd.onpointermove = hd.onpointerup = null;
+            stops.sort((a, b) => a.frac - b.frac);
+            redraw();
+          };
+          redraw();
+        };
+      } else {
+        hd.onpointerdown = (ev) => { ev.stopPropagation(); sel = s; redraw(); };
+      }
+      handles.append(hd);
+    });
+  };
+
+  // Stops can sit on top of each other (a hard step), so each also has a chip.
+  const drawChips = () => {
+    chips.replaceChildren();
+    stops.forEach((s, i) => {
+      const c = mk('button', 'gchip' + (s === sel ? ' on' : ''), `${i + 1} · ${round4(s.frac * 100)}%`);
+      c.style.borderBottomColor = rgbCss(s.hue, s.sat);
+      c.onclick = () => { sel = s; redraw(); };
+      chips.append(c);
+    });
+  };
+
+  function redraw() {
+    drawBar();
+    drawHandles();
+    drawChips();
+    drawWheel();
+    fracIn.value = String(round4(sel.frac * 100));
+    readout.textContent = `hue ${sel.hue.toFixed(3)} · sat ${sel.sat.toFixed(3)}`;
+    removeBtn.disabled = readonly || stops.length <= 1;
+    splitBtn.disabled = readonly;
+  }
+
+  if (!readonly) {
+    bar.onpointerdown = (ev) => {              // click the path to add a stop there
+      const r = bar.getBoundingClientRect();
+      const frac = round4(clamp01((ev.clientX - r.left) / r.width));
+      const [hue, sat] = gradientHs(asStops(), frac);
+      sel = {frac, hue: round4(hue), sat: round4(sat)};
+      stops.push(sel);
+      stops.sort((a, b) => a.frac - b.frac);
+      redraw();
+    };
+
+    const pickColour = (ev) => {
+      const r = wheel.getBoundingClientRect(), k = SZ / r.width, r0 = SZ / 2;
+      const dx = (ev.clientX - r.left) * k - r0, dy = (ev.clientY - r.top) * k - r0;
+      sel.hue = round4((((Math.atan2(dy, dx) / (2 * Math.PI)) % 1) + 1) % 1);
+      sel.sat = round4(Math.min(Math.hypot(dx, dy) / r0, 1));
+      redraw();
+    };
+    wheel.onpointerdown = (ev) => {
+      wheel.setPointerCapture(ev.pointerId);
+      pickColour(ev);
+      wheel.onpointermove = pickColour;
+      wheel.onpointerup = () => { wheel.onpointermove = wheel.onpointerup = null; };
+    };
+
+    fracIn.onchange = () => {
+      sel.frac = round4(clamp01(parseFloat(fracIn.value) / 100 || 0));
+      stops.sort((a, b) => a.frac - b.frac);
+      redraw();
+    };
+    removeBtn.onclick = () => {
+      stops.splice(stops.indexOf(sel), 1);
+      sel = stops[0];
+      redraw();
+    };
+    splitBtn.onclick = () => {
+      const copyOf = {...sel};
+      stops.splice(stops.indexOf(sel) + 1, 0, copyOf);
+      sel = copyOf;
+      redraw();
+    };
+  }
+
+  const side = mk('div', 'gside');
+  const fracRow = mk('label', 'gfield');
+  fracRow.append(mk('span', null, 'stop at %'), fracIn);
+  side.append(fracRow, readout, mk('div', 'gbtns'), mk('p', 'dim',
+      readonly ? 'A global gradient is declared in the server\'s code and cannot be changed here. '
+                 + 'Make a copy to change it for this preset, or copy it as Python.'
+               : 'Click the path to add a stop, drag one to move it, click the wheel to colour it. '
+                 + 'Hue is not wrapped between stops. A hard step is two stops at one place.'));
+  side.querySelector('.gbtns').append(removeBtn, splitBtn);
+
+  const body = mk('div', 'gbody');
+  body.append(wheel, side);
+  dlg.append(bar, chips, body);
+
+  // ---- the foot: what can be done with it
+  const err = mk('div', 'hint');
+  const python = mk('textarea', 'gpython');
+  python.readOnly = true;
+  python.hidden = true;
+  python.rows = 8;
+
+  const cleanName = () => nameIn.value.trim();
+  const say = (text) => { err.textContent = text; };
+
+  // The same gradient as a line of Python to paste into GLOBAL_GRADIENTS, at the
+  // lowest global position that is free.
+  const copyPython = async () => {
+    // A global one being looked at is already declared, at its own position; any
+    // other is offered the lowest global position that is free.
+    const position = readonly ? gradient.position
+        : freePosition(GRADIENT_POSITIONS.declared, globalGradients().map(g => g.position));
+    const name = readonly ? gradient.name : cleanName() || 'gradient';
+    const rows = asStops().map(s => `    (${s.map(x => x.toFixed(4)).join(', ')}),`).join('\n');
+    python.value = `# in instrument/gradients.py, GLOBAL_GRADIENTS - `
+        + (readonly ? 'already declared at this position\n' : `position ${position ?? '(none free)'} is free\n`)
+        + `Gradient("${name}", ${position ?? 0}, (\n${rows}\n)),`;
+    python.hidden = false;
+    python.select();
+    try { await navigator.clipboard.writeText(python.value); say('copied'); }
+    catch { say('select the text and copy it'); }
+  };
+
+  const save = async () => {
+    const name = cleanName();
+    if (!GRADIENT_NAME.test(name)) return say('a name is letters, digits, - and _, 40 at most');
+    if (globalGradients().some(g => g.name === name))
+      return say(`${name} is a global gradient's name - a preset cannot give its own the same name`);
+    if (locals.some(g => g.name === name && g.name !== existing?.name))
+      return say(`this preset already has a gradient called ${name}`);
+
+    const position = existing?.position
+        ?? freePosition(GRADIENT_POSITIONS.own, locals.map(g => g.position));
+    if (position === null) return say('this preset has no free gradient positions left');
+
+    // The server sorts what it is given but trusts the rest, so a stop that is not
+    // a place, a hue and a saturation between 0 and 1 stops here.
+    const out = asStops().map(s => s.map(round4));
+    if (!out.length || out.some(s => s.length !== 3 || s.some(x => !(x >= 0 && x <= 1))))
+      return say('every stop needs a place, a hue and a saturation, each between 0 and 1');
+
+    const done = await writeGradients((gs) => {
+      if (existing && existing.name !== name) delete gs[existing.name];
+      gs[name] = {position, stops: out};
+      return gs;
+    });
+    if (!done) return;
+    shut();
+    onSaved?.({name, position});
+  };
+
+  const drop = async () => {
+    const on = [1, 2, 3].filter(n => channelCC(n) !== null && gradientAt(ccValue(channelCC(n)))?.name === existing.name);
+    const note = on.length ? ` ${on.length > 1 ? 'Knobs' : 'Knob'} ${on.join(', ')} ${on.length > 1 ? 'are' : 'is'} on it`
+        + ' and will fall to the nearest other gradient.' : '';
+    if (!confirm(`Delete ${existing.name} from this preset?${note}`)) return;
+    if (await writeGradients((gs) => { delete gs[existing.name]; return gs; })) shut();
+  };
+
+  const close = mk('button', null, 'close');
+  close.onclick = shut;
+  const foot = mk('div', 'gfoot');
+  const pyBtn = mk('button', null, 'copy as Python');
+  pyBtn.title = 'a line to paste into the server\'s global gradients';
+  pyBtn.onclick = copyPython;
+
+  if (readonly) {
+    const dup = mk('button', null, 'make a copy for this preset…');
+    dup.onclick = () => openGradientEditor({gradient, copy: true, onSaved});
+    foot.append(pyBtn, dup, close);
+  } else {
+    const ok = mk('button', 'primary', 'save');
+    ok.onclick = save;
+    const del = mk('button', 'bin', 'delete');
+    del.onclick = drop;
+    foot.append(pyBtn, ...(existing ? [del] : []), close, ok);
+  }
+  dlg.append(err, python, foot);
+
+  dlg.onclose = () => dlg.remove();         // Escape closes it too
+  dlg.onclick = (ev) => { if (ev.target === dlg) shut(); };
+  document.body.append(dlg);
+  dlg.showModal();
+  redraw();
 }
 
 // ---- presets by name -------------------------------------------------------
