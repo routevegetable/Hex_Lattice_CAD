@@ -114,8 +114,9 @@ are watched and saved, but picking a preset is not someone turning a knob, so
 they stay out of the readout.
 
 **Pressure** — a note's aftertouch. Set from the velocity when the key goes
-down, moved by polytouch after that, and *not* cleared on release — the last
-press stands as a level.
+down, moved by polytouch after that, and back to 0 when the key comes up.
+Both forms of release clear it: a note-off, and a note-on of velocity 0,
+which is how some boxes say the same thing.
 
 **Step buttons** — CCs 20–35, one preset each. A press arrives as 127. A
 program change of 0–15 does the same thing.

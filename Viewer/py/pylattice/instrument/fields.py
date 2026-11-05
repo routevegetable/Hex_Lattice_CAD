@@ -7,9 +7,10 @@ preset can name - docs/beatstep.svg has the same thing as a control layout.
 from pylattice.fields.artnet import artnet_universes
 from pylattice.fields.burst import BurstField
 from pylattice.fields.controls import CCField, StrobeField
-from pylattice.fields.loops import LoopsField
+from pylattice.fields.loops import LoopsField, LoopTracesField
 from pylattice.fields.fire import FireField
 from pylattice.fields.gradient import VGradientField
+from pylattice.fields.lfo import LFOField
 from pylattice.fields.hexes import HexesField
 from pylattice.fields.mask import D1, D2, EdgeMaskField, H, RandomLinesField, V
 from pylattice.fields.random import NoteRandomField
@@ -39,6 +40,7 @@ from pylattice.instrument.hardware import (
     PA2,
     PA3,
     PA4,
+    PA5,
     PB1,
     PB2,
     PB3,
@@ -88,7 +90,8 @@ class FIELDS:
     # speed and attack - it is the same head on the same trail - and has a pad,
     # a decay and a mode of its own.
     trace_lines = TraceLinesField(graph, midi.for_("trace_lines"), note=PB7,
-                                  speed=KB5, attack=108, decay=121, mode=120)
+                                  speed=KB5, attack=108, decay=121, mode=120,
+                                  nodes=125)
 
     # A spot going round and round one flat line of the lattice
     scope = ScopeFieldBetter(
@@ -119,6 +122,18 @@ class FIELDS:
         attack=107,
     )
 
+    # What those figures fire out of their corners. Its own field with its own
+    # pad and knobs, so the bodies and the traces can be patched to different
+    # things and dialled apart.
+    loop_traces = LoopTracesField(
+        loops,
+        midi.for_("loop_traces"),
+        fire=PA5,
+        speed=122,
+        attack=123,
+        decay=124,
+    )
+
     # Complete hexes, selected by the same pattern knob as scope
     hexes = HexesField(graph, midi.for_("hexes"), pattern=KB8)
 
@@ -138,6 +153,17 @@ class FIELDS:
     )
 
     v_rotary180 = v_rotary.turned(0.5)
+
+    # A sine over time with no shape to it, for making something breathe. Off
+    # the desk, like loops - patch it in from the expression editor.
+    lfo = LFOField(midi.for_("lfo"), rate=118)
+
+    # The same cycle, read further round it - thirds and a half. Not LFOs of
+    # their own: they share lfo's phase, so they keep their spacing whichever
+    # of them is in a slot.
+    lfo180 = lfo.turned(0.5)
+    lfo120 = lfo.turned(1 / 3)
+    lfo240 = lfo.turned(2 / 3)
 
     # Art-Net pixels, per universe: red, green, blue, and their average
     artnet0_r, artnet0_g, artnet0_b, artnet0_v = ARTNET[0]
