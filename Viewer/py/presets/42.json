@@ -1,9 +1,13 @@
 {
   "ccs": {
-    "12": 127,
+    "12": 43,
     "13": 0,
-    "14": 127,
-    "15": 0,
+    "14": 0,
+    "15": 39,
+    "16": 0,
+    "17": 0,
+    "18": 0,
+    "19": 127,
     "72": 0,
     "73": 0,
     "75": 127,
@@ -26,12 +30,32 @@
     "114": 92,
     "115": 0,
     "116": 0,
-    "117": 0
+    "117": 0,
+    "119": 18,
+    "120": 0,
+    "121": 0
   },
   "slots": {
     "bg_waves.sat": 0.9,
     "bg_waves.value": 0.3,
-    "bg_waves.hue": 0.04
+    "bg_waves.hue": 0.04,
+    "map_fiber.hue": {
+      "op": "add",
+      "a": {
+        "op": "mul",
+        "a": {
+          "op": "mul",
+          "a": "rotary",
+          "b": {
+            "op": "mul",
+            "a": "burst",
+            "b": 0.5
+          }
+        },
+        "b": 0.39
+      },
+      "b": 0.61
+    }
   },
   "cc_map": {
     "fader_a.value": 12,
@@ -44,8 +68,10 @@
     "wipe1.speed": 109
   },
   "active": [
-    "bg_waves"
+    "bg_waves",
+    "map_fiber"
   ],
   "muted": [],
-  "name": "v-gradient-test"
+  "name": "v-gradient-test",
+  "notes": {}
 }
