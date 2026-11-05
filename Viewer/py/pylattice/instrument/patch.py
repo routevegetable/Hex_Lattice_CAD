@@ -1,4 +1,5 @@
 """Saving and restoring a patch: where the knobs are, and what drives what."""
+
 import copy
 import json
 from collections.abc import Callable
@@ -7,7 +8,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from pylattice.examples.midi import MIDI
-from pylattice.fields.types import CombinedField, ConstantField, ScalarField, average, divide
+from pylattice.fields.types import (
+    CombinedField,
+    ConstantField,
+    ScalarField,
+    average,
+    divide,
+)
 from pylattice.instrument.types import Effect
 
 # What drives a slot, as JSON. A live field cannot be pickled - the MIDI-backed
@@ -26,37 +33,29 @@ from pylattice.instrument.types import Effect
 class Combination:
     """Two refs under an operator: `a` and `b` can be refs of any kind, so
     combinations nest."""
+
     op: str
     a: "FieldRef"
     b: "FieldRef"
+    mod: bool = False
 
 
 FieldRef = str | float | Combination
 
-OPS = {"add": operator.add, "sub": operator.sub, "mul": operator.mul,
-       "div": divide, "avg": average}
+OPS = {
+    "add": operator.add,
+    "sub": operator.sub,
+    "mul": operator.mul,
+    "div": divide,
+    "avg": average,
+}
 OP_NAMES = {op: name for name, op in OPS.items()}
 
 
-def encode_field(field: ScalarField, names: dict[int, str]) -> FieldRef:
-    """A field as JSON, given the names of the fields worth naming."""
-    name = names.get(id(field))
-    if name is not None:
-        return name
-
-    if isinstance(field, ConstantField):
-        return field.value
-
-    if isinstance(field, CombinedField) and field.op in OP_NAMES:
-        return Combination(op=OP_NAMES[field.op],
-                           a=encode_field(field.a, names),
-                           b=encode_field(field.b, names))
-
-    raise ValueError(f"cannot write down a {type(field).__name__} that has no name")
-
-
-def decode_field(ref: FieldRef, by_name: dict[str, ScalarField],
-                 clamp: bool = True) -> ScalarField:
+def decode_field(
+    ref: FieldRef,
+    by_name: dict[str, ScalarField],
+) -> ScalarField:
     """The inverse: look the name up, or build what it describes."""
     if isinstance(ref, str):
         if ref not in by_name:
@@ -69,9 +68,18 @@ def decode_field(ref: FieldRef, by_name: dict[str, ScalarField],
     if isinstance(ref, Combination):
         if ref.op not in OPS:
             raise ValueError(f"no operator {ref.op!r} - try {', '.join(OPS)}")
-        return CombinedField(OPS[ref.op],
-                             decode_field(ref.a, by_name, clamp),
-                             decode_field(ref.b, by_name, clamp), clamp)
+        return CombinedField(
+            OPS[ref.op],
+            decode_field(
+                ref.a,
+                by_name,
+            ),
+            decode_field(
+                ref.b,
+                by_name,
+            ),
+            ref.mod,
+        )
 
     raise ValueError(f"cannot read a field from {ref!r}")
 
@@ -79,7 +87,7 @@ def decode_field(ref: FieldRef, by_name: dict[str, ScalarField],
 def as_json(ref: FieldRef):
     """A ref as plain JSON - a combination becomes its three keys."""
     if isinstance(ref, Combination):
-        return {"op": ref.op, "a": as_json(ref.a), "b": as_json(ref.b)}
+        return {"op": ref.op, "a": as_json(ref.a), "b": as_json(ref.b), "mod": ref.mod}
 
     return ref
 
@@ -87,15 +95,23 @@ def as_json(ref: FieldRef):
 def as_ref(raw) -> FieldRef:
     """The inverse, for reading a file back."""
     if isinstance(raw, dict):
-        return Combination(op=raw.get("op", ""), a=as_ref(raw.get("a")), b=as_ref(raw.get("b")))
+        return Combination(
+            op=raw.get("op", ""),
+            a=as_ref(raw.get("a")),
+            b=as_ref(raw.get("b")),
+            mod=raw.get("mod", ""),
+        )
 
     return raw
 
 
 def named(namespace: type, kind: type) -> dict[str, object]:
     """The `kind` things declared in a class body, in the order written."""
-    return {name: value for name, value in vars(namespace).items()
-            if isinstance(value, kind)}
+    return {
+        name: value
+        for name, value in vars(namespace).items()
+        if isinstance(value, kind)
+    }
 
 
 @dataclass
@@ -182,7 +198,10 @@ class Patch:
             try:
                 # A hue wraps round instead of saturating, so its formula is
                 # not held to 0-1 on the way.
-                field = decode_field(ref, by_name, clamp="hue" not in slot_name)
+                field = decode_field(
+                    ref,
+                    by_name,
+                )
             except ValueError as e:
                 raise ValueError(f"{target}: {e}") from None
 
@@ -201,20 +220,27 @@ class Patch:
     def copy(self) -> "Patch":
         """An independent copy. The slot refs nest, so they go deep - two
         patches must never share a dict, or editing one edits the other."""
-        return Patch(ccs=dict(self.ccs), slots=copy.deepcopy(self.slots),
-                     cc_map=dict(self.cc_map),
-                     active=None if self.active is None else list(self.active),
-                     muted=set(self.muted),
-                     name=self.name,
-                     notes=dict(self.notes))
+        return Patch(
+            ccs=dict(self.ccs),
+            slots=copy.deepcopy(self.slots),
+            cc_map=dict(self.cc_map),
+            active=None if self.active is None else list(self.active),
+            muted=set(self.muted),
+            name=self.name,
+            notes=dict(self.notes),
+        )
 
     def save(self, path: str):
         slots = {name: as_json(ref) for name, ref in self.slots.items()}
-        out = {"ccs": self.ccs, "slots": slots, "cc_map": self.cc_map,
-               "active": self.active,
-               "muted": sorted(self.muted),
-               "name": self.name,
-               "notes": self.notes}
+        out = {
+            "ccs": self.ccs,
+            "slots": slots,
+            "cc_map": self.cc_map,
+            "active": self.active,
+            "muted": sorted(self.muted),
+            "name": self.name,
+            "notes": self.notes,
+        }
         Path(path).write_text(json.dumps(out, indent=2))
 
     @classmethod
@@ -223,13 +249,15 @@ class Patch:
         # JSON keys are strings; CC numbers are not.
         active = saved.get("active")
 
-        return cls(ccs={int(cc): v for cc, v in saved["ccs"].items()},
-                   slots={name: as_ref(raw) for name, raw in saved["slots"].items()},
-                   cc_map=saved.get("cc_map", {}),
-                   active=None if active is None else list(active),
-                   muted=set(saved.get("muted", [])),
-                   name=saved.get("name"),
-                   notes=dict(saved.get("notes", {})))
+        return cls(
+            ccs={int(cc): v for cc, v in saved["ccs"].items()},
+            slots={name: as_ref(raw) for name, raw in saved["slots"].items()},
+            cc_map=saved.get("cc_map", {}),
+            active=None if active is None else list(active),
+            muted=set(saved.get("muted", [])),
+            name=saved.get("name"),
+            notes=dict(saved.get("notes", {})),
+        )
 
 
 @dataclass
@@ -359,4 +387,3 @@ class PresetBank:
         self._cache[number] = stored.copy()
 
         return self._cache[number].copy()
-
