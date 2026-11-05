@@ -1,6 +1,7 @@
 """What a field is: the protocols it implements, and how fields combine."""
 
 import operator
+import traceback
 from dataclasses import dataclass
 from time import perf_counter_ns
 from typing import Protocol, runtime_checkable
@@ -104,9 +105,10 @@ def divide(a: float, b: float) -> float:
     return a / b if b else 0.0
 
 
-def average(a: float, b: float) -> float:
-    """Halfway between two values - an operator with no Python symbol."""
-    return (a + b) / 2
+def average(*values: float) -> float:
+    """The mean of however many values - an operator with no Python symbol.
+    """
+    return sum(values) / len(values)
 
 
 def as_field(x: "ScalarField | float") -> ScalarField:
@@ -176,6 +178,11 @@ class Slot(ScalarField):
         self.name = name
         self._field: ScalarField = ConstantField(0)
 
+        # Whether what is in here has already been seen to raise. A field that
+        # fails does so per end per frame, so the first one says what happened
+        # and the rest are silent; plugging something else in arms it again.
+        self._failed = False
+
         # What the gets of this second have cost, as running totals rather
         # than a list of them: a get happens once per end per frame, so
         # nothing on that path may allocate. Keeping the squares as well as
@@ -205,11 +212,13 @@ class Slot(ScalarField):
                 f" not {type(field).__name__}"
             )
         self._field = resolved
+        self._failed = False
         return resolved
 
     def clear(self):
         """Unplug whatever is in here, back to how it started."""
         self._field = ConstantField(0)
+        self._failed = False
 
     @property
     def field(self) -> ScalarField:
@@ -222,7 +231,19 @@ class Slot(ScalarField):
 
     def get(self, now: Event, end: EndRef) -> float:
         start = perf_counter_ns()
-        value = self._field.get(now, end)
+
+        # Catch exceptions from evaluating fields, log them once until the field is re-set.
+        try:
+            value = self._field.get(now, end)
+        except Exception:
+            value = 0.0
+
+            if not self._failed:
+                self._failed = True
+                print(f"slot {self.name!r} raised - reading 0 until something"
+                      f" else is plugged in:")
+                traceback.print_exc()
+
         took = perf_counter_ns() - start
 
         self._calls += 1

@@ -73,7 +73,15 @@ async function setActive(names) {
 // Every field named anywhere in an expression, however deep.
 function fieldsIn(node) {
   if (typeof node === 'string') return [node];
-  if (node && typeof node === 'object') return [...fieldsIn(node.a), ...fieldsIn(node.b)];
+  if (node && typeof node === 'object') return node.args.flatMap(fieldsIn);
+  return [];
+}
+
+// Every operator named anywhere in an expression, however deep. An operator
+// can own knobs of its own - a fader has the one it is riding - so what is
+// behind an expression is not only what its fields own.
+function opsIn(node) {
+  if (node && typeof node === 'object') return [node.op, ...node.args.flatMap(opsIn)];
   return [];
 }
 
@@ -198,12 +206,31 @@ const effectsWithControls = () => activeEffects()
     .filter(name => controlsOwnedBy(name).length)
     .sort((a, b) => a.localeCompare(b));
 
-// The knobs behind an expression: every control belonging to a field it names.
-// It grows as fields are added, because it is read off the tree being edited.
+// The knobs behind an expression: every control belonging to a field or an
+// operator it names. It grows as either is added, because it is read off the
+// tree being edited.
+//
+// A control is owned by whatever is in front of its dot - `ripple.speed` is
+// ripple's.
+//
+// A field owns the ones named after it and no others. Several are named after
+// another field with something on the end - `random_lines` is not a kind of
+// `random`, `trace_lines` not a kind of `trace` - and matching those loosely
+// would hand each of them the other's knobs.
+//
+// An operator takes any control whose prefix it carries, because several of
+// them share one and it is named after none of them: both choosers of a
+// gradient ask for `gradient_1.select`. No operator is named after another
+// field or operator with a suffix, so nothing is swept up that way.
 function controlsFor(tree) {
-  const names = fieldsIn(tree);
-  return controls.filter(c => c.kind === 'cc' &&
-      c.comments.some(t => names.some(n => t.startsWith(n + '.'))));
+  const fields = fieldsIn(tree);
+  const ops = opsIn(tree);
+
+  return controls.filter(c => c.kind === 'cc' && c.comments.some((t) => {
+    const prefix = t.split('.')[0];
+    return fields.includes(prefix)
+        || ops.some(n => n === prefix || n.startsWith(prefix + '_'));
+  }));
 }
 
 const effectOf = (key) => key.split('.')[0];
@@ -213,6 +240,35 @@ const slotKeys = (name) =>
 const slotOf = (key) => key.split('.').slice(1).join('.');
 const isLeaf = (n) => n === null || typeof n === 'string' || typeof n === 'number';
 
+// How many operands an operator is written with, as the rig describes it.
+// Undefined for one the rig does not have - an operator a preset names that
+// has since gone is shown and laid out as the general case rather than being
+// guessed at.
+const arityOf = (op) => rig.operators.find(o => o.name === op)?.arity;
+
+// Whether to write an operation as a sum rather than as a call. Only a binary
+// operator is one: it is written with two operands, and `glyphs` has the mark
+// to put between them. A unary or nary operator reads `name(arg, arg)` - the
+// same shape the editor lays it out in, and what parse() takes back.
+const infix = (node, glyphs) => arityOf(node.op) === 'binary'
+    && node.args.length === 2 && node.op in glyphs;
+
+// The same operation under a different operator, with its operands fitted to
+// what that one is written with: a unary operator gets one box, not however
+// many the last one had. Nothing is moved that can stay - the operands keep
+// their positions, a short list gains an empty one, and a long one loses the
+// tail, which undo has if it was wanted. An operator written with any number
+// keeps whatever it is given.
+function withOp(node, name) {
+  const arity = arityOf(name);
+  const want = arity === 'unary' ? 1 : arity === 'binary' ? 2 : node.args.length;
+  const args = node.args.slice(0, want);
+
+  while (args.length < want) args.push(null);
+
+  return {...node, op: name, args};
+}
+
 function describe(node, nested = false) {
   if (node === null) return 'nothing';
   if (typeof node === 'number') return String(node);
@@ -221,7 +277,14 @@ function describe(node, nested = false) {
   // Brackets on every operator but the outermost. The tree has no precedence
   // - it is nested, not parsed - so `a + b * c` would read as something it is
   // not, and which `b * c` belongs to has to be shown rather than assumed.
-  const shown = `${describe(node.a, true)} ${OPS[node.op]} ${describe(node.b, true)}`;
+  // A call brackets its own arguments and separates them with commas, so an
+  // operation inside one needs no brackets of its own; between two operands
+  // with only a glyph to go on, it does.
+  if (!infix(node, OPS))
+    return `${node.op}(${node.args.map(arg => describe(arg)).join(', ')})`;
+
+  const parts = node.args.map(arg => describe(arg, true));
+  const shown = `${parts[0]} ${OPS[node.op]} ${parts[1]}`;
 
   return nested ? `(${shown})` : shown;
 }
@@ -240,13 +303,17 @@ function toText(node, nested = false) {
   if (typeof node === 'number') return String(node);
   if (typeof node === 'string') return node;
 
-  const shown = `${toText(node.a, true)} ${TEXT_OPS[node.op]} ${toText(node.b, true)}`;
+  if (!infix(node, TEXT_OPS))
+    return `${node.op}(${node.args.map(arg => toText(arg)).join(', ')})`;
+
+  const parts = node.args.map(arg => toText(arg, true));
+  const shown = `${parts[0]} ${TEXT_OPS[node.op]} ${parts[1]}`;
 
   return nested ? `(${shown})` : shown;
 }
 
 function tokens(text) {
-  const grab = /\s*([()]|[+\-*/~]|[A-Za-z_][\w.]*|\d*\.?\d+)/y;
+  const grab = /\s*([(),]|[+\-*/~]|[A-Za-z_][\w.]*|\d*\.?\d+)/y;
   const out = [];
   let at = 0;
 
@@ -282,8 +349,24 @@ function parse(text) {
     }
 
     if (tok === ')') throw new Error('a ) with no (');
+    if (tok === ',') throw new Error('a , outside an operation');
     if (FROM_TEXT[tok]) throw new Error(`"${tok}" needs something in front of it`);
     if (/^[\d.]/.test(tok)) return parseFloat(tok);
+
+    // `add(x, y, z)` - the only way to write an operation of any arity other
+    // than two, since there is no glyph to put between three things. A name
+    // followed by a ( is an operator, not a field, so it is checked against
+    // the operators rather than the field list.
+    if (t[i] === '(') {
+      if (!rig.operators.some(o => o.name === tok))
+        throw new Error(`no operator called "${tok}"`);
+      i++;
+      const args = [sum()];
+      while (t[i] === ',') { i++; args.push(sum()); }
+      if (t[i++] !== ')') throw new Error(`"${tok}(" with no )`);
+      return {op: tok, args};
+    }
+
     if (!rig.fields.some(f => f.name === tok)) throw new Error(`no field called "${tok}"`);
 
     return tok;
@@ -293,7 +376,7 @@ function parse(text) {
     let left = next();
 
     while (ops.includes(t[i]))
-      left = {op: FROM_TEXT[t[i++]], a: left, b: next()};
+      left = {op: FROM_TEXT[t[i++]], args: [left, next()]};
 
     return left;
   };
@@ -387,10 +470,22 @@ function textEditor(key, tree) {
 
 const at = (tree, path) => path.reduce((n, step) => n[step], tree);
 
+// The tree a slot is showing: what is being edited if it is open, otherwise
+// what the patch says. Asked for again at every click rather than carried
+// along, so a knob turned meanwhile is not written back as it was.
+const treeFor = (key) => key in editing ? editing[key] : (patch.slots[key] ?? null);
+
 function replace(tree, path, value) {
   if (path.length === 0) return value;
+
   const [step, ...rest] = path;
-  return {...tree, [step]: replace(tree[step], rest, value)};
+  const inner = replace(tree[step], rest, value);
+
+  // An operation's arguments are a list, and spreading a list into an object
+  // turns it into one - so the two halves of a path step are rebuilt in kind.
+  if (Array.isArray(tree)) return tree.map((n, i) => (i === step ? inner : n));
+
+  return {...tree, [step]: inner};
 }
 
 // The knobs as they stand, in the shape a patch records them. Read off the
@@ -471,7 +566,8 @@ function leaf(key, tree, path) {
   math.title = 'math';
   math.className = 'math';                  // two short rows of operators
   math.innerHTML = '<span>+\u2212</span><span>\u00d7\u00f7</span>';
-  math.onclick = () => redrawSlot(key, replace(tree, path, {op: 'mul', a: node, b: null}));
+  math.onclick = () => redrawSlot(key, replace(tree, path,
+                                                {op: 'mul', args: [node, null]}));
 
 
   // const - the slider lives in this segment, and takes the icon's place
@@ -537,18 +633,34 @@ function nodeView(key, tree, path) {
     b.textContent = glyph;
     b.title = name;
     if (name === node.op) b.className = 'on';
-    b.onclick = () => redrawSlot(key, replace(tree, path, {...node, op: name}));
+    b.onclick = () => redrawSlot(key, replace(tree, path, withOp(node, name)));
     ops.append(b);
   }
 
-  // Swap which way round the operands are. Only ÷ and − care, but they care
-  // a lot, and rebuilding both sides by hand to turn one around is a chore.
+  // The row has room for the operators a sum is written with. The rig knows
+  // the rest, and this is the way to them. When the operation is one of those
+  // others, the button says which rather than leaving nothing lit.
+  const more = document.createElement('button');
+  const glyphed = node.op in OPS;
+  more.textContent = glyphed ? '\u2026' : node.op;
+  more.title = glyphed ? 'every operator' : node.op;
+
+  // A name needs room either side of it, where a glyph is happy centred in
+  // the same 28px every other button in the row gets.
+  more.className = glyphed ? '' : 'named on';
+  more.onclick = () => openOps(key, path);
+  ops.append(more);
+
+  // Turn the operands round. Only ÷ and − care, but they care a lot, and
+  // rebuilding both sides by hand to turn one around is a chore. Reversed
+  // rather than swapped, so it still means something with more than two, and
+  // left out entirely where there is nothing to turn round.
   const swap = document.createElement('button');
   swap.className = 'swap';
   swap.textContent = '\u21c4';
-  swap.title = 'swap the operands';
+  swap.title = 'turn the operands round';
   swap.onclick = () => redrawSlot(key, replace(tree, path,
-                                               {...node, a: node.b, b: node.a}));
+                                               {...node, args: [...node.args].reverse()}));
 
   // Put this whole operation inside a new one, as its first operand - the
   // same move the leaf's math button makes, for something already nested.
@@ -557,22 +669,71 @@ function nodeView(key, tree, path) {
   wrap.textContent = '\u2283';
   wrap.title = 'wrap this in a new operation';
   wrap.onclick = () => redrawSlot(key, replace(tree, path,
-                                               {op: 'mul', a: node, b: null}));
+                                               {op: 'mul', args: [node, null]}));
 
   const drop = document.createElement('button');
   drop.className = 'unwrap';
   drop.textContent = '⨯';
   drop.title = 'drop this operation, keep the first operand';
-  drop.onclick = () => redrawSlot(key, replace(tree, path, node.a));
+  drop.onclick = () => redrawSlot(key, replace(tree, path, node.args[0]));
 
-  head.append(ops, swap, wrap, drop);
+  // An operator written with any number of operands can be given another.
+  // The rest are written with the number they are written with, so there is
+  // nothing to add to them.
+  const plus = document.createElement('button');
+  plus.className = 'plus';
+  plus.textContent = '+';
+  plus.title = 'another operand';
+  plus.onclick = () => redrawSlot(key, replace(tree, path,
+                                               {...node, args: [...node.args, null]}));
 
-  // The operator sits between the two operands it joins rather than above
-  // them, because which way round they are is the whole point of - and ÷.
+  const arity = arityOf(node.op);
+
+  head.append(ops, ...(arity === 'nary' ? [plus] : []),
+              ...(node.args.length > 1 ? [swap] : []), wrap, drop);
+
+  // A binary operator sits between the two operands it joins rather than
+  // above them, because which way round they are is the whole point of - and
+  // ÷. Anything else has no between: the row goes on top and the operands
+  // follow it in order, numbered, since position is all that tells them apart.
+  //
+  // Which it is comes from what the operator is written with, not from how
+  // many arguments this node happens to hold - an operator of any arity with
+  // two of them is still a list. A binary one that somehow holds another
+  // number also stacks, so that nothing is left off the screen.
   const kids = document.createElement('div');
   kids.className = 'kids';
-  kids.append(nodeView(key, tree, [...path, 'a']), head,
-              nodeView(key, tree, [...path, 'b']));
+  const operands = node.args.map(
+      (_, i) => nodeView(key, tree, [...path, 'args', i]));
+
+  if (arity === 'binary' && operands.length === 2) {
+    kids.append(operands[0], head, operands[1]);
+  } else {
+    kids.append(head);
+    operands.forEach((view, i) => {
+      const line = document.createElement('div');
+      line.className = 'operand';
+      const n = document.createElement('i');
+      n.textContent = i + 1;
+      line.append(n, view);
+
+      // An operand of an operator written with any number of them can go
+      // again - down to one, because an operation with nothing in it is not
+      // an operation. The others are written with the number they are written
+      // with, so there is nothing there to take away.
+      if (arity === 'nary' && operands.length > 1) {
+        const cut = document.createElement('button');
+        cut.className = 'cut';
+        cut.textContent = '\u2a2f';
+        cut.title = `drop operand ${i + 1}`;
+        cut.onclick = () => redrawSlot(key, replace(tree, path,
+            {...node, args: node.args.filter((_, which) => which !== i)}));
+        line.append(cut);
+      }
+
+      kids.append(line);
+    });
+  }
 
   box.append(kids);
   return box;
@@ -581,7 +742,7 @@ function nodeView(key, tree, path) {
 function redrawSlot(key, tree) {
   editing[key] = tree;
   const done = (function whole(n) {
-    return n === null ? false : isLeaf(n) ? true : whole(n.a) && whole(n.b);
+    return n === null ? false : isLeaf(n) ? true : n.args.every(whole);
   })(tree);
   if (done) { delete editing[key]; write(key, tree); }
   else drawSlots();
@@ -598,7 +759,7 @@ function drawSlots() {
   if (own.length) box.append(controlList(own));
 
   for (const key of slotKeys(active)) {
-    const tree = key in editing ? editing[key] : (patch.slots[key] ?? null);
+    const tree = treeFor(key);
 
     const el = document.createElement('div');
     el.className = 'slot' + (open === key ? ' open' : '') + (tree === null ? ' empty' : '');
@@ -987,6 +1148,51 @@ function back(to) {
   b.onclick = to ?? null;
 }
 
+// Picking the operator of an operation, rather than what is inside one.
+function openOps(key, path) {
+  picking = {key, path};
+  showOperators();
+  document.getElementById('modal').hidden = false;
+}
+
+// How an operator is written, which says more about it than its name does: a
+// binary one is the sum it makes, and the rest are the call they are written
+// as - with the single argument a unary takes, or an ellipsis for however many
+// an nary does. A binary operator with no glyph of its own goes between its
+// operands by name, since that is still where it sits.
+const writtenAs = (o) => o.arity === 'binary'
+    ? `a ${OPS[o.name] ?? o.name} b`
+    : `${o.name}(${o.arity === 'unary' ? 'x' : '...'})`;
+
+// Every operator the rig has, A to Z by name, the one in use lit.
+function showOperators() {
+  const picker = document.getElementById('picker');
+  document.getElementById('modal-title').textContent = 'which operator?';
+  back(null);
+  picker.className = 'picker';
+  picker.innerHTML = '';
+
+  const node = at(treeFor(picking.key), picking.path);
+  const named = [...rig.operators].sort((x, y) => x.name.localeCompare(y.name));
+
+  for (const o of named) {
+    const b = document.createElement('button');
+    b.textContent = writtenAs(o);
+    b.title = `${o.name} \u00b7 ${o.kind} \u00b7 ${o.arity}`;
+
+    if (o.name === node.op) b.className = 'on';
+    b.onclick = () => chooseOp(o.name);
+    picker.append(b);
+  }
+}
+
+function chooseOp(name) {
+  const {key, path} = picking;
+  const tree = treeFor(key);
+  closePicker();
+  redrawSlot(key, replace(tree, path, withOp(at(tree, path), name)));
+}
+
 // One flat list, A to Z. The kind rides along as a hint rather than a category.
 function showFields() {
   const picker = document.getElementById('picker');
@@ -1006,7 +1212,7 @@ function showFields() {
 
 function choose(value) {
   const {key, path} = picking;
-  const tree = key in editing ? editing[key] : (patch.slots[key] ?? null);
+  const tree = treeFor(key);
   closePicker();
   redrawSlot(key, replace(tree, path, value));
 }
@@ -1127,7 +1333,7 @@ function drawPage() {
 // Every slot whose expression names a field, however deep in it.
 function usedBy(name) {
   const mentions = (n) => n === name ||
-      (n !== null && typeof n === 'object' && (mentions(n.a) || mentions(n.b)));
+      (n !== null && typeof n === 'object' && n.args.some(mentions));
   return Object.keys(patch.slots).filter(k => mentions(patch.slots[k]));
 }
 
@@ -1186,6 +1392,47 @@ function knobDiagram() {
   return box;
 }
 
+// Every control whose CC or knob position differs between live and stored.
+function controlChanges() {
+  const byName = new Map(controls.filter(c => c.kind === 'cc')
+                                 .map(c => [c.comments[0], c]));
+  const names = new Set([...byName.keys(), ...Object.keys(patch.cc_map),
+                         ...Object.keys(stored.cc_map)]);
+
+  return [...names].sort().flatMap((name) => {
+    const c = byName.get(name);
+    const from = stored.cc_map[name] ?? c?.default;
+    const to = patch.cc_map[name] ?? c?.default;
+    const was = stored.ccs[from];
+    const now = c && liveValue(c);
+
+    return from !== to || (c && was !== now) ? [{name, from, to, was, now}] : [];
+  });
+}
+
+function changesList() {
+  const box = document.createElement('div');
+  const found = controlChanges();
+
+  box.append(infoRow('changed since saved', found.length || 'nothing'));
+
+  for (const {name, from, to, was, now} of found) {
+    const meta = metaFor(name);
+    const parts = [];
+
+    if (from !== to) parts.push(`cc ${from ?? 'default'} \u2192 ${to ?? 'default'}`);
+
+    if (now !== undefined && was !== now) {
+      const before = was === undefined ? 'unset' : readOut(meta, was);
+      parts.push(`${before} \u2192 ${readOut(meta, now)}`);
+    }
+
+    box.append(infoRow(name, parts.join(' \u00b7 ')));
+  }
+
+  return box;
+}
+
 function drawFieldPage() {
   const box = document.getElementById('page');
   box.innerHTML = '';
@@ -1195,6 +1442,7 @@ function drawFieldPage() {
     box.insertAdjacentHTML('beforeend',
         '<p class="hint">Pick a field or an effect above to see which knobs it '
         + 'listens to.</p>');
+    box.append(changesList());
     return;
   }
 
@@ -1227,6 +1475,8 @@ function drawFieldPage() {
   } else {
     box.append(infoRow('used by', usedBy(chosen).join(', ') || 'nothing'));
   }
+
+  box.append(changesList());
 }
 
 // ---- System --------------------------------------------------------------

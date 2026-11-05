@@ -3,18 +3,12 @@
 import copy
 import json
 from collections.abc import Callable
-import operator
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from pylattice.examples.midi import MIDI
-from pylattice.fields.types import (
-    CombinedField,
-    ConstantField,
-    ScalarField,
-    average,
-    divide,
-)
+from pylattice.fields.operators import Operator, OperatorField
+from pylattice.fields.types import ConstantField, ScalarField
 from pylattice.instrument.types import Effect
 
 # What drives a slot, as JSON. A live field cannot be pickled - the MIDI-backed
@@ -23,71 +17,76 @@ from pylattice.instrument.types import Effect
 #
 #   "rotary"                                  a field declared in FIELDS
 #   0.25                                      a constant
-#   {"op": "mul", "a": "ripple", "b": 0.5}    a combination, nested freely
+#   {"op": "mul", "args": ["ripple", 0.5]}    an operation, nested freely
 #
-# The combination is a dataclass rather than a bare dict, so the shape is
+# Files written before an operation took a list of arguments say "a" and "b"
+# instead. as_ref reads either; as_json only ever writes the list, so a preset
+# converts the first time it is saved.
+#
+# The operation is a dataclass rather than a bare dict, so the shape is
 # declared in one place - the REST schema is generated from it.
 
 
 @dataclass
-class Combination:
-    """Two refs under an operator: `a` and `b` can be refs of any kind, so
-    combinations nest."""
+class Operation:
+    """An operator and the refs it reads. Each argument can be a ref of any
+    kind, so operations nest."""
 
     op: str
-    a: "FieldRef"
-    b: "FieldRef"
+
+    args: list["FieldRef"]
+
     mod: bool = False
 
-
-FieldRef = str | float | Combination
-
-OPS = {
-    "add": operator.add,
-    "sub": operator.sub,
-    "mul": operator.mul,
-    "div": divide,
-    "avg": average,
-}
-OP_NAMES = {op: name for name, op in OPS.items()}
+FieldRef = str | float | Operation
 
 
 def decode_field(
     ref: FieldRef,
-    by_name: dict[str, ScalarField],
+    by_name: dict[str, ScalarField | Operator],
 ) -> ScalarField:
     """The inverse: look the name up, or build what it describes."""
     if isinstance(ref, str):
         if ref not in by_name:
             raise ValueError(f"no field {ref!r}")
-        return by_name[ref]
+        
+        obj = by_name[ref]
+        
+        if not isinstance(obj, ScalarField):
+            raise ValueError(f"not a field: {ref!r}")
+
+        return obj
+
 
     if isinstance(ref, (int, float)):
         return ConstantField(ref)
 
-    if isinstance(ref, Combination):
-        if ref.op not in OPS:
-            raise ValueError(f"no operator {ref.op!r} - try {', '.join(OPS)}")
-        return CombinedField(
-            OPS[ref.op],
-            decode_field(
-                ref.a,
-                by_name,
-            ),
-            decode_field(
-                ref.b,
-                by_name,
-            ),
+    if isinstance(ref, Operation):
+        obj = by_name.get(ref.op)
+
+        # Operators are declared alongside the fields, so what there is to
+        # choose from is whatever OPERATORS says - not a list kept here, free
+        # to disagree with it. A name that is a field rather than an operator
+        # fails the same way, and for the same reason.
+        if not isinstance(obj, Operator):
+            offered = ", ".join(sorted(name for name, thing in by_name.items()
+                                       if isinstance(thing, Operator)))
+            raise ValueError(f"no operator {ref.op!r} - try {offered}")
+
+        return OperatorField(
+            obj,
             ref.mod,
+            *(decode_field(arg, by_name) for arg in ref.args),
         )
 
     raise ValueError(f"cannot read a field from {ref!r}")
 
 
 def as_json(ref: FieldRef):
-    """A ref as plain JSON - a combination becomes its three keys."""
-    if isinstance(ref, Combination):
-        return {"op": ref.op, "a": as_json(ref.a), "b": as_json(ref.b), "mod": ref.mod}
+    """A ref as plain JSON - an operation becomes its three keys."""
+    if isinstance(ref, Operation):
+        return {"op": ref.op, "args": [as_json(arg) for arg in ref.args],
+                "mod": ref.mod}
 
     return ref
 
@@ -95,11 +94,22 @@ def as_json(ref: FieldRef):
 def as_ref(raw) -> FieldRef:
     """The inverse, for reading a file back."""
     if isinstance(raw, dict):
-        return Combination(
+
+        # Detect if this is old
+
+        if "a" in raw:
+            args = [
+                as_ref(raw.get("a")),
+                as_ref(raw.get("b")),
+            ]
+        else:
+            # New one!
+            args = [as_ref(arg) for arg in raw.get("args", [])]
+
+        return Operation(
             op=raw.get("op", ""),
-            a=as_ref(raw.get("a")),
-            b=as_ref(raw.get("b")),
-            mod=raw.get("mod", ""),
+            args=args,
+            mod=raw.get("mod", False),
         )
 
     return raw
@@ -118,7 +128,7 @@ def named(namespace: type, kind: type) -> dict[str, object]:
 class Patch:
     """Every setting there is: where the knobs are, and what drives what.
 
-        Patch.load("preset.json").apply(midi, FIELDS, EFFECTS)
+        Patch.load("preset.json").apply(midi, FIELDS, OPERATORS, EFFECTS)
 
     Patches are made by whoever is editing one - the UI sends a whole patch,
     and the bank folds the knobs into whatever is playing. Nothing reads one
@@ -155,7 +165,7 @@ class Patch:
     # note has no entry.
     notes: dict[str, str] = field(default_factory=dict)
 
-    def apply(self, midi: MIDI, fields: type, effects: type):
+    def apply(self, midi: MIDI, fields: type, operators: type, effects: type):
         """Put the knobs back and re-patch the slots.
 
         A patch is the entire picture: a slot it does not mention ends up with
@@ -171,7 +181,10 @@ class Patch:
         for control, value in self.ccs.items():
             midi.set_cc(control, value)
 
-        by_name = named(fields, ScalarField)
+        # One namespace to look a ref up in, though they are declared apart:
+        # a slot names `mul` the same way it names `ripple`, and which of the
+        # two a ref may be is decided by where it sits in the expression.
+        by_name = {**named(fields, ScalarField), **named(operators, Operator)}
         by_effect = named(effects, Effect)
 
         # Nothing here says which effects draw, or when. `active` is that, and
