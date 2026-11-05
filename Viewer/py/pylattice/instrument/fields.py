@@ -33,6 +33,7 @@ from pylattice.fields.trace import RandomTraceField, TraceLinesField
 from pylattice.fields.types import ScalarField, average, divide
 from pylattice.fields.wipe import NoteWipeField
 from pylattice.graph import EndRef
+from pylattice.instrument.gradients import GRADIENTS
 from pylattice.instrument.hardware import (
     KA1,
     KA2,
@@ -254,12 +255,12 @@ class OPERATORS:
     # it is the saturation of the same gradient at the same place. Unary - the
     # gradient is chosen on a knob, not written into the expression.
     #
-    gradient_1_h = GradientChooser(True, midi.for_("gradient_1"), 82)
-    gradient_1_s = GradientChooser(False, midi.for_("gradient_1"), 82)
-    gradient_2_h = GradientChooser(True, midi.for_("gradient_2"), 83)
-    gradient_2_s = GradientChooser(False, midi.for_("gradient_2"), 83)
-    gradient_3_h = GradientChooser(True, midi.for_("gradient_3"), 84)
-    gradient_3_s = GradientChooser(False, midi.for_("gradient_3"), 84)
+    gradient_1_h = GradientChooser(True, midi.for_("gradient_1"), 82, GRADIENTS)
+    gradient_1_s = GradientChooser(False, midi.for_("gradient_1"), 82, GRADIENTS)
+    gradient_2_h = GradientChooser(True, midi.for_("gradient_2"), 83, GRADIENTS)
+    gradient_2_s = GradientChooser(False, midi.for_("gradient_2"), 83, GRADIENTS)
+    gradient_3_h = GradientChooser(True, midi.for_("gradient_3"), 84, GRADIENTS)
+    gradient_3_s = GradientChooser(False, midi.for_("gradient_3"), 84, GRADIENTS)
 
     # The prob_zaps effect as a value: `prob_zap(fader_a)` flashes ends at the
     # rate that knob asks for, and whatever is reading it gets the flash.

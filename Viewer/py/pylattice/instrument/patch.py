@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from pylattice.examples.midi import MIDI
+from pylattice.fields.gradients import Gradient, GradientLibrary
 from pylattice.fields.operators import Operator, OperatorField
 from pylattice.fields.types import ConstantField, ScalarField
 from pylattice.instrument.types import Effect
@@ -125,10 +126,25 @@ def named(namespace: type, kind: type) -> dict[str, object]:
 
 
 @dataclass
+class GradientDef:
+    """A gradient a preset carries of its own, as written in its file.
+
+    The name it goes by is the key it sits under in `Patch.gradients`, and is
+    only for whoever is reading it: playing uses the position and the stops.
+    The position is where a gradient knob must sit to pick it. Stops are
+    (frac, hue, sat), each 0-1. Which positions and names are sensible is for
+    whatever writes the preset to decide; see `pylattice.fields.gradients`.
+    """
+
+    position: int
+    stops: list[tuple[float, float, float]]
+
+
+@dataclass
 class Patch:
     """Every setting there is: where the knobs are, and what drives what.
 
-        Patch.load("preset.json").apply(midi, FIELDS, OPERATORS, EFFECTS)
+        Patch.load("preset.json").apply(midi, FIELDS, OPERATORS, EFFECTS, GRADIENTS)
 
     Patches are made by whoever is editing one - the UI sends a whole patch,
     and the bank folds the knobs into whatever is playing. Nothing reads one
@@ -165,7 +181,19 @@ class Patch:
     # note has no entry.
     notes: dict[str, str] = field(default_factory=dict)
 
-    def apply(self, midi: MIDI, fields: type, operators: type, effects: type):
+    # Gradients that belong to this preset alone, by name: laid over the declared
+    # ones while it plays, and visible to no other preset. Empty - which is also
+    # what a file written before gradients gives - means it uses only those.
+    gradients: dict[str, GradientDef] = field(default_factory=dict)
+
+    def apply(
+        self,
+        midi: MIDI,
+        fields: type,
+        operators: type,
+        effects: type,
+        gradients: GradientLibrary,
+    ):
         """Put the knobs back and re-patch the slots.
 
         A patch is the entire picture: a slot it does not mention ends up with
@@ -174,6 +202,17 @@ class Patch:
         blank rig, and reverting to one clears it. Everything that applies a
         patch sends all of it, the UI included.
         """
+        # Its own gradients are read first, so a malformed one fails before
+        # anything has been changed, and installed last, so a patch that fails
+        # further down does not leave the last one's gradients half replaced.
+        # Sorted by frac, which `gradient_hs` relies on; the sort is stable, so
+        # a hard step keeps its two sides.
+        own = [
+            Gradient(name, g.position,
+                     tuple(sorted((tuple(s) for s in g.stops), key=lambda s: s[0])))
+            for name, g in self.gradients.items()
+        ]
+
         # Where the controls live comes first: the values below are addressed
         # by CC number, so they have to land after everything is plugged in.
         midi.set_cc_map(self.cc_map)
@@ -230,6 +269,8 @@ class Patch:
             if mine:
                 effect.bind(**mine)
 
+        gradients.load(own)
+
     def copy(self) -> "Patch":
         """An independent copy. The slot refs nest, so they go deep - two
         patches must never share a dict, or editing one edits the other."""
@@ -241,6 +282,7 @@ class Patch:
             muted=set(self.muted),
             name=self.name,
             notes=dict(self.notes),
+            gradients=copy.deepcopy(self.gradients),
         )
 
     def save(self, path: str):
@@ -254,6 +296,15 @@ class Patch:
             "name": self.name,
             "notes": self.notes,
         }
+
+        # Only when there are some, so a preset that has none is written as it
+        # always was and saving it does not touch the file.
+        if self.gradients:
+            out["gradients"] = {
+                name: {"position": g.position, "stops": [list(s) for s in g.stops]}
+                for name, g in self.gradients.items()
+            }
+
         Path(path).write_text(json.dumps(out, indent=2))
 
     @classmethod
@@ -270,6 +321,13 @@ class Patch:
             muted=set(saved.get("muted", [])),
             name=saved.get("name"),
             notes=dict(saved.get("notes", {})),
+            gradients={
+                name: GradientDef(
+                    position=int(raw["position"]),
+                    stops=[tuple(stop) for stop in raw["stops"]],
+                )
+                for name, raw in saved.get("gradients", {}).items()
+            },
         )
 
 

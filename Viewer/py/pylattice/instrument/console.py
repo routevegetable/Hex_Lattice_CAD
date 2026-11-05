@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 
 from pylattice.examples.midi import CCMeta, MIDI
 from pylattice.examples.tempo import Event
+from pylattice.fields.gradients import GradientLibrary
 from pylattice.fields.operators import Arity, Operator
 from pylattice.fields.types import ScalarField, Timing
 from pylattice.instrument.patch import Patch, PresetBank, named
@@ -97,6 +98,18 @@ class EffectInfo:
 
 
 @dataclass
+class GradientInfo:
+    """A declared gradient, for a UI to list and draw.
+
+    Only the ones declared in code: a preset's own come with the preset, in its
+    patch. The stops are (frac, hue, sat), as `gradient_hs` takes them.
+    """
+    name: str
+    position: int
+    stops: list[tuple[float, float, float]]
+
+
+@dataclass
 class Rig:
     """What can be patched - the names a Patch refers to, and the bank.
 
@@ -115,6 +128,9 @@ class Rig:
     # Presentation metadata for controls
     control_meta: dict[str, CCMeta] = field(default_factory=dict)
 
+    # The gradients every preset can use, and the position a knob picks each at.
+    gradients: list[GradientInfo] = field(default_factory=list)
+
     selected: int | None = None
     size: int = 16
 
@@ -123,13 +139,14 @@ class Console:
     """Thread-safe access to the patch. Every method takes the lock."""
 
     def __init__(self, midi: MIDI, fields: type, operators: type, effects: type,
-                 bank: PresetBank):
+                 bank: PresetBank, gradients: GradientLibrary):
         self.lock = threading.RLock()
         self._midi = midi
         self._fields = fields
         self._operators = operators
         self._effects = effects
         self._bank = bank
+        self._gradients = gradients
         bank.live_ccs = self._live_ccs      # so the bank can keep up with the knobs
 
         # name -> the effect object, built once. The same objects a patch is
@@ -223,7 +240,8 @@ class Console:
         """Put a patch into the rig. Knobs it does not mention are left alone,
         but slots it does not mention are emptied - a patch is the whole
         picture. The lock is already held."""
-        patch.apply(self._midi, self._fields, self._operators, self._effects)
+        patch.apply(self._midi, self._fields, self._operators, self._effects,
+                    self._gradients)
 
     # -- the four things you can do to a preset ---------------------------
 
@@ -328,6 +346,8 @@ class Console:
                 effects=effects,
                 control_meta={name: mapping.meta for name, mapping
                               in self._midi.get_mappings().items()},
+                gradients=[GradientInfo(g.name, g.position, list(g.stops))
+                           for g in self._gradients.declared],
                 selected=self._selected,
                 size=self._bank.size,
             )
