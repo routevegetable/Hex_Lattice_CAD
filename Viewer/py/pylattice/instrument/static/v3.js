@@ -147,7 +147,7 @@ function describe(node) {
   if (typeof node === 'number') return fmt(node);
   if (typeof node === 'string') return node;
   if (isGradient(node)) return describeGradient(node);
-  return `(${describe(node.a)} ${OPS[node.op]} ${describe(node.b)})`;
+  return `(${describe(node.a)} ${OPS[node.op]} ${describe(node.b)})${node.mod ? ' mod 1' : ''}`;
 }
 
 // ---- undo ----------------------------------------------------------------
@@ -233,6 +233,21 @@ const mutedIn = (n) => views[n]?.live.muted ?? [];
 const muted = () => mutedIn(rig.selected);
 const isMuted = (name) => muted().includes(name);
 
+// A line of the player's own words about an effect, kept in the preset beside
+// its name. Nothing renders from it.
+async function setNote(name, text) {
+  const n = rig.selected;
+  if (n === null) return;
+
+  const fresh = await get(`/presets/${n}`);
+  remember(n, fresh.live);
+  const {[name]: _gone, ...rest} = fresh.live.notes ?? {};
+  const notes = text ? {...rest, [name]: text} : rest;
+  const r = await put(`/presets/${n}`, {...fresh.live, notes});
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  await refresh();
+}
+
 async function setMuted(names) {
   const n = rig.selected;
   if (n === null) return;
@@ -289,13 +304,24 @@ async function setActive(names) {
 
 // Change one slot of the playing preset, and nothing else - read just now, as
 // with the chain, so the knobs in it are where they are.
-async function writeSlot(key, tree) {
+//
+// A `value` slot can have a fader as its outermost step. The editor never shows
+// it, so what is written here is the rest of the expression and the fader the
+// slot already has is put back around it - unless one is passed, `null` for none.
+async function writeSlot(key, tree, fader) {
   const n = rig.selected;
   if (n === null) return;
 
   const fresh = await get(`/presets/${n}`);
   remember(n, fresh.live);
-  const r = await put(`/presets/${n}`, {...fresh.live, slots: {...fresh.live.slots, [key]: tree}});
+  if (isValueSlot(key)) {
+    const outer = fader === undefined ? splitFader(fresh.live.slots[key] ?? null).fader : fader;
+    tree = withFader(tree, outer);
+  }
+  const slots = {...fresh.live.slots, [key]: tree};
+  // Controls a field brings are not placed on the box: that is done by hand, on
+  // the map (or with "assign them").
+  const r = await put(`/presets/${n}`, {...fresh.live, slots});
   if (!r.ok) { alert((await r.json()).detail); return; }
   await refresh();
 }
@@ -419,7 +445,12 @@ function fieldMenu(box, current, onPick, source = fieldSource) {
     search.placeholder = source.placeholder;
     const body = document.createElement('div');
     body.className = 'fpick-body';
-    menu.append(search, body);
+    // The same choice, made by pressing the control that drives the field.
+    const onMap = document.createElement('button');
+    onMap.className = 'fpick-map';
+    onMap.textContent = 'pick on the controller map';
+    onMap.onclick = () => { close(); startMapPick(onPick); };
+    menu.append(search, ...(source.noMap ? [] : [onMap]), body);
 
     let rows = [], cursor = 0;
 
@@ -570,7 +601,8 @@ const usableSource = (src) => typeof src === 'string' ||
 // A source and the width it is squeezed into: x x k, x / k, or k x x. Anything
 // else is a source of its own, at width 1.
 function peelWidth(x) {
-  if (x && typeof x === 'object' && (x.op === 'mul' || x.op === 'div')) {
+  // A layer that wraps round is a source of its own: the wheel has no way to say so.
+  if (x && typeof x === 'object' && !x.mod && (x.op === 'mul' || x.op === 'div')) {
     const [f, k] = [x.a, x.b];
     if (typeof k === 'number' && (x.op === 'mul' || k !== 0))
       return {field: f, width: x.op === 'mul' ? k : 1 / k};
@@ -587,25 +619,29 @@ function parseHue(t) {
   const options = [];
   if (t && typeof t === 'object' && t.op === 'add') {
     for (const [x, c] of [[t.a, t.b], [t.b, t.a]])
-      if (typeof c === 'number') options.push({...peelWidth(x), start: c});
+      if (typeof c === 'number') options.push({...peelWidth(x), start: c, mod: !!t.mod});
   }
-  options.push({...peelWidth(t), start: 0}, {field: t, width: 1, start: 0});
+  options.push({...peelWidth(t), start: 0, mod: !!t?.mod}, {field: t, width: 1, start: 0});
 
   return options.find(o => usableSource(o.field)) ?? null;
 }
 
-function buildHue({field, start, width}) {
+function buildHue({field, start, width, mod}) {
   if (field === null) return start;
   const w = Math.round(width * 1000) / 1000, st = Math.round(start * 1000) / 1000;
   let tree = field;
   if (w !== 1) tree = {op: 'mul', a: tree, b: w};
   if (st !== 0) tree = {op: 'add', a: tree, b: st};
+  // The wrap-round switch belongs to the outermost step, whichever that turned out to be.
+  if (mod && tree !== null && typeof tree === 'object' && !isGradient(tree)) tree = {...tree, mod: true};
   return tree;
 }
 
-// The band between two thumbs, painted with the part of the wheel it covers.
+// The band between two thumbs, painted with the part of the wheel it covers. The
+// formula can say more than the wheel has (a start of 2.4, a width of 3); the band
+// stops at the ends of the axis, 0 and 2, and the formula is left as typed.
 function paintBand(band, from, to) {
-  const lo = Math.min(from, to), hi = Math.max(from, to);
+  const lo = clampAxis(Math.min(from, to)), hi = clampAxis(Math.max(from, to));
   const frac = Math.max((hi - lo) / AXIS, 0.002);
   band.style.left = `${lo / AXIS * 100}%`;
   band.style.width = `${frac * 100}%`;
@@ -705,6 +741,185 @@ function setFormula(key, tree) {
   if (complete(tree)) { delete editing[key]; writeSlot(key, tree); }
   else drawEffects();
 }
+
+// ---- the expression as text ------------------------------------------------
+
+// The same text as the mobile page: on screen the operators are the ones a sum is
+// written with; typed, they are the ones a keyboard has.
+const TEXT_OPS = {add: '+', sub: '-', mul: '*', div: '/', avg: '~'};
+const FROM_TEXT = Object.fromEntries(Object.entries(TEXT_OPS).map(([k, v]) => [v, k]));
+
+const texting = new Set();              // slots whose formula is being typed
+
+// Brackets on every operator but the outermost, so what comes out reads back in
+// as the same tree whatever precedence says.
+function toText(node, nested = false) {
+  if (node === null || node === undefined) return '';
+  if (typeof node === 'number') return String(node);
+  if (typeof node === 'string') return node;
+  if (isGradient(node)) return describeGradient(node);
+
+  const shown = `${toText(node.a, true)} ${TEXT_OPS[node.op]} ${toText(node.b, true)}`;
+  // A % in front of the bracket wraps the result round instead of holding it to 0-1.
+  if (node.mod) return `%(${shown})`;
+  return nested ? `(${shown})` : shown;
+}
+
+function tokens(text) {
+  const grab = /\s*([()%]|[+\-*/~]|[A-Za-z_][\w.]*|\d*\.?\d+)/y;
+  const out = [];
+  let at = 0;
+
+  while (at < text.length) {
+    grab.lastIndex = at;
+    const m = grab.exec(text);
+    if (!m) throw new Error(`cannot read "${text.slice(at).trim().split(/\s/)[0]}"`);
+    out.push(m[1]);
+    at = grab.lastIndex;
+  }
+  return out;
+}
+
+// The tree itself has no precedence - it is nested, not parsed - but someone
+// typing expects * to bind tighter than +, so that is what is read here.
+function parseText(text) {
+  const t = tokens(text.trim());
+  const names = new Set(rig.fields.map(f => f.name));
+  let i = 0;
+
+  const operand = () => {
+    const tok = t[i++];
+    if (tok === undefined) throw new Error('the expression stops short');
+
+    if (tok === '(' || tok === '%') {
+      if (tok === '%' && t[i++] !== '(') throw new Error('a % goes in front of a ( ... )');
+      const inner = sum();
+      if (t[i++] !== ')') throw new Error('a ( with no )');
+      if (tok === '%') {
+        if (isLeaf(inner)) throw new Error('a % needs an operation in its brackets');
+        return {...inner, mod: true};
+      }
+      return inner;
+    }
+    if (tok === ')') throw new Error('a ) with no (');
+    if (FROM_TEXT[tok]) throw new Error(`"${tok}" needs something in front of it`);
+    if (/^[\d.]/.test(tok)) return parseFloat(tok);
+    if (!names.has(tok)) throw new Error(`no field called "${tok}"`);
+    return tok;
+  };
+
+  const binary = (ops, next) => () => {
+    let left = next();
+    while (ops.includes(t[i])) left = {op: FROM_TEXT[t[i++]], a: left, b: next()};
+    return left;
+  };
+
+  const sum = binary(['+', '-', '~'], binary(['*', '/'], operand));
+  const tree = sum();
+  if (i < t.length) throw new Error(`"${t[i]}" is one too many`);
+  return tree;
+}
+
+// Brackets coloured by how deep they are; one beyond the last colour wraps round.
+const PAREN_COLOURS = 5;
+
+function highlight(text) {
+  const safe = (c) => c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c;
+  let depth = 0;
+  let out = '';
+
+  for (const ch of text) {
+    if (ch === ')') depth -= 1;
+    out += (ch === '(' || ch === ')')
+        ? `<span class="${depth < 0 ? 'bad' : 'p' + (depth % PAREN_COLOURS)}">${safe(ch)}</span>`
+        : safe(ch);
+    if (ch === '(') depth += 1;
+  }
+  return out;
+}
+
+// A textarea with its own text made invisible, over a pre holding the same text
+// with the brackets coloured. The two have to be laid out identically or the
+// caret drifts off the letters.
+function textEditor(key, tree) {
+  const wrap = document.createElement('div');
+  wrap.className = 'typing';
+
+  const box = document.createElement('div');
+  box.className = 'exprbox';
+
+  const shown = document.createElement('pre');
+  const area = document.createElement('textarea');
+  area.value = toText(tree);
+  area.spellcheck = false;
+
+  const bad = document.createElement('div');
+  bad.className = 'hint';
+
+  const paint = () => {
+    shown.innerHTML = highlight(area.value) + ' ';   // a space, or the last line collapses
+    area.style.height = 'auto';
+    area.style.height = shown.offsetHeight + 'px';
+  };
+
+  const apply = () => {
+    if (!area.value.trim()) {
+      texting.delete(key);
+      leaveFormula(key);
+      writeSlot(key, null);
+      return;
+    }
+
+    let parsed;
+    try { parsed = parseText(area.value); }
+    catch (e) { bad.textContent = e.message; return; }
+
+    texting.delete(key);
+    if (!isLeaf(parsed)) formulaOpen.add(key);
+    setFormula(key, parsed);
+  };
+
+  area.oninput = () => { paint(); bad.textContent = ''; };
+  area.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); apply(); }
+    if (e.key === 'Escape') { texting.delete(key); drawEffects(); }
+  };
+
+  const set = document.createElement('button');
+  set.className = 'setexpr';
+  set.textContent = 'set';
+  set.onclick = apply;
+
+  box.append(shown, area);
+  wrap.append(box, set, bad);
+
+  setTimeout(() => { paint(); area.focus(); }, 0);
+  return wrap;
+}
+
+// The faders a value slot can be put on, in the order they are offered.
+const FADERS = ['fader_a', 'fader_b', 'fader_c', 'fader_d', 'fader_e', 'fader_f', 'fader_g', 'fader_h'];
+
+// The slot called `value` is the brightness - not hue, sat, or an effect's own
+// parameter.
+const isValueSlot = (key) => key.split('.').slice(1).join('.') === 'value';
+
+// A value slot taken apart: the fader it is multiplied by as the outermost step
+// (null for none) and the rest of the expression (null when the fader is all).
+function splitFader(tree) {
+  if (typeof tree === 'string' && FADERS.includes(tree)) return {fader: tree, inner: null};
+  if (tree !== null && typeof tree === 'object' && tree.op === 'mul') {
+    if (FADERS.includes(tree.a)) return {fader: tree.a, inner: tree.b};
+    if (FADERS.includes(tree.b)) return {fader: tree.b, inner: tree.a};
+  }
+  return {fader: null, inner: tree};
+}
+
+// ... and put back together.
+const withFader = (inner, fader) =>
+    fader === null || fader === undefined ? inner
+    : inner === null || inner === undefined ? fader
+    : {op: 'mul', a: inner, b: fader};
 
 // A small constant | field switch, the same idea as a slot's own.
 function makeSeg(mode, parts, small) {
@@ -952,6 +1167,7 @@ function groupedText(node, depth = 0) {
   };
   out.append(paren('('), groupedText(node.a, depth + 1), ` ${OPS[node.op]} `,
              groupedText(node.b, depth + 1), paren(')'));
+  if (node.mod) out.append(' mod 1');
   return out;
 }
 
@@ -996,7 +1212,23 @@ function nodeEditor(key, tree, path, depth = 0) {
   outer.textContent = '+ outer';
   outer.title = 'add a term outside this whole operation: all of it becomes the first half of a new operation, and you choose the other half';
   outer.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', a: node, b: null}));
-  head.append(outer, flip);
+  // Held to 0-1 by default; with this on, the result wraps round instead (1.1 is 0.1).
+  const mod = document.createElement('button');
+  mod.className = 'modsw' + (node.mod ? ' on' : '');
+  mod.setAttribute('role', 'switch');
+  mod.setAttribute('aria-checked', String(!!node.mod));
+  const knob = document.createElement('span');
+  knob.className = 'modknob';
+  const word = document.createElement('span');
+  word.textContent = 'mod';
+  mod.append(knob, word);
+  mod.title = node.mod ? 'mod is on: past 1 this wraps round (1.1 becomes 0.1). Click to clamp to 0-1 instead'
+                       : 'mod is off: this is clamped to 0-1. Click to wrap round past 1 instead (1.1 becomes 0.1)';
+  mod.onclick = () => {
+    const {mod: was, ...rest} = node;
+    setFormula(key, replace(tree, path, was ? rest : {...rest, mod: true}));
+  };
+  head.append(outer, mod, flip);
 
   const drop = document.createElement('button');
   drop.className = 'drop';
@@ -1021,7 +1253,7 @@ const modeOf = (tree) => typeof tree === 'string' ? 'field'
 // width, then moved to a start. Spelled out in full even when the width is 1
 // and the start is 0, so the editor always shows the same three things.
 const hueTree = (h) => ({op: 'add', a: {op: 'mul', a: h.field, b: Math.round(h.width * 1000) / 1000},
-                         b: Math.round(h.start * 1000) / 1000});
+                         b: Math.round(h.start * 1000) / 1000, ...(h.mod ? {mod: true} : {})});
 
 // ---- turning a field's knobs ----------------------------------------------
 // A field takes its values from knobs on the desk, and its slot can show them:
@@ -1058,6 +1290,61 @@ const DRAG_PER_PX = 0.8;            // a touch over 150px for the whole range
 const clampCC = (v) => Math.max(0, Math.min(CC_MAX, v));
 const liveValue = (c) => knobs[c.number]?.value ?? c.value;
 
+// What a CC number is for, so its legend can say "bowtie" or "100 ms" rather
+// than 0-127. /rig says, per control name, what sort of control it is: a sweep,
+// a hue, or a list of named options. A knob two controls share may be described
+// by only one of them, so a described one wins; a stray knob is a plain 0-127.
+const PLAIN = {kind: 'float_range', start: 0, end: 127, unit: null};
+const isPlain = (m) => m.kind === 'float_range' && !m.unit && m.start === 0 && m.end === 127;
+const metaFor = (name) => rig?.control_meta?.[name] ?? PLAIN;
+const metaOf = (names) => names.map(metaFor).find(m => !isPlain(m)) ?? PLAIN;
+const metaOn = (cc) => metaOf(controls.filter(c => c.kind === 'cc' && c.number === Number(cc))
+                                      .flatMap(c => c.comments));
+
+// A gradient and a custom list are chosen from rather than swept, so these are
+// the only places a drag is allowed to stop. Empty means it sweeps.
+const DISCRETE = ['custom', 'gradient'];
+const optionsOf = (meta) => DISCRETE.includes(meta.kind)
+    ? Object.keys(meta.items ?? {}).map(Number).sort((a, b) => a - b)
+    : [];
+
+// The wire carries 0-127 whatever the list holds, and a field clamps, so the
+// nearest option is what it will actually act on.
+const nearestAt = (options, value) => options.reduce(
+    (best, k, i) => Math.abs(k - value) < Math.abs(options[best] - value) ? i : best, 0);
+
+// Where a value sits in its own range, 0-1, which is what a dial draws.
+function fracOf(meta, value) {
+  const options = optionsOf(meta);
+  if (options.length)
+    return options.length < 2 ? 0 : nearestAt(options, value) / (options.length - 1);
+  return Math.max(0, Math.min(1, value / CC_MAX));
+}
+
+// What to print for a value: the option's name, or the knob read in its own range.
+function readOut(meta, value) {
+  const options = optionsOf(meta);
+  if (options.length) return meta.items[options[nearestAt(options, value)]];
+  if (meta.kind === 'gradient') return value;       // no list declared yet
+
+  // The same curve FloatRange.at() uses on the other side.
+  const at = meta.geometric
+      ? meta.start * (meta.end / meta.start) ** (value / CC_MAX)
+      : meta.start + (meta.end - meta.start) * (value / CC_MAX);
+  const shown = Math.abs(at) >= 10 ? String(Math.round(at))
+                                   : (Number.isInteger(at) ? String(at) : at.toFixed(2));
+  return meta.unit ? `${shown} ${meta.unit}` : shown;
+}
+
+// Where a drag lands: the next option along for a list, anywhere for a sweep.
+const PER_STEP_PX = 24;             // a thumb's worth of travel per option
+function dragTo(meta, from, dy) {
+  const options = optionsOf(meta);
+  if (!options.length) return clampCC(Math.round(from + dy * DRAG_PER_PX));
+  const at = nearestAt(options, from) + Math.round(dy / PER_STEP_PX);
+  return options[Math.max(0, Math.min(options.length - 1, at))];
+}
+
 // A rev counter: three quarters of a turn with the gap at the bottom.
 const DIAL_FROM = Math.PI * 0.75, DIAL_SWEEP = Math.PI * 1.5, DIAL_R = 15;
 const dialAt = (r, a) => [20 + r * Math.cos(a), 20 + r * Math.sin(a)];
@@ -1069,7 +1356,7 @@ function arc(from, to) {
          `${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
 
-function makeDial(value) {
+function makeDial(value, meta = PLAIN) {
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('viewBox', '0 0 40 40');
@@ -1084,12 +1371,12 @@ function makeDial(value) {
   pin.setAttribute('class', 'pin');
   svg.append(track, fill, pin);
 
-  setDial(svg, value);
+  setDial(svg, value, meta);
   return svg;
 }
 
-function setDial(svg, value) {
-  const frac = Math.max(0, Math.min(1, value / CC_MAX));
+function setDial(svg, value, meta = PLAIN) {
+  const frac = fracOf(meta, value);
   const a = DIAL_FROM + DIAL_SWEEP * frac;
   svg.querySelector('.fill').setAttribute('d', frac > 0.002 ? arc(DIAL_FROM, a) : '');
 
@@ -1106,9 +1393,9 @@ function turnKnob(cc, value) {
   if (wire && wire.readyState === WebSocket.OPEN) wire.send(JSON.stringify({cc: Number(cc), value}));
 }
 
-function knobList(found) {
+function knobList(found, compact = false) {
   const box = document.createElement('div');
-  box.className = 'knobs';
+  box.className = compact ? 'knobs mini' : 'knobs';
 
   for (const c of found) {
     const name = c.comments[0] ?? `cc ${c.number}`;
@@ -1121,28 +1408,47 @@ function knobList(found) {
 
     const label = document.createElement('b');
     label.textContent = name;
+    const meta = metaOf(c.comments);
     const now = document.createElement('span');
     now.className = 'now';
-    now.textContent = liveValue(c);
+    now.textContent = readOut(meta, liveValue(c));
     const at = document.createElement('span');
     at.className = 'at';
     at.dataset.was = `cc ${c.number}${c.number === c.default ? '' : ' \u00b7 moved'}`;
-    row.append(makeDial(liveValue(c)), label, now, at);
+    // The raw 0-127 the knob sits at, to type over: it lands the same as a turn.
+    const typed = document.createElement('input');
+    typed.type = 'number';
+    typed.className = 'cc-box';
+    typed.min = '0'; typed.max = String(CC_MAX); typed.step = '1';
+    typed.value = liveValue(c);
+    typed.title = 'type a value, 0-127';
+    typed.onchange = () => {
+      const want = Math.max(0, Math.min(CC_MAX, Math.round(Number(typed.value))));
+      if (Number.isNaN(want) || typed.value === '') { typed.value = liveValue(c); return; }
+      typed.value = want;
+      turnKnob(c.number, want);
+      setDial(row.querySelector('.dial'), want, meta);
+      now.textContent = readOut(meta, want);
+      setTimeout(() => { if (turning?.cc === c.number) turning = null; }, 300);
+    };
+    typed.onkeydown = (e) => { if (e.key === 'Enter') typed.blur(); };
+    row.append(makeDial(liveValue(c), meta), label, now, typed, at);
 
     let from = null;
     row.onpointerdown = (e) => {
+      if (e.target === typed) return;           // typing is not a drag
       from = {y: e.clientY, value: liveValue(c), turned: false};
       row.setPointerCapture(e.pointerId);
       e.preventDefault();
     };
     row.onpointermove = (e) => {
       if (from === null) return;
-      const want = clampCC(Math.round(from.value + (from.y - e.clientY) * DRAG_PER_PX));
+      const want = dragTo(meta, from.value, from.y - e.clientY);
       if (want === liveValue(c)) return;
       from.turned = true;
       turnKnob(c.number, want);
-      setDial(row.querySelector('.dial'), want);
-      now.textContent = want;
+      setDial(row.querySelector('.dial'), want, meta);
+      now.textContent = readOut(meta, want);
     };
     // A frame already on its way may still carry the value from before the last
     // turn, so the dial is left to the drag for a moment after letting go.
@@ -1150,7 +1456,8 @@ function knobList(found) {
       from = null;
       setTimeout(() => { if (turning?.cc === c.number) turning = null; }, 300);
     };
-    row.onpointerup = () => {
+    row.onpointerup = (e) => {
+      if (e.target === typed) return;
       const tapped = from !== null && !from.turned;
       done();
 
@@ -1204,13 +1511,28 @@ function lastMoved() {
   return best;
 }
 
+// Frames can come faster than the screen draws; the page paints the newest once a frame.
+let knobsQueued = false;
+function paintKnobs() {
+  if (knobsQueued) return;
+  knobsQueued = true;
+  requestAnimationFrame(() => {
+    knobsQueued = false;
+    syncKnobs();
+    syncMapKnobs();
+  });
+}
+
 // After a frame from the socket: every dial on the page follows the desk.
 function syncKnobs() {
   for (const el of document.querySelectorAll('#effects .knob')) {
     const k = knobs[el.dataset.cc];
     if (!k) continue;
-    setDial(el.querySelector('.dial'), k.value);
-    el.querySelector('.now').textContent = k.value;
+    const meta = metaOn(el.dataset.cc);
+    setDial(el.querySelector('.dial'), k.value, meta);
+    el.querySelector('.now').textContent = readOut(meta, k.value);
+    const box = el.querySelector('.cc-box');
+    if (box && document.activeElement !== box) box.value = k.value;
   }
 }
 
@@ -1222,7 +1544,7 @@ function listen() {
   wire.onmessage = (e) => {
     knobs = JSON.parse(e.data);
     if (turning && knobs[turning.cc]) knobs[turning.cc].value = turning.value;
-    syncKnobs();
+    paintKnobs();
 
     const moved = mapping && lastMoved();
     if (moved && moved.knob.age_ms < Date.now() - mapping.since) assign(mapping.name, moved.cc);
@@ -1234,7 +1556,8 @@ listen();
 
 function slotRow(key, saved) {
   // A formula half-built in the editor is what is on show, not what is saved.
-  let tree = key in editing ? editing[key] : saved;
+  const {fader, inner} = isValueSlot(key) ? splitFader(saved) : {fader: null, inner: saved};
+  let tree = key in editing ? editing[key] : inner;
 
   // A hue slot in a shape the wheel can show gets the wheel, and keeps it while
   // the formula editor is open below, for as long as the formula stays valid. An
@@ -1272,7 +1595,7 @@ function slotRow(key, saved) {
     if (compound && !confirm('Replace this formula with that field? The formula is lost.')) return;
     // A hue keeps its editor open across a new field; anything else is done with it.
     if (hue) delete editing[key]; else leaveFormula(key);
-    writeSlot(key, !hue ? v : buildHue({field: v, start: hue.start, width: hue.field ? hue.width : 1}));
+    writeSlot(key, !hue ? v : buildHue({field: v, start: hue.start, width: hue.field ? hue.width : 1, mod: hue.mod}));
   });
 
   const seg = makeSeg(open && hue ? [mode, 'formula'] : mode, [
@@ -1336,14 +1659,14 @@ function slotRow(key, saved) {
 
           // The formula follows the thumbs as they move, not when they are let go.
           if (editor) {
-            const range = {field: hue.field, start: s0, width: e0 - s0};
+            const range = {field: hue.field, start: s0, width: e0 - s0, mod: hue.mod};
             const t = trimmed.has(key) ? buildHue(range) : hueTree(range);
             summary.replaceChildren(groupedText(t));
             words.textContent = hueWords({field: hue.field, start: s0, width: e0 - s0});
             editor.replaceChildren(nodeEditor(key, t, []));
           }
         },
-        (s0, e0) => writeSlot(key, buildHue({field: hue.field, start: s0, width: e0 - s0}))));
+        (s0, e0) => writeSlot(key, buildHue({field: hue.field, start: s0, width: e0 - s0, mod: hue.mod}))));
   };
 
   if (mode === 'field') {
@@ -1422,9 +1745,54 @@ function slotRow(key, saved) {
   head.className = 'slot-head';
   head.append(name, seg);
 
-  row.append(head, ctl);
+  // Type the formula instead of building it. On a value slot the fader is not
+  // part of the text, as it is not part of the editor.
+  const pencil = document.createElement('button');
+  pencil.className = 'pencil' + (texting.has(key) ? ' on' : '');
+  pencil.textContent = '\u270e';
+  pencil.title = texting.has(key) ? 'back to the editor' : 'type the formula';
+  pencil.onclick = () => {
+    if (texting.has(key)) texting.delete(key); else texting.add(key);
+    drawEffects();
+  };
+  head.append(pencil);
 
-  const found = controlsFor(shown);
+  // A fader over the whole of a brightness slot, as the outermost step. It is
+  // not drawn in the expression; it is chosen here, and only here.
+  if (isValueSlot(key)) {
+    const pick = document.createElement('select');
+    pick.className = 'fade';
+    pick.title = 'multiply the whole slot by a fader, as the outermost step';
+    // A fader another slot already reads - another effect's brightness, or
+    // anything else - is greyed out; this slot's own is not "elsewhere".
+    const elsewhere = new Set();
+    for (const [k, t] of Object.entries(views[rig.selected]?.live.slots ?? {})) {
+      if (k === key) continue;
+      fieldsIn(t).forEach(n => elsewhere.add(n));
+    }
+    for (const f of [null, ...FADERS]) {
+      const o = document.createElement('option');
+      if (f !== null && elsewhere.has(f)) {
+        o.disabled = true;
+        o.title = 'already used by another slot';
+      }
+      o.value = f ?? '';
+      o.textContent = f ?? 'no fader';
+      pick.append(o);
+    }
+    pick.value = fader ?? '';
+    pick.onchange = () => writeSlot(key, inner, pick.value || null);
+    head.append(pick);
+  }
+
+  row.append(head, ctl);
+  if (texting.has(key)) {
+    ctl.hidden = true;
+    row.append(textEditor(key, shown));
+  }
+
+  // The fader is not in the expression, but it is still turned from here.
+  const found = controlsFor(fader === null ? shown : withFader(shown, fader));
   if (found.length) row.append(knobList(found));
   return row;
 }
@@ -1677,7 +2045,36 @@ function drawEffects() {
       setActive(names.filter(n => n !== name));
     };
 
-    head.append(cardGrip(card, head, name, names), title, count, sw, bin);
+    // The fader over the brightness stays in view when the effect is folded.
+    const faders = keys.filter(isValueSlot)
+        .map(k => splitFader(view.live.slots[k] ?? null).fader).filter(f => f !== null);
+    const fadeTag = faders.map(f => {
+      const tag = document.createElement('span');
+      tag.className = 'fade-tag';
+      tag.textContent = f;
+      tag.title = `brightness is on ${f}`;
+      return tag;
+    });
+
+    // Beside the name, so a folded effect still says what it is for.
+    const note = document.createElement('input');
+    note.className = 'note';
+    note.type = 'text';
+    note.placeholder = 'add a note';
+    note.spellcheck = false;
+    note.value = view.live.notes?.[name] ?? '';
+    note.onchange = () => setNote(name, note.value.trim());
+    note.onkeydown = (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); note.blur(); }
+      if (ev.key === 'Escape') { note.value = view.live.notes?.[name] ?? ''; note.blur(); }
+    };
+
+    // ... and so does its dial, to turn it without opening the effect.
+    const faderDials = controlsFor(faders.reduce((t, f) => t === null ? f : {op: 'add', a: t, b: f}, null));
+    const dials = faderDials.length ? knobList(faderDials, true) : null;
+
+    head.append(cardGrip(card, head, name, names), title, note, ...fadeTag, ...(dials ? [dials] : []),
+                count, sw, bin);
     cardDropTarget(card, name);
 
     card.append(head);
@@ -1797,12 +2194,14 @@ async function openCopy(kind = 'copy') {
 document.getElementById('save-copy').onclick = () => openCopy('copy');
 document.getElementById('new-preset').onclick = () => openCopy('new');
 
-// A preset with nothing plugged in: every effect is in the chain, so there is a
-// card for each to open, and every slot is blank, so nothing draws until one is
-// filled. No knobs are listed - a patch that says nothing about them leaves them
-// where they are - and nothing is muted.
-const blankPatch = (name) => ({ccs: {}, slots: {}, cc_map: {}, active: Object.keys(rig.effects),
-                               muted: [], name});
+// A preset with nothing plugged in: the chain is empty, so no effect has a card
+// until it is added from the menu, and nothing is muted. No knobs are listed - a
+// patch that says nothing about them leaves them where they are. The box on the
+// desk says where its own defaults go (surfaces.json), so a new preset starts with
+// those controls on it - and with any that would land on it by accident parked on
+// a CC nothing sends.
+const blankPatch = (name) => ({ccs: {}, slots: {}, cc_map: {...surfaces[surfaceId]?.defaults},
+                               active: [], muted: [], name});
 
 copyDialog.querySelector('form').onsubmit = async (e) => {
   e.preventDefault();
@@ -1838,10 +2237,416 @@ copyDialog.querySelector('form').onsubmit = async (e) => {
   savedTimer = setTimeout(() => { savedNote.textContent = ''; }, 4000);
 };
 
+// ---- the controller map -------------------------------------------------
+
+// A picture of the box on the desk, with each of its controls labelled by what
+// the playing preset has it drive. The picture and the table that says which
+// CC or note is which part of it come from surfaces.json; what the controls
+// drive is /controls, so assigning a knob changes the map on the next refresh.
+const SURFACES = '/static/surfaces.json';
+let surfaces = {};
+let surfaceId = (() => { try { return localStorage.getItem('surface'); } catch { return null; } })();
+const surfaceSvg = {};      // the pictures, fetched once each
+let mapPick = null;         // the callback waiting for a control to be pressed on the map
+const mapBox = document.getElementById('map');
+let mapDrawn = '';          // what the map was last drawn from, so a quiet second draws nothing
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const short = (t, n = 8) => t.length > n ? t.slice(0, n - 1) + '…' : t;
+
+// A control's comment is `field.role`. Only the ones that name a field of the
+// rig can be plugged into a slot.
+const fieldOwners = (c) => {
+  const names = new Set(rig.fields.map(f => f.name));
+  return [...new Set(c.comments.map(t => knobOwner(t.split('.')[0])).filter(n => names.has(n)))];
+};
+
+// The effects each field is used by in the playing preset: a slot is
+// `effect.slot`, and its formula names the fields it reads.
+function effectsUsing() {
+  const live = views[rig.selected]?.live;
+  const by = new Map();
+  for (const [key, tree] of Object.entries(live?.slots ?? {}))
+    for (const f of fieldsIn(tree).map(knobOwner)) by.set(f, (by.get(f) ?? new Set()).add(key.split('.')[0]));
+  return by;
+}
+
+// The fields the playing preset's slots name, whatever their depth.
+function fieldsInUse() {
+  const live = views[rig.selected]?.live;
+  const used = new Set();
+  for (const tree of Object.values(live?.slots ?? {})) fieldsIn(tree).forEach(n => used.add(knobOwner(n)));
+  return used;
+}
+
+async function loadSurfaces() {
+  try {
+    surfaces = await get(SURFACES);
+    if (!(surfaceId in surfaces)) surfaceId = Object.keys(surfaces)[0] ?? null;
+    if (surfaceId && !surfaceSvg[surfaceId])
+      surfaceSvg[surfaceId] = await fetch(surfaces[surfaceId].svg).then(r => r.text());
+  } catch (e) { /* no map; the rest of the page works without one */ }
+}
+
+function drawMap() {
+  const surface = surfaces[surfaceId];
+  if (!surface || !surfaceSvg[surfaceId]) return;
+
+  const used = fieldsInUse();
+  const effectsBy = effectsUsing();
+  const here = controls.filter(c => !c.hidden);
+  const key = JSON.stringify([surfaceId, [...used], [...effectsBy].map(([f, e]) => [f, [...e]]), here.map(c => [c.kind, c.number, c.comments])]);
+  if (key === mapDrawn) return;
+  mapDrawn = key;
+
+  mapBox.replaceChildren();
+  const head = document.createElement('div');
+  head.className = 'map-head';
+  const pick = document.createElement('select');
+  for (const [id, s] of Object.entries(surfaces)) {
+    const opt = document.createElement('option');
+    opt.value = id; opt.textContent = s.name; opt.selected = id === surfaceId;
+    pick.append(opt);
+  }
+  pick.onchange = async () => {
+    surfaceId = pick.value;
+    try { localStorage.setItem('surface', surfaceId); } catch { /* remembering is a courtesy */ }
+    mapDrawn = '';
+    await loadSurfaces();
+    drawMap();
+  };
+  head.append(pick);
+  mapBox.append(head);
+
+  const holder = document.createElement('div');
+  holder.className = 'surface';
+  holder.innerHTML = surfaceSvg[surfaceId];
+  mapBox.append(holder);
+
+  // Every knob and fader the picture has follows the desk.
+  for (const [cc, id] of Object.entries(surface.ccs)) {
+    const spot = holder.querySelector(`#${CSS.escape(id)}`);
+    if (spot) spot.dataset.cc = cc;
+  }
+
+  const off = [];
+  const roles = new Map();          // spot -> the [field, role] of everything on it
+  for (const c of here) {
+    // A note can be several pads: the Akai's pads fold onto fewer BSP notes.
+    const ids = [].concat((c.kind === 'cc' ? surface.ccs : surface.notes ?? {})[c.number] ?? []);
+    const spots = ids.map(id => holder.querySelector(`#${CSS.escape(id)}`)).filter(Boolean);
+    if (!spots.length) { if (c.kind === 'cc' && fieldOwners(c).some(n => used.has(n))) off.push(c); continue; }
+
+    for (const spot of spots) {
+      spot.classList.add('assigned');
+      if (fieldOwners(c).some(n => used.has(n))) spot.classList.add('lit');
+      spot.dataset.owners = JSON.stringify([...new Set([...JSON.parse(spot.dataset.owners ?? '[]'), ...fieldOwners(c)])]);
+      roles.set(spot, [...(roles.get(spot) ?? []), ...c.comments.map(t => t.split('.'))]);
+    }
+  }
+
+  for (const [spot, rs] of roles) {
+    if (!rs.length) continue;
+    const tag = spot.querySelector('.tag');
+    const x = tag.getAttribute('x'), y = Number(tag.getAttribute('y'));
+    const fx = [...new Set(rs.flatMap(r => [...(effectsBy.get(knobOwner(r[0])) ?? [])]))];
+    spot.dataset.effects = fx.join(', ');
+    [rs[0][0] + (rs.length > 1 ? ` +${rs.length - 1}` : ''), rs[0][1] ?? '', fx.join(', ')]
+      .forEach((text, i) => {
+        if (!text || (i && spot.classList.contains('pad'))) return;   // pads have no room; the legend has the role and effects
+        const t = document.createElementNS(SVG_NS, 'text');
+        t.setAttribute('class', i ? 'what role' + (i > 1 ? ' fx' : '') : 'what');
+        t.setAttribute('x', x); t.setAttribute('y', y + 12 + 11 * i);
+        t.textContent = short(text, Number(spot.dataset.chars ?? 8));
+        spot.append(t);
+      });
+    const title = document.createElementNS(SVG_NS, 'title');
+    title.textContent = rs.map(r => r.join('.')).join('\n') + (spot.dataset.effects ? `\nin ${spot.dataset.effects}` : '');
+    spot.append(title);
+    // A tooltip belongs to the shape under the pointer, so the whole pad, not
+    // just its text, needs one.
+    for (const shape of spot.querySelectorAll('rect, circle, line'))
+      shape.append(title.cloneNode(true));
+  }
+  for (const [spot, rs] of roles) spot.dataset.names = JSON.stringify(rs.map(r => r.join('.')));
+  for (const spot of holder.querySelectorAll('.spot.assigned')) spot.onclick = () => {
+    if (mapPick) pressedOnMap(spot); else if (spot.dataset.cc) unassignBar(spot);
+  };
+  // Clicking a knob or fader nothing is on offers a control for it. Turning one
+  // never asks anything.
+  for (const spot of holder.querySelectorAll('.spot[data-cc]:not(.assigned)'))
+    spot.onclick = () => { if (!mapPick) assignMenu(spot); };
+
+  // The picture has no room for whole names, so the same assignments are listed
+  // in full beneath it: control, what it moves, and the effects that use it.
+  // Pads come first, in the Akai's own numbering, then the knobs and faders as drawn.
+  const isPad = s => s.classList.contains('pad');
+  const padNo = s => Number(s.id.replace(/\D/g, ''));
+  const rows = [...holder.querySelectorAll('.spot.assigned')].filter(s => roles.get(s)?.length)
+    .sort((a, b) => isPad(b) - isPad(a) || (isPad(a) && padNo(a) - padNo(b)));
+  if (rows.length) {
+    const legend = document.createElement('table');
+    legend.className = 'map-legend';
+    for (const spot of rows) {
+      const rs = roles.get(spot);
+      const tr = legend.insertRow();
+      tr.classList.toggle('lit', spot.classList.contains('lit'));
+      const hover = on => { tr.classList.toggle('hover', on); spot.classList.toggle('hover', on); };
+      tr.onmouseenter = () => hover(true); tr.onmouseleave = () => hover(false);
+      spot.onmouseenter = () => hover(true); spot.onmouseleave = () => hover(false);
+      const cells = [
+        spot.querySelector('.tag')?.textContent ?? spot.id,
+        rs.map(r => r.join('.')).join(', '),
+        spot.dataset.effects || '',
+      ];
+      cells.forEach((text, i) => {
+        const td = tr.insertCell();
+        td.textContent = text;
+        if (i === 2) td.className = 'fx';
+      });
+    }
+    mapBox.append(legend);
+  }
+
+  if (off.length) {
+    const note = document.createElement('p');
+    note.className = 'dim map-off';
+    note.textContent = `used, but not on this box: ${off.map(c => c.comments[0]).join(', ')} `;
+    const go = document.createElement('button');
+    go.textContent = 'assign them';
+    go.onclick = assignUsed;
+    note.append(go);
+    mapBox.append(note);
+  }
+
+  mapBox.classList.toggle('picking', mapPick !== null);
+  if (mapPick) showMapPrompt();
+  syncMapKnobs();
+}
+
+// The knobs and faders follow the desk.
+function syncMapKnobs() {
+  for (const spot of mapBox.querySelectorAll('.spot.assigned[data-cc]')) {
+    const k = knobs[spot.dataset.cc];
+    if (!k || spot._shown === k.value) continue;
+    spot._shown = k.value;
+    const frac = fracOf(metaOn(spot.dataset.cc), k.value);
+    const pointer = spot.querySelector('.pointer');
+    const cap = spot.querySelector('.cap');
+    if (pointer) pointer.setAttribute('transform',
+        `rotate(${-135 + 270 * frac} ${cap.getAttribute('cx')} ${cap.getAttribute('cy')})`);
+    const thumb = spot.querySelector('.thumb');
+    if (thumb) {
+      const lo = Number(spot.dataset.lo), hi = Number(spot.dataset.hi);
+      thumb.setAttribute('y', lo - (lo - hi) * frac);
+    }
+  }
+}
+
+// ---- picking a field by pressing its control
+
+function startMapPick(onPick) {
+  mapPick = onPick;
+  mapDrawn = '';
+  drawMap();
+  mapBox.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+}
+
+function endMapPick() {
+  mapPick = null;
+  mapDrawn = '';
+  drawMap();
+}
+
+function showMapPrompt(choices = null) {
+  mapBox.querySelector('.map-prompt')?.remove();
+  const bar = document.createElement('div');
+  bar.className = 'map-prompt';
+  const msg = document.createElement('span');
+  msg.textContent = choices ? 'which field?' : 'press a control on the map to plug its field in';
+  bar.append(msg);
+  for (const name of choices ?? []) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.onclick = () => finishMapPick(name);
+    bar.append(b);
+  }
+  const cancel = document.createElement('button');
+  cancel.textContent = 'cancel';
+  cancel.onclick = endMapPick;
+  bar.append(cancel);
+  mapBox.prepend(bar);
+}
+
+function finishMapPick(name) {
+  const done = mapPick;
+  endMapPick();
+  done?.(name);
+}
+
+function pressedOnMap(spot) {
+  if (!mapPick) return;
+  const owners = JSON.parse(spot.dataset.owners ?? '[]');
+  if (owners.length === 1) finishMapPick(owners[0]);
+  else if (owners.length) showMapPrompt(owners);
+}
+
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && mapPick) endMapPick(); });
+
+// ---- putting a new field's controls on the box
+
+// The controls that want a fader, and where they would like to be: the four
+// general ones on F1-F4, the wipe speeds on any of the others, since a fader
+// shows when they are at halfway. Everything else goes on the knobs.
+const FADER_HOME = {'fader_a.value': 0, 'fader_b.value': 1, 'param_a.value': 2, 'param_b.value': 3};
+const FADER_ANY = ['wipe1.speed', 'wipe2.speed'];
+
+const fieldOf = (name) => name.split('.')[0];
+const fieldsOfSlots = (slots) => new Set(Object.values(slots).flatMap(fieldsIn).map(knobOwner));
+
+// The patch's cc_map once every control the slots use is on a fader or knob of
+// the box on the map. One already on the box stays where it is, and the CCs
+// those are on are taken; the rest go to the next free fader or knob. Returns
+// what was said about each one placed.
+function withControls(patch, slots) {
+  const surface = surfaces[surfaceId];
+  const cc_map = {...patch.cc_map};
+  const said = [];
+  if (!surface) return {cc_map, said};
+
+  const now = fieldsOfSlots(slots);
+  const effective = (c) => cc_map[c.comments[0]] ?? c.number;
+  const ours = controls.filter(c => c.kind === 'cc' && !c.hidden && c.comments.length
+                                    && now.has(knobOwner(fieldOf(c.comments[0]))));
+  const wanting = ours.filter(c => !(effective(c) in surface.ccs));
+  if (!wanting.length) return {cc_map, said};
+
+  const taking = new Set(wanting.map(c => c.comments[0]));
+  const taken = new Set(ours.filter(c => !taking.has(c.comments[0])).map(effective));
+
+  const faders = (surface.faders ?? []).filter(cc => !taken.has(cc));
+  const knobs = (surface.knobs ?? []).filter(cc => !taken.has(cc));
+  const place = (list, at) => list.splice(at >= 0 && at < list.length ? at : 0, 1)[0];
+
+  const rank = (c) => c.comments[0] in FADER_HOME ? 0 : FADER_ANY.includes(c.comments[0]) ? 1 : 2;
+  for (const c of [...wanting].sort((a, b) => rank(a) - rank(b))) {
+    const name = c.comments[0];
+    let cc;
+    if (name in FADER_HOME) {
+      // its own fader if that is free, the next one if not
+      const home = (surface.faders ?? [])[FADER_HOME[name]];
+      const at = faders.indexOf(home);
+      cc = faders.length ? place(faders, at) : knobs.length ? place(knobs, 0) : undefined;
+    } else if (FADER_ANY.includes(name)) {
+      cc = faders.length ? place(faders, 0) : knobs.length ? place(knobs, 0) : undefined;
+    } else {
+      cc = knobs.length ? place(knobs, 0) : faders.length ? place(faders, 0) : undefined;
+    }
+
+    if (cc === undefined) { said.push(`no free knob for ${name}`); continue; }
+    cc_map[name] = cc;
+    said.push(`${name} \u2192 ${surface.ccs[cc]}`);
+  }
+  return {cc_map, said};
+}
+
+// Put every control the playing preset uses, and that is not on the box, there.
+async function assignUsed() {
+  const n = rig.selected;
+  if (n === null) return;
+  const fresh = await get(`/presets/${n}`);
+  const {cc_map, said} = withControls(fresh.live, fresh.live.slots);
+  if (!said.length) return;
+  const r = await put(`/presets/${n}`, {...fresh.live, cc_map});
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  savedNote.textContent = said.join(', ');
+  clearTimeout(savedTimer);
+  savedTimer = setTimeout(() => { savedNote.textContent = ''; }, 6000);
+  await refresh();
+}
+
+// A CC nothing sends and nothing listens to: not on the box, not declared by
+// any control, not where the patch has put one.
+function freeCC(cc_map) {
+  const used = new Set([...Object.keys(surfaces[surfaceId].ccs).map(Number),
+                        ...Object.values(cc_map),
+                        ...controls.filter(c => c.kind === 'cc').flatMap(c => [c.number, c.default])]);
+  for (let cc = CC_MAX; cc >= 0; cc--) if (!used.has(cc)) return cc;
+  return CC_MAX;
+}
+
+// Take a control off the knob or fader that was clicked: it goes back to the CC
+// it was declared with, which is not on this box.
+function unassignBar(spot) {
+  mapBox.querySelector('.map-menu')?.remove();
+  mapBox.querySelector('.map-prompt')?.remove();
+  const bar = document.createElement('div');
+  bar.className = 'map-prompt';
+  const msg = document.createElement('span');
+  msg.textContent = `${surfaces[surfaceId].ccs[spot.dataset.cc]}: take off`;
+  bar.append(msg);
+  for (const name of JSON.parse(spot.dataset.names ?? '[]')) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.onclick = async () => {
+      const n = rig.selected;
+      if (n === null) return;
+      const fresh = await get(`/presets/${n}`);
+      const {[name]: _, ...cc_map} = fresh.live.cc_map;
+      // Left out of the map a control goes back to the CC it was declared with, and
+      // one declared on this very knob would never leave it, so it is parked.
+      const declared = controls.find(c => c.kind === 'cc' && c.comments[0] === name)?.default;
+      if (declared === Number(spot.dataset.cc)) cc_map[name] = freeCC(cc_map);
+      const r = await put(`/presets/${n}`, {...fresh.live, cc_map});
+      if (!r.ok) { alert((await r.json()).detail); return; }
+      await refresh();
+    };
+    bar.append(b);
+  }
+  const cancel = document.createElement('button');
+  cancel.textContent = 'cancel';
+  cancel.onclick = () => bar.remove();
+  bar.append(cancel);
+  mapBox.prepend(bar);
+}
+
+// A menu of the controls, to put one on the knob or fader that was clicked.
+function assignMenu(spot) {
+  const cc = Number(spot.dataset.cc);
+  mapBox.querySelector('.map-menu')?.remove();
+  const box = document.createElement('div');
+  box.className = 'fpick map-menu';
+  mapBox.prepend(box);
+
+  const surface = surfaces[surfaceId];
+  const where = (c) => surface.ccs[(patchMap()[c.comments[0]]) ?? c.number] ?? '';
+  const open = fieldMenu(box, null, async (name) => {
+    box.remove();
+    const n = rig.selected;
+    if (n === null) return;
+    const fresh = await get(`/presets/${n}`);
+    const r = await put(`/presets/${n}`, {...fresh.live, cc_map: {...fresh.live.cc_map, [name]: cc}});
+    if (!r.ok) { alert((await r.json()).detail); return; }
+    await refresh();
+  }, {
+    placeholder: `put on ${surface.ccs[cc]}: search controls`,
+    noMap: true,
+    entries: () => controls.filter(c => c.kind === 'cc' && !c.hidden && c.comments.length)
+        .map(c => ({group: fieldOf(c.comments[0]), text: c.comments[0], hint: where(c), value: c.comments[0]}))
+        .sort((a, b) => a.group.localeCompare(b.group) || a.text.localeCompare(b.text)),
+  });
+  open();
+}
+const patchMap = () => views[rig.selected]?.live?.cc_map ?? {};
+
 // ---- keeping up ----------------------------------------------------------
 
 // Which preset the half-built formulas belong to. Another one has its own slots.
 let formulasFor = null;
+
+// What the effects list was last drawn from. The poll comes every second; a list that
+// is torn down and rebuilt with nothing new in it flickers under the scrolling.
+let effectsDrawn = '';
 
 async function refresh() {
   [rig, views, controls] = await Promise.all([get('/rig'), get('/presets'), get('/controls')]);
@@ -1852,7 +2657,17 @@ async function refresh() {
     formulasFor = rig.selected;
   }
   drawPresets();
-  if (!adding && !picking && !dragging && !reordering && !turning && !inUse()) drawEffects();
+  drawMap();
+  if (!adding && !picking && !dragging && !reordering && !turning && !inUse()) {
+    // Where the knobs sit is not part of what the list shows - the dials follow
+    // the socket - so a knob moving must not tear the list down.
+    const key = JSON.stringify([
+      rig,
+      Object.values(views).map(v => ({...v, live: {...v.live, ccs: null}})),
+      controls.map(({value, ...c}) => c),
+    ]);
+    if (key !== effectsDrawn) { effectsDrawn = key; drawEffects(); }
+  }
 }
 
 async function drawStats() {
@@ -1860,7 +2675,7 @@ async function drawStats() {
   document.getElementById('fps').textContent = `${s.fps.toFixed(0)} fps`;
 }
 
-refresh(); drawStats();
+loadSurfaces().then(refresh); drawStats();
 
 // The preset can change from the controller - a program change - so the bar
 // follows it rather than showing what it was at load.
