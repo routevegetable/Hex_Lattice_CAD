@@ -33,7 +33,8 @@
     "117": 0,
     "119": 1,
     "120": 0,
-    "121": 0
+    "121": 0,
+    "125": 0
   },
   "slots": {
     "bg_waves.sat": 0.9,
@@ -49,12 +50,24 @@
           "b": {
             "op": "mul",
             "a": "burst",
-            "b": 0.5
-          }
+            "b": 0.5,
+            "mod": false
+          },
+          "mod": false
         },
-        "b": 0.39
+        "b": 0.39,
+        "mod": false
       },
-      "b": 0.61
+      "b": 0.61,
+      "mod": false
+    },
+    "light_all_fibers.value": 1.0,
+    "light_all_fibers.sat": 1.0,
+    "light_all_fibers.hue": {
+      "op": "mul",
+      "a": "rotary",
+      "b": 2.0,
+      "mod": true
     }
   },
   "cc_map": {
@@ -69,9 +82,13 @@
   },
   "active": [
     "bg_waves",
+    "map_fiber",
+    "light_all_fibers"
+  ],
+  "muted": [
+    "bg_waves",
     "map_fiber"
   ],
-  "muted": [],
   "name": "v-gradient-test",
   "notes": {}
 }

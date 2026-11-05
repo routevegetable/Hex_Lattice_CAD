@@ -1215,7 +1215,7 @@ function nodeEditor(key, tree, path, depth = 0) {
   const knob = document.createElement('span');
   knob.className = 'modknob';
   const word = document.createElement('span');
-  word.textContent = node.mod ? 'wrap' : 'clamp';
+  word.textContent = 'mod';
   mod.append(knob, word);
   mod.title = node.mod ? 'mod is on: past 1 this wraps round (1.1 becomes 0.1). Click to clamp to 0-1 instead'
                        : 'mod is off: this is clamped to 0-1. Click to wrap round past 1 instead (1.1 becomes 0.1)';
