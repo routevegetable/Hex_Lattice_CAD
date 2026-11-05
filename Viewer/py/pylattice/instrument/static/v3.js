@@ -1209,11 +1209,16 @@ function nodeEditor(key, tree, path, depth = 0) {
   outer.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', a: node, b: null}));
   // Held to 0-1 by default; with this on, the result wraps round instead (1.1 is 0.1).
   const mod = document.createElement('button');
-  mod.className = 'mod' + (node.mod ? ' on' : '');
-  mod.textContent = 'mod';
-  mod.title = node.mod ? 'wraps round past 1 (1.1 becomes 0.1): click to clamp to 0-1 instead'
-                       : 'clamped to 0-1: click to wrap round instead (1.1 becomes 0.1)';
-  mod.setAttribute('aria-pressed', String(!!node.mod));
+  mod.className = 'modsw' + (node.mod ? ' on' : '');
+  mod.setAttribute('role', 'switch');
+  mod.setAttribute('aria-checked', String(!!node.mod));
+  const knob = document.createElement('span');
+  knob.className = 'modknob';
+  const word = document.createElement('span');
+  word.textContent = node.mod ? 'wrap' : 'clamp';
+  mod.append(knob, word);
+  mod.title = node.mod ? 'mod is on: past 1 this wraps round (1.1 becomes 0.1). Click to clamp to 0-1 instead'
+                       : 'mod is off: this is clamped to 0-1. Click to wrap round past 1 instead (1.1 becomes 0.1)';
   mod.onclick = () => {
     const {mod: was, ...rest} = node;
     setFormula(key, replace(tree, path, was ? rest : {...rest, mod: true}));

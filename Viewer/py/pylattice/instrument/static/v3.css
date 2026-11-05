@@ -326,7 +326,13 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 .effect-head .note::placeholder { color: transparent; }
 .effect-head .note:hover::placeholder, .effect-head .note:focus::placeholder { color: var(--dim); }
 
-.ops .mod { margin-left: 4px; color: var(--dim); font-size: 12px; }
-.ops .mod.on { color: var(--g); border-color: var(--g); }
+.ops .modsw { display: inline-flex; align-items: center; gap: 5px; margin-left: 4px; padding: 0 8px 0 3px;
+              font-size: 12px; color: var(--dim); border-radius: 10px; }
+.modsw .modknob { position: relative; width: 24px; height: 12px; border-radius: 6px; background: var(--line); }
+.modsw .modknob::after { content: ''; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px;
+                         border-radius: 50%; background: var(--dim); transition: left .12s; }
+.ops .modsw.on { color: var(--g); border-color: var(--g); }
+.modsw.on .modknob { background: var(--g); }
+.modsw.on .modknob::after { left: 14px; background: var(--panel); }
 .knobs.mini { margin-top: 0; flex-wrap: nowrap; }
 .knobs.mini .knob b, .knobs.mini .knob .at { display: none; }
