@@ -2633,6 +2633,7 @@ function openGradientEditor({gradient = null, copy = false, onSaved = null} = {}
     return name;
   };
   const startName = existing ? existing.name
+      : readonly ? gradient.name                  // looking at it: its own name, not a copy's
       : unique(gradient ? `${gradient.name}_copy` : 'gradient');
 
   const stops = (gradient?.stops ?? [[0, 0.08, 1], [1, 0.75, 1]])
@@ -2707,34 +2708,36 @@ function openGradientEditor({gradient = null, copy = false, onSaved = null} = {}
     ctx.stroke();
   };
 
+  // Handles are rebuilt only when the stops or their order change, never when one
+  // is picked up: replacing the element under the pointer would end the drag.
   const drawHandles = () => {
     handles.replaceChildren();
     stops.forEach((s) => {
       const hd = mk('div', 'ghandle' + (s === sel ? ' on' : ''));
       hd.style.left = `${s.frac * 100}%`;
       hd.style.background = rgbCss(s.hue, s.sat);
-      if (!readonly) {
-        hd.onpointerdown = (ev) => {
-          ev.stopPropagation();
-          sel = s;
-          hd.setPointerCapture(ev.pointerId);
-          hd.onpointermove = (e) => {
-            const r = bar.getBoundingClientRect();
-            s.frac = round4(clamp01((e.clientX - r.left) / r.width));
-            hd.style.left = `${s.frac * 100}%`;
-            fracIn.value = String(round4(s.frac * 100));
-            drawBar();
-          };
-          hd.onpointerup = () => {
-            hd.onpointermove = hd.onpointerup = null;
-            stops.sort((a, b) => a.frac - b.frac);
-            redraw();
-          };
+
+      hd.onpointerdown = (ev) => {
+        ev.stopPropagation();
+        select(s);
+        if (readonly) return;
+
+        hd.setPointerCapture(ev.pointerId);
+        hd.onpointermove = (e) => {
+          const r = bar.getBoundingClientRect();
+          s.frac = round4(clamp01((e.clientX - r.left) / r.width));
+          hd.style.left = `${s.frac * 100}%`;
+          fracIn.value = String(round4(s.frac * 100));
+          drawBar();
+          drawChips();
+        };
+        // Let go: now that nothing is held, put the stops in order.
+        hd.onpointerup = hd.onpointercancel = () => {
+          hd.onpointermove = hd.onpointerup = hd.onpointercancel = null;
+          stops.sort((a, b) => a.frac - b.frac);
           redraw();
         };
-      } else {
-        hd.onpointerdown = (ev) => { ev.stopPropagation(); sel = s; redraw(); };
-      }
+      };
       handles.append(hd);
     });
   };
@@ -2743,22 +2746,34 @@ function openGradientEditor({gradient = null, copy = false, onSaved = null} = {}
   const drawChips = () => {
     chips.replaceChildren();
     stops.forEach((s, i) => {
-      const c = mk('button', 'gchip' + (s === sel ? ' on' : ''), `${i + 1} · ${round4(s.frac * 100)}%`);
+      const c = mk('button', 'gchip' + (s === sel ? ' on' : ''), `${i + 1} \u00b7 ${round4(s.frac * 100)}%`);
       c.style.borderBottomColor = rgbCss(s.hue, s.sat);
-      c.onclick = () => { sel = s; redraw(); };
+      c.onclick = () => select(s);
       chips.append(c);
     });
   };
 
-  function redraw() {
-    drawBar();
-    drawHandles();
+  // What shows the picked stop: its chip, the wheel, the boxes. Not the handles.
+  function paintSelection() {
     drawChips();
     drawWheel();
     fracIn.value = String(round4(sel.frac * 100));
-    readout.textContent = `hue ${sel.hue.toFixed(3)} · sat ${sel.sat.toFixed(3)}`;
+    readout.textContent = `hue ${sel.hue.toFixed(3)} \u00b7 sat ${sel.sat.toFixed(3)}`;
     removeBtn.disabled = readonly || stops.length <= 1;
     splitBtn.disabled = readonly;
+  }
+
+  // Pick a stop without rebuilding the handles. They are in the order of `stops`.
+  function select(s) {
+    sel = s;
+    [...handles.children].forEach((el, i) => el.classList.toggle('on', stops[i] === sel));
+    paintSelection();
+  }
+
+  function redraw() {
+    drawBar();
+    drawHandles();
+    paintSelection();
   }
 
   if (!readonly) {
@@ -2903,7 +2918,14 @@ function openGradientEditor({gradient = null, copy = false, onSaved = null} = {}
   dlg.append(err, python, foot);
 
   dlg.onclose = () => dlg.remove();         // Escape closes it too
-  dlg.onclick = (ev) => { if (ev.target === dlg) shut(); };
+  // The backdrop is the dialog itself, and so is its padding: only a click out
+  // past its edge is a click on the backdrop.
+  dlg.onclick = (ev) => {
+    const r = dlg.getBoundingClientRect();
+    const outside = ev.clientX < r.left || ev.clientX > r.right
+                 || ev.clientY < r.top || ev.clientY > r.bottom;
+    if (ev.target === dlg && outside) shut();
+  };
   document.body.append(dlg);
   dlg.showModal();
   redraw();
