@@ -9,9 +9,9 @@ const post = (p, body) => send('POST', p, body);
 const put = (p, body) => send('PUT', p, body);
 
 // Three tabs up top; the bar under them is whatever that tab needs.
-const TABS = [['effects', 'Effects'], ['controls', 'Controls'], ['config', 'Configuration']];
-const SECTIONS = [['stats', 'Stats'], ['midi', 'MIDI'], ['presets', 'Presets'],
-                  ['surface', 'Surface']];
+const TABS = [['effects', 'Effects'], ['controls', 'Controls'], ['system', 'System']];
+const SECTIONS = [['stats', 'Stats'], ['timing', 'Timing'], ['midi', 'MIDI'],
+                  ['presets', 'Presets'], ['surface', 'Surface']];
 
 let rig = null;
 let patch = null;           // what is playing, bar the knobs - see heldPatch
@@ -21,7 +21,7 @@ let views = {};             // every preset, live against stored - fetched on de
 let controls = [];          // every knob and pad the instrument watches
 let tab = 'effects';        // which tab is showing
 let chosen = null;          // field showing its details, on Controls
-let section = 'stats';      // which part of Configuration
+let section = 'stats';      // which part of System
 let active = null;          // effect showing its slots
 let open = null;            // "effect.slot" of the expanded slot, one at a time
 let picking = null;         // {key, path} while the field picker is up
@@ -1121,7 +1121,7 @@ const inUse = () => document.activeElement?.closest?.('#page') != null;
 function drawPage() {
   if (tab === 'effects') return drawSlots();
   if (tab === 'controls') return drawFieldPage();
-  return drawConfigPage();
+  return drawSystemPage();
 }
 
 // Every slot whose expression names a field, however deep in it.
@@ -1229,9 +1229,9 @@ function drawFieldPage() {
   }
 }
 
-// ---- Configuration -------------------------------------------------------
+// ---- System --------------------------------------------------------------
 
-async function drawConfigPage() {
+async function drawSystemPage() {
   const box = document.getElementById('page');
   box.innerHTML = '';
 
@@ -1244,6 +1244,20 @@ async function drawConfigPage() {
     box.append(infoRow('effects', Object.keys(rig.effects).length));
     box.append(infoRow('slots', Object.values(rig.effects)
                                       .reduce((n, e) => n + e.slots.length, 0)));
+  } else if (section === 'timing') {
+    const s = await get('/stats');
+    const slots = Object.entries(s.slots ?? {});
+    const load = slots.reduce((ms, [, t]) => ms + t.mean * t.calls / 1000, 0);
+
+    // Against the whole second, not one frame: a slot's cost is what it adds
+    // up to over all the frames it was asked in.
+    const spent = s.render_ms * s.fps;
+
+    box.append(infoRow('slots measured', slots.length));
+    box.append(infoRow('rendering', `${spent.toFixed(0)} ms of every second`));
+    box.append(infoRow('their share', `${load.toFixed(2)} ms`
+        + (spent ? ` \u00b7 ${(100 * load / spent).toFixed(0)}% of it` : '')));
+    box.append(timingTable(slots));
   } else if (section === 'midi') {
     for (const c of controls) {
       const what = (c.comments.join(' \u00b7 ') || 'unnamed') + (c.hidden ? ' \u00b7 hidden' : '');
@@ -1282,6 +1296,72 @@ async function drawConfigPage() {
     const edited = Object.keys(views).filter(n => isDirty(views[n]));
     box.append(infoRow('unsaved edits', edited.join(', ') || 'none'));
   }
+}
+
+// What each slot's gets cost. Every number is one second's worth smoothed
+// across seconds by the instrument, in microseconds, bar `gets`, which is that
+// second's count, and the load, which is the two multiplied - the share of the
+// second the slot spent answering. Worst load first: that is the one to look
+// at, and a slot asked 2,600 times for 2us apiece costs more than a slot asked
+// twice for 200.
+const TIMING_COLUMNS = [
+  ['mean', 'mean', 'what one get costs on average'],
+  ['min', 'best', 'the quickest get of the second'],
+  ['max', 'worst', 'the slowest get of the second - one end, one frame'],
+  ['sd', 'spread', 'how far the gets fall either side of the mean'],
+  ['calls', 'gets', 'how many times it was asked, in the second'],
+];
+
+const SHORT = (v) => v.toFixed(v < 10 ? 2 : v < 100 ? 1 : 0);
+
+function timingTable(slots) {
+  if (!slots.length)
+    return infoRow('timing', 'nothing is being computed');
+
+  const rows = slots
+      .map(([name, t]) => ({name, ...t, load: t.mean * t.calls / 1000}))
+      .sort((a, b) => b.load - a.load);
+
+  const table = document.createElement('table');
+  table.className = 'timing';
+
+  const head = table.insertRow();
+  const labels = [['slot', 'the effect and the slot of it'],
+                  ...TIMING_COLUMNS.map(([, label, why]) => [label, why]),
+                  ['ms/s', 'the mean times the gets: what the slot costs a second']];
+
+  for (const [label, why] of labels) {
+    const th = document.createElement('th');
+    th.textContent = label;
+    th.title = why;                  // microseconds, bar the gets and the load
+    head.append(th);
+  }
+
+  // The bar is each slot's load against the heaviest one, so the shape of it
+  // reads at a glance without having to compare the numbers.
+  const worst = rows[0].load;
+
+  for (const row of rows) {
+    const tr = table.insertRow();
+    tr.insertCell().textContent = row.name;
+
+    for (const [key] of TIMING_COLUMNS) {
+      const td = tr.insertCell();
+      td.className = 'num';
+      td.textContent = key === 'calls' ? row.calls : SHORT(row[key]);
+    }
+
+    const td = tr.insertCell();
+    td.className = 'load';
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.style.width = `${worst ? (row.load / worst * 100).toFixed(1) : 0}%`;
+    const text = document.createElement('span');
+    text.textContent = row.load.toFixed(2);
+    td.append(bar, text);
+  }
+
+  return table;
 }
 
 async function drawStats() {

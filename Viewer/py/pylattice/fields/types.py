@@ -1,6 +1,8 @@
 """What a field is: the protocols it implements, and how fields combine."""
 
 import operator
+from dataclasses import dataclass
+from time import perf_counter_ns
 from typing import Protocol, runtime_checkable
 
 from pylattice.examples.tempo import Event
@@ -122,7 +124,36 @@ def _combine(op, a: "ScalarField | float", b: "ScalarField | float") -> ScalarFi
     # naming both sides, rather than us failing per-vertex at render time.
     if a is None or b is None:
         return NotImplemented
-    return CombinedField(op, a, b)
+    return CombinedField(op, a, b, False)
+
+# How much of a new second's numbers shows up in the smoothed ones. A third
+# settles in about three seconds, which is slow enough to read off a screen
+# and quick enough to show a knob being turned.
+SMOOTH = 1 / 3
+
+# Stands in for "no reading yet" while looking for the smallest. Any real one
+# is smaller.
+FOREVER = 1 << 62
+
+
+@dataclass
+class Timing:
+    """How long a slot's gets are taking, in microseconds.
+
+    The four numbers describe the gets of one second - the worst, the best,
+    the mean, and how far they spread either side of it - and each is then
+    smoothed across seconds, so what comes out is steady enough to read
+    rather than jumping about with whichever end happened to be slowest.
+
+    `calls` is that second's count, left raw. It is what turns a mean into a
+    load: a slot averaging 2us over 2,600 gets is spending 5ms a second.
+    """
+
+    max: float = 0.0
+    min: float = 0.0
+    mean: float = 0.0
+    sd: float = 0.0
+    calls: int = 0
 
 
 class Slot(ScalarField):
@@ -144,6 +175,26 @@ class Slot(ScalarField):
     def __init__(self, name: str = ""):
         self.name = name
         self._field: ScalarField = ConstantField(0)
+
+        # What the gets of this second have cost, as running totals rather
+        # than a list of them: a get happens once per end per frame, so
+        # nothing on that path may allocate. Keeping the squares as well as
+        # the total is what gives the spread without keeping the samples.
+        #
+        # Nanoseconds, and they stay small enough to be machine integers: a
+        # million gets a second of a hundred microseconds each would still
+        # square and sum to 1e16, inside the 9.2e18 a 64-bit integer holds, so
+        # none of this falls back on big arithmetic.
+        self._calls = 0
+        self._spent = 0
+        self._squares = 0
+        self._worst = 0
+        self._best = FOREVER
+
+        # The smoothed numbers, or None until a second has gone by with
+        # something in it - the first fold seeds them rather than ramping up
+        # from zero.
+        self.timing: Timing | None = None
 
     def set(self, field: "ScalarField | float") -> ScalarField:
         """Plug a field (or a constant) in, replacing whatever was there."""
@@ -170,7 +221,58 @@ class Slot(ScalarField):
         return True
 
     def get(self, now: Event, end: EndRef) -> float:
-        return self._field.get(now, end)
+        start = perf_counter_ns()
+        value = self._field.get(now, end)
+        took = perf_counter_ns() - start
+
+        self._calls += 1
+        self._spent += took
+        self._squares += took * took
+
+        if took > self._worst:
+            self._worst = took
+
+        if took < self._best:
+            self._best = took
+
+        return value
+
+    def fold(self) -> Timing | None:
+        """Fold the gets since the last fold into the smoothed numbers, and
+        start the next second's count.
+
+        None when nothing asked this slot for anything, which is how a slot
+        that is not being computed drops out of the stats rather than
+        reporting a stale second.
+        """
+        calls = self._calls
+
+        if not calls:
+            return None
+
+        mean = self._spent / calls
+
+        # The spread without keeping the samples: the mean of the squares less
+        # the square of the mean. Floating point can undershoot that to a
+        # hair below zero when every get took the same time, hence the clamp.
+        spread = max(self._squares / calls - mean * mean, 0.0) ** 0.5
+
+        was = self.timing
+        fresh = Timing(self._worst / 1000, self._best / 1000,
+                       mean / 1000, spread / 1000, calls)
+
+        self.timing = fresh if was is None else Timing(
+            max=was.max + SMOOTH * (fresh.max - was.max),
+            min=was.min + SMOOTH * (fresh.min - was.min),
+            mean=was.mean + SMOOTH * (fresh.mean - was.mean),
+            sd=was.sd + SMOOTH * (fresh.sd - was.sd),
+            calls=calls,
+        )
+
+        self._calls = self._spent = self._squares = self._worst = 0
+        self._best = FOREVER
+
+        return self.timing
 
     def __repr__(self) -> str:
         return f"Slot({self.name!r} -> {self._field!r})"

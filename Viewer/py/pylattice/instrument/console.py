@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 from pylattice.examples.midi import CCMeta, MIDI
 from pylattice.examples.tempo import Event
-from pylattice.fields.types import ScalarField
+from pylattice.fields.types import ScalarField, Timing
 from pylattice.instrument.patch import Patch, PresetBank, named
 from pylattice.instrument.types import Effect
 
@@ -20,6 +20,10 @@ class Stats:
     fps: float = 0.0
     render_ms: float = 0.0
     gc_ms: float = 0.0
+
+    # What each slot's gets cost, by "effect.slot", for the slots that were
+    # asked for something in the second just gone. Microseconds.
+    slots: dict[str, Timing] = field(default_factory=dict)
 
 
 @dataclass
@@ -259,11 +263,34 @@ class Console:
 
     def get_stats(self) -> Stats:
         with self.lock:
-            return Stats(self._stats.fps, self._stats.render_ms, self._stats.gc_ms)
+            return Stats(self._stats.fps, self._stats.render_ms,
+                         self._stats.gc_ms, dict(self._stats.slots))
 
     def set_stats(self, fps: float, render_ms: float, gc_ms: float):
+        """Take the loop's numbers for the second just gone, and close off the
+        slots' own second at the same time - called once a second, which is
+        what makes it the window everything here is measured over."""
         with self.lock:
-            self._stats = Stats(fps, render_ms, gc_ms)
+            self._stats = Stats(fps, render_ms, gc_ms, self._slot_timings())
+
+    def _slot_timings(self) -> dict[str, Timing]:
+        """Every slot that was asked for something this second, by
+        "effect.slot", and what its gets cost.
+
+        Folding is what starts the next second, so this has to be called once
+        a second whether anything reads the answer or not. A slot nothing
+        asked drops out rather than reporting the second before.
+        """
+        timings = {}
+
+        for name, effect in named(self._effects, Effect).items():
+            for slot_name, slot in effect.get_slots().items():
+                took = slot.fold()
+
+                if took is not None:
+                    timings[f"{name}.{slot_name}"] = took
+
+        return timings
 
     # -- what there is to patch -------------------------------------------
 

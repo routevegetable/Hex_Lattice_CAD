@@ -318,3 +318,22 @@ input[type=range] { flex: 1; min-width: 5rem; max-width: 12rem; height: 24px;
    the same glyph twice would be two things wearing one mark */
 .pcell.dirty b::after { content: '\25cf'; margin-left: .3rem;
                         font-size: .6em; vertical-align: middle; }
+
+/* what the slots cost, on System. Numbers right aligned with tabular figures
+   so the columns read straight down, and the load cell carries a bar of its
+   share of the heaviest one - the shape of it says which slot to look at
+   before any of the numbers have been read. */
+table.timing { width: 100%; border-collapse: collapse; font-size: .75rem;
+               font-variant-numeric: tabular-nums; }
+table.timing th { text-align: right; font-weight: 400; color: #777;
+                  padding: .2rem .35rem; border-bottom: 1px solid #2a2a2a; }
+table.timing th:first-child, table.timing td:first-child { text-align: left; }
+table.timing td { text-align: right; padding: .18rem .35rem;
+                  border-bottom: 1px solid #222; }
+table.timing td:first-child { color: #cde; font-weight: 600;
+                              white-space: nowrap; }
+table.timing td.num { color: #9bd; }
+table.timing td.load { position: relative; color: #dee; }
+table.timing td.load .bar { position: absolute; left: 0; top: 1px; bottom: 1px;
+                            background: #2c4a7a; }
+table.timing td.load span { position: relative; }
