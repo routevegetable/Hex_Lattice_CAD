@@ -53,8 +53,8 @@ def glitter(
             bottom_hue = actual_hue_1
             bottom_sat = actual_sat_1
 
-        lattice[top][0] = list(hsv(top_hue, top_sat, actual_value))
-        lattice[bottom][0] = list(hsv(bottom_hue, bottom_sat, actual_value))
+        lattice[top][3] = list(hsv(top_hue, top_sat, actual_value))
+        lattice[bottom][3] = list(hsv(bottom_hue, bottom_sat, actual_value))
 
 
 class Glitter(Effect):
