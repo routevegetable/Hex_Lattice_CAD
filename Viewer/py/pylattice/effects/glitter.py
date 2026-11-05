@@ -14,6 +14,8 @@ def glitter(
     graph: Graph,
     hue_1: ScalarField,
     hue_2: ScalarField,
+    sat_1: ScalarField,
+    sat_2: ScalarField,
     value: ScalarField,
     spin_rate: ScalarField,  # max 10 radians / second
     phases: dict[EdgeRef, float],
@@ -33,27 +35,33 @@ def glitter(
         actual_hue_1 = (hue_1.get(now, top) + hue_1.get(now, bottom)) / 2
         actual_hue_2 = (hue_2.get(now, top) + hue_2.get(now, bottom)) / 2
 
+        actual_sat_1 = (sat_1.get(now, top) + sat_1.get(now, bottom)) / 2
+        actual_sat_2 = (sat_2.get(now, top) + sat_2.get(now, bottom)) / 2
+
         actual_value = (value.get(now, top) + value.get(now, bottom)) / 2
 
         π = math.pi
 
         if phase > π / 2 and phase < 3 * π / 2:
             top_hue = actual_hue_1
+            top_sat = actual_sat_1
             bottom_hue = actual_hue_2
+            bottom_sat = actual_sat_2
         else:
             top_hue = actual_hue_2
+            top_sat = actual_sat_2
             bottom_hue = actual_hue_1
+            bottom_sat = actual_sat_1
 
-        # sat = min((math.sin(phase) / 4) + 0.85, 1)
-        sat = 1
-
-        lattice[top][0] = list(hsv(top_hue, sat, actual_value))
-        lattice[bottom][0] = list(hsv(bottom_hue, sat, actual_value))
+        lattice[top][0] = list(hsv(top_hue, top_sat, actual_value))
+        lattice[bottom][0] = list(hsv(bottom_hue, bottom_sat, actual_value))
 
 
 class Glitter(Effect):
     hue_1: Slot
     hue_2: Slot
+    sat_1: Slot
+    sat_2: Slot
     value: Slot
     spin_rate: Slot
 
@@ -68,6 +76,8 @@ class Glitter(Effect):
             graph,
             self.hue_1,
             self.hue_2,
+            self.sat_1,
+            self.sat_2,
             self.value,
             self.spin_rate,
             self.phases,
