@@ -129,25 +129,45 @@ const fmt = (n) => {
 };
 const OPS = {add: '+', sub: '\u2212', mul: '\u00d7', div: '\u00f7', avg: '\u2248'};
 
-// ---- gradients -------------------------------------------------------------
+// ---- operators -------------------------------------------------------------
+// An operation is {op, args: [...]}: an operator and however many operands it is
+// written with. Which operators there are, and how many operands each takes, is
+// the rig's to say - `rig.operators` - so nothing here keeps a list that could
+// disagree with it. The glyphs above are only the ones a sum is written with.
 
-// STUB. The server stores no gradients yet, so every tree it sends is a field,
-// a constant or a combination, and this page can neither make nor edit a
-// gradient. These three are the only places that know the shape of one -
-// {gradient, of, ch} - so that one that turns up is shown as an opaque leaf and
-// not mistaken for a formula. The editor and its storage come with the server
-// side of gradients; they replace this section and nothing else.
-const isGradient = (n) => n !== null && typeof n === 'object' && n.gradient !== undefined;
-const describeGradient = (n) => `gradient ${n.gradient}(${describe(n.of)}).${n.ch ?? 'h'}`;
-const gradientFields = (n) => fieldsIn(n.of);
+// How many operands an operator is written with: 'unary', 'binary' or 'nary'.
+// Undefined for one the rig does not have - an operator a preset names that has
+// since gone is laid out as the general case rather than guessed at.
+const arityOf = (op) => rig?.operators?.find(o => o.name === op)?.arity;
+
+// Whether to write an operation as a sum rather than as a call. Only a binary
+// operator is one: it has two operands and a glyph to put between them. The rest
+// read `name(a, b, c)`, which is also what parseText takes back.
+const infix = (node, glyphs) => arityOf(node.op) === 'binary'
+    && node.args.length === 2 && node.op in glyphs;
+
+// The same operation under another operator, with its operands fitted to what
+// that one is written with: a unary gets one box, a binary two. Operands keep
+// their positions, a short list gains empty ones and a long one loses its tail
+// (undo has it, if it was wanted). One written with any number keeps what it has.
+function withOp(node, name) {
+  const arity = arityOf(name);
+  const want = arity === 'unary' ? 1 : arity === 'binary' ? 2 : node.args.length;
+  const args = node.args.slice(0, want);
+  while (args.length < want) args.push(null);
+  return {...node, op: name, args};
+}
 
 // A slot as text: what is plugged into it, however deep.
 function describe(node) {
   if (node === null || node === undefined) return 'nothing';
   if (typeof node === 'number') return fmt(node);
   if (typeof node === 'string') return node;
-  if (isGradient(node)) return describeGradient(node);
-  return `(${describe(node.a)} ${OPS[node.op]} ${describe(node.b)})`;
+
+  const mod = node.mod ? ' mod 1' : '';
+  if (infix(node, OPS))
+    return `(${describe(node.args[0])} ${OPS[node.op]} ${describe(node.args[1])})${mod}`;
+  return `${node.op}(${node.args.map(describe).join(', ')})${mod}`;
 }
 
 // ---- undo ----------------------------------------------------------------
@@ -233,6 +253,21 @@ const mutedIn = (n) => views[n]?.live.muted ?? [];
 const muted = () => mutedIn(rig.selected);
 const isMuted = (name) => muted().includes(name);
 
+// A line of the player's own words about an effect, kept in the preset beside
+// its name. Nothing renders from it.
+async function setNote(name, text) {
+  const n = rig.selected;
+  if (n === null) return;
+
+  const fresh = await get(`/presets/${n}`);
+  remember(n, fresh.live);
+  const {[name]: _gone, ...rest} = fresh.live.notes ?? {};
+  const notes = text ? {...rest, [name]: text} : rest;
+  const r = await put(`/presets/${n}`, {...fresh.live, notes});
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  await refresh();
+}
+
 async function setMuted(names) {
   const n = rig.selected;
   if (n === null) return;
@@ -289,13 +324,24 @@ async function setActive(names) {
 
 // Change one slot of the playing preset, and nothing else - read just now, as
 // with the chain, so the knobs in it are where they are.
-async function writeSlot(key, tree) {
+//
+// A `value` slot can have a fader as its outermost step. The editor never shows
+// it, so what is written here is the rest of the expression and the fader the
+// slot already has is put back around it - unless one is passed, `null` for none.
+async function writeSlot(key, tree, fader) {
   const n = rig.selected;
   if (n === null) return;
 
   const fresh = await get(`/presets/${n}`);
   remember(n, fresh.live);
-  const r = await put(`/presets/${n}`, {...fresh.live, slots: {...fresh.live.slots, [key]: tree}});
+  if (isValueSlot(key)) {
+    const outer = fader === undefined ? splitFader(fresh.live.slots[key] ?? null).fader : fader;
+    tree = withFader(tree, outer);
+  }
+  const slots = {...fresh.live.slots, [key]: tree};
+  // Controls a field brings are not placed on the box: that is done by hand, on
+  // the map (or with "assign them").
+  const r = await put(`/presets/${n}`, {...fresh.live, slots});
   if (!r.ok) { alert((await r.json()).detail); return; }
   await refresh();
 }
@@ -393,6 +439,28 @@ const fieldSource = {
                 .map(f => ({group, text: f.name, hint: '', value: f.name}))),
 };
 
+// The operators, as a menu: grouped by what they do, each with how it is written -
+// a sum for a binary one, the call it is typed as for the rest. Nothing here lists
+// them; what there is to choose from is whatever /rig says.
+const OPERATOR_GROUPS = [
+  ['arithmetic', (o) => o.kind === 'Math'],
+  ['pick one', (o) => ['Select', 'Cycle', 'Randomize'].includes(o.kind)],
+  ['gradients', (o) => o.kind === 'GradientChooser'],
+];
+const operatorGroup = (o) => OPERATOR_GROUPS.find(([, is]) => is(o))?.[0] ?? 'other';
+const writtenAs = (o) => o.arity === 'binary'
+    ? `a ${OPS[o.name] ?? o.name} b`
+    : `${o.name}(${o.arity === 'unary' ? 'x' : '…'})`;
+
+const operatorSource = {
+  placeholder: 'search operators',
+  noMap: true,                  // an operator is not something a control drives
+  entries: () => [...OPERATOR_GROUPS.map(([g]) => g), 'other'].flatMap(group =>
+      rig.operators.filter(o => operatorGroup(o) === group)
+                   .sort((a, b) => a.name.localeCompare(b.name))
+                   .map(o => ({group, text: o.name, hint: writtenAs(o), value: o.name}))),
+};
+
 // The menu hangs off `box`, which the caller places and whatever opens it sits
 // in. This returns the thing that opens it, or closes it if it is already up.
 function fieldMenu(box, current, onPick, source = fieldSource) {
@@ -419,7 +487,12 @@ function fieldMenu(box, current, onPick, source = fieldSource) {
     search.placeholder = source.placeholder;
     const body = document.createElement('div');
     body.className = 'fpick-body';
-    menu.append(search, body);
+    // The same choice, made by pressing the control that drives the field.
+    const onMap = document.createElement('button');
+    onMap.className = 'fpick-map';
+    onMap.textContent = 'pick on the controller map';
+    onMap.onclick = () => { close(); startMapPick(onPick); };
+    menu.append(search, ...(source.noMap ? [] : [onMap]), body);
 
     let rows = [], cursor = 0;
 
@@ -530,28 +603,41 @@ const clampAxis = (x) => Math.max(0, Math.min(AXIS, x));
 const isHueSlot = (key) => key.split('.').slice(1).join('.').includes('hue');
 
 // What a formula can reach, as [lowest, highest], taking every field to run 0..1.
-// It is null when that cannot be said: an operand left empty, a gradient, or a
+// It is null when that cannot be said: an operand left empty, an operator whose
+// output is not a function of its operands' ranges (a gradient, a zap), or a
 // division by anything but a fixed number.
 function reach(n) {
   if (typeof n === 'number') return [n, n];
   if (typeof n === 'string') return [0, 1];
   if (n === null || typeof n !== 'object' || n.op === undefined) return null;
 
-  const a = reach(n.a), b = reach(n.b);
-  if (!a || !b) return null;
+  const rs = n.args.map(reach);
+  if (!rs.length || rs.some(r => !r)) return null;
+  const [a, b] = rs;
+  const two = rs.length === 2;
 
   switch (n.op) {
-    case 'add': return [a[0] + b[0], a[1] + b[1]];
-    case 'sub': return [a[0] - b[1], a[1] - b[0]];
-    case 'avg': return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    case 'add': return two ? [a[0] + b[0], a[1] + b[1]] : null;
+    case 'sub': return two ? [a[0] - b[1], a[1] - b[0]] : null;
+    case 'avg': return [rs.reduce((s, r) => s + r[0], 0) / rs.length,
+                        rs.reduce((s, r) => s + r[1], 0) / rs.length];
     case 'mul': {
+      if (!two) return null;
       const p = [a[0] * b[0], a[0] * b[1], a[1] * b[0], a[1] * b[1]];
       return [Math.min(...p), Math.max(...p)];
     }
     case 'div': {
-      if (b[0] !== b[1] || b[0] === 0) return null;
+      if (!two || b[0] !== b[1] || b[0] === 0) return null;
       const q = [a[0] / b[0], a[1] / b[0]];
       return [Math.min(...q), Math.max(...q)];
+    }
+    // One operand comes out, whichever it is: anything any of them can reach.
+    // select reads 0 when its knob points past the last operand, so 0 is in range.
+    case 'cycle':
+    case 'randomize':
+    case 'select': {
+      const lo = Math.min(...rs.map(r => r[0])), hi = Math.max(...rs.map(r => r[1]));
+      return n.op === 'select' ? [Math.min(lo, 0), Math.max(hi, 0)] : [lo, hi];
     }
   }
   return null;
@@ -570,8 +656,10 @@ const usableSource = (src) => typeof src === 'string' ||
 // A source and the width it is squeezed into: x x k, x / k, or k x x. Anything
 // else is a source of its own, at width 1.
 function peelWidth(x) {
-  if (x && typeof x === 'object' && (x.op === 'mul' || x.op === 'div')) {
-    const [f, k] = [x.a, x.b];
+  // A layer that wraps round is a source of its own: the wheel has no way to say so.
+  if (x && typeof x === 'object' && !x.mod && x.args.length === 2
+      && (x.op === 'mul' || x.op === 'div')) {
+    const [f, k] = x.args;
     if (typeof k === 'number' && (x.op === 'mul' || k !== 0))
       return {field: f, width: x.op === 'mul' ? k : 1 / k};
     if (x.op === 'mul' && typeof f === 'number') return {field: k, width: f};
@@ -585,27 +673,31 @@ function parseHue(t) {
   if (typeof t === 'number') return {field: null, start: t, width: 0};
 
   const options = [];
-  if (t && typeof t === 'object' && t.op === 'add') {
-    for (const [x, c] of [[t.a, t.b], [t.b, t.a]])
-      if (typeof c === 'number') options.push({...peelWidth(x), start: c});
+  if (t && typeof t === 'object' && t.op === 'add' && t.args.length === 2) {
+    for (const [x, c] of [[t.args[0], t.args[1]], [t.args[1], t.args[0]]])
+      if (typeof c === 'number') options.push({...peelWidth(x), start: c, mod: !!t.mod});
   }
-  options.push({...peelWidth(t), start: 0}, {field: t, width: 1, start: 0});
+  options.push({...peelWidth(t), start: 0, mod: !!t?.mod}, {field: t, width: 1, start: 0});
 
   return options.find(o => usableSource(o.field)) ?? null;
 }
 
-function buildHue({field, start, width}) {
+function buildHue({field, start, width, mod}) {
   if (field === null) return start;
   const w = Math.round(width * 1000) / 1000, st = Math.round(start * 1000) / 1000;
   let tree = field;
-  if (w !== 1) tree = {op: 'mul', a: tree, b: w};
-  if (st !== 0) tree = {op: 'add', a: tree, b: st};
+  if (w !== 1) tree = {op: 'mul', args: [tree, w]};
+  if (st !== 0) tree = {op: 'add', args: [tree, st]};
+  // The wrap-round switch belongs to the outermost step, whichever that turned out to be.
+  if (mod && tree !== null && typeof tree === 'object') tree = {...tree, mod: true};
   return tree;
 }
 
-// The band between two thumbs, painted with the part of the wheel it covers.
+// The band between two thumbs, painted with the part of the wheel it covers. The
+// formula can say more than the wheel has (a start of 2.4, a width of 3); the band
+// stops at the ends of the axis, 0 and 2, and the formula is left as typed.
 function paintBand(band, from, to) {
-  const lo = Math.min(from, to), hi = Math.max(from, to);
+  const lo = clampAxis(Math.min(from, to)), hi = clampAxis(Math.max(from, to));
   const frac = Math.max((hi - lo) / AXIS, 0.002);
   band.style.left = `${lo / AXIS * 100}%`;
   band.style.width = `${frac * 100}%`;
@@ -672,13 +764,18 @@ let editing = {};                       // "effect.slot" -> a formula with an em
 const formulaOpen = new Set();          // slots showing the formula editor
 
 const at = (tree, path) => path.reduce((n, step) => n[step], tree);
-const isLeaf = (n) => n === null || typeof n !== 'object' || isGradient(n);
-const complete = (n) => n === null ? false : isLeaf(n) ? true : complete(n.a) && complete(n.b);
+const isLeaf = (n) => n === null || typeof n !== 'object';
+const complete = (n) => n === null ? false : isLeaf(n) ? true : n.args.every(complete);
 
 function replace(tree, path, value) {
   if (path.length === 0) return value;
   const [step, ...rest] = path;
-  return {...tree, [step]: replace(tree[step], rest, value)};
+  const inner = replace(tree[step], rest, value);
+
+  // An operation's operands are a list, and spreading a list into an object
+  // makes it one - so the two halves of a path step are rebuilt in kind.
+  if (Array.isArray(tree)) return tree.map((n, i) => (i === step ? inner : n));
+  return {...tree, [step]: inner};
 }
 
 // Hue slots opened as a formula read (field x squeeze) + start in full. Once a
@@ -705,6 +802,203 @@ function setFormula(key, tree) {
   if (complete(tree)) { delete editing[key]; writeSlot(key, tree); }
   else drawEffects();
 }
+
+// ---- the expression as text ------------------------------------------------
+
+// The same text as the mobile page: on screen the operators are the ones a sum is
+// written with; typed, they are the ones a keyboard has.
+const TEXT_OPS = {add: '+', sub: '-', mul: '*', div: '/', avg: '~'};
+const FROM_TEXT = Object.fromEntries(Object.entries(TEXT_OPS).map(([k, v]) => [v, k]));
+
+const texting = new Set();              // slots whose formula is being typed
+
+// Brackets on every operator but the outermost, so what comes out reads back in
+// as the same tree whatever precedence says.
+function toText(node, nested = false) {
+  if (node === null || node === undefined) return '';
+  if (typeof node === 'number') return String(node);
+  if (typeof node === 'string') return node;
+
+  // Anything but a binary operator is a call: `select(a, b, c)`. Its brackets
+  // are its own, so an operation inside one needs none.
+  const shown = infix(node, TEXT_OPS)
+      ? `${toText(node.args[0], true)} ${TEXT_OPS[node.op]} ${toText(node.args[1], true)}`
+      : `${node.op}(${node.args.map(a => toText(a)).join(', ')})`;
+  // A % in front of the bracket wraps the result round instead of holding it to 0-1.
+  if (node.mod) return `%(${shown})`;
+  return nested && infix(node, TEXT_OPS) ? `(${shown})` : shown;
+}
+
+function tokens(text) {
+  const grab = /\s*([(),%]|[+\-*/~]|[A-Za-z_][\w.]*|\d*\.?\d+)/y;
+  const out = [];
+  let at = 0;
+
+  while (at < text.length) {
+    grab.lastIndex = at;
+    const m = grab.exec(text);
+    if (!m) throw new Error(`cannot read "${text.slice(at).trim().split(/\s/)[0]}"`);
+    out.push(m[1]);
+    at = grab.lastIndex;
+  }
+  return out;
+}
+
+// The tree itself has no precedence - it is nested, not parsed - but someone
+// typing expects * to bind tighter than +, so that is what is read here.
+function parseText(text) {
+  const t = tokens(text.trim());
+  const names = new Set(rig.fields.map(f => f.name));
+  let i = 0;
+
+  const operand = () => {
+    const tok = t[i++];
+    if (tok === undefined) throw new Error('the expression stops short');
+
+    if (tok === '(' || tok === '%') {
+      if (tok === '%' && t[i++] !== '(') throw new Error('a % goes in front of a ( ... )');
+      const inner = sum();
+      if (t[i++] !== ')') throw new Error('a ( with no )');
+      if (tok === '%') {
+        if (isLeaf(inner)) throw new Error('a % needs an operation in its brackets');
+        return {...inner, mod: true};
+      }
+      return inner;
+    }
+    if (tok === ')') throw new Error('a ) with no (');
+    if (tok === ',') throw new Error('a , outside an operation');
+    if (FROM_TEXT[tok]) throw new Error(`"${tok}" needs something in front of it`);
+    if (/^[\d.]/.test(tok)) return parseFloat(tok);
+
+    // `select(x, y, z)`: a name followed by a ( is an operator, not a field, so
+    // it is checked against the operators. The only way to write an operation
+    // of any number of operands but two, since there is no glyph for three.
+    if (t[i] === '(') {
+      if (!rig.operators.some(o => o.name === tok)) throw new Error(`no operator called "${tok}"`);
+      i++;
+      const args = [sum()];
+      while (t[i] === ',') { i++; args.push(sum()); }
+      if (t[i++] !== ')') throw new Error(`"${tok}(" with no )`);
+      return {op: tok, args};
+    }
+
+    if (!names.has(tok)) throw new Error(`no field called "${tok}"`);
+    return tok;
+  };
+
+  const binary = (ops, next) => () => {
+    let left = next();
+    while (ops.includes(t[i])) left = {op: FROM_TEXT[t[i++]], args: [left, next()]};
+    return left;
+  };
+
+  const sum = binary(['+', '-', '~'], binary(['*', '/'], operand));
+  const tree = sum();
+  if (i < t.length) throw new Error(`"${t[i]}" is one too many`);
+  return tree;
+}
+
+// Brackets coloured by how deep they are; one beyond the last colour wraps round.
+const PAREN_COLOURS = 5;
+
+function highlight(text) {
+  const safe = (c) => c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c;
+  let depth = 0;
+  let out = '';
+
+  for (const ch of text) {
+    if (ch === ')') depth -= 1;
+    out += (ch === '(' || ch === ')')
+        ? `<span class="${depth < 0 ? 'bad' : 'p' + (depth % PAREN_COLOURS)}">${safe(ch)}</span>`
+        : safe(ch);
+    if (ch === '(') depth += 1;
+  }
+  return out;
+}
+
+// A textarea with its own text made invisible, over a pre holding the same text
+// with the brackets coloured. The two have to be laid out identically or the
+// caret drifts off the letters.
+function textEditor(key, tree) {
+  const wrap = document.createElement('div');
+  wrap.className = 'typing';
+
+  const box = document.createElement('div');
+  box.className = 'exprbox';
+
+  const shown = document.createElement('pre');
+  const area = document.createElement('textarea');
+  area.value = toText(tree);
+  area.spellcheck = false;
+
+  const bad = document.createElement('div');
+  bad.className = 'hint';
+
+  const paint = () => {
+    shown.innerHTML = highlight(area.value) + ' ';   // a space, or the last line collapses
+    area.style.height = 'auto';
+    area.style.height = shown.offsetHeight + 'px';
+  };
+
+  const apply = () => {
+    if (!area.value.trim()) {
+      texting.delete(key);
+      leaveFormula(key);
+      writeSlot(key, null);
+      return;
+    }
+
+    let parsed;
+    try { parsed = parseText(area.value); }
+    catch (e) { bad.textContent = e.message; return; }
+
+    texting.delete(key);
+    if (!isLeaf(parsed)) formulaOpen.add(key);
+    setFormula(key, parsed);
+  };
+
+  area.oninput = () => { paint(); bad.textContent = ''; };
+  area.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); apply(); }
+    if (e.key === 'Escape') { texting.delete(key); drawEffects(); }
+  };
+
+  const set = document.createElement('button');
+  set.className = 'setexpr';
+  set.textContent = 'set';
+  set.onclick = apply;
+
+  box.append(shown, area);
+  wrap.append(box, set, bad);
+
+  setTimeout(() => { paint(); area.focus(); }, 0);
+  return wrap;
+}
+
+// The faders a value slot can be put on, in the order they are offered.
+const FADERS = ['fader_a', 'fader_b', 'fader_c', 'fader_d', 'fader_e', 'fader_f', 'fader_g', 'fader_h'];
+
+// The slot called `value` is the brightness - not hue, sat, or an effect's own
+// parameter.
+const isValueSlot = (key) => key.split('.').slice(1).join('.') === 'value';
+
+// A value slot taken apart: the fader it is multiplied by as the outermost step
+// (null for none) and the rest of the expression (null when the fader is all).
+function splitFader(tree) {
+  if (typeof tree === 'string' && FADERS.includes(tree)) return {fader: tree, inner: null};
+  if (tree !== null && typeof tree === 'object' && tree.op === 'mul' && tree.args.length === 2) {
+    const [a, b] = tree.args;
+    if (FADERS.includes(a)) return {fader: a, inner: b};
+    if (FADERS.includes(b)) return {fader: b, inner: a};
+  }
+  return {fader: null, inner: tree};
+}
+
+// ... and put back together.
+const withFader = (inner, fader) =>
+    fader === null || fader === undefined ? inner
+    : inner === null || inner === undefined ? fader
+    : {op: 'mul', args: [inner, fader]};
 
 // A small constant | field switch, the same idea as a slot's own.
 function makeSeg(mode, parts, small) {
@@ -875,7 +1169,7 @@ function leafEditor(key, tree, path) {
     wrap.className = 'wrap';
     wrap.textContent = '+';
     wrap.title = 'add a term next to this value: it and the new term become one operation (to add a term around a whole operation, use + outer on its box)';
-    wrap.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', a: node, b: null}));
+    wrap.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', args: [node, null]}));
     row.append(wrap);
   }
   return row;
@@ -896,7 +1190,6 @@ function operand(n) {
   if (n === null || n === undefined) return '(empty)';
   if (isNum(n)) return fmt(n);
   if (typeof n === 'string') return n;
-  if (isGradient(n)) return describe(n);
   return `(${explain(n)})`;
 }
 
@@ -904,10 +1197,23 @@ function explain(n) {
   if (n === null || n === undefined) return 'nothing yet';
   if (isNum(n)) return `the constant ${fmt(n)}`;
   if (typeof n === 'string') return n;
-  if (isGradient(n)) return describe(n);
 
-  const {op, a, b} = n;
-  const inverse = (x) => x && typeof x === 'object' && x.op === 'sub' && x.a === 1 ? x.b : null;
+  const {op, args} = n;
+  const [a, b] = args;
+  const two = args.length === 2;
+  const inverse = (x) => x && typeof x === 'object' && x.op === 'sub'
+      && x.args.length === 2 && x.args[0] === 1 ? x.args[1] : null;
+
+  // The arithmetic below is only about two operands; an operation that somehow
+  // holds another number falls through to the general reading.
+  if (!two && ['mul', 'add', 'sub', 'div'].includes(op)) return describe(n);
+  const list = args.map(operand).join(', ');
+  if (op === 'select') return `one of ${list}, picked by the select knob`;
+  if (op === 'cycle') return `${args.map(operand).join(' then ')}, each for a turn on the clock`;
+  if (op === 'randomize') return `one of ${list}, picked at random on every pad press`;
+  if (op === 'prob_zap') return `${operand(a)} sets how often an end flashes`;
+  if (/^gradient_\d+_[hs]$/.test(op))
+    return `gradient ${op.split('_')[1]} read at ${operand(a)}, ${op.endsWith('_h') ? 'for hue' : 'for saturation'}`;
 
   if (op === 'mul') {
     for (const [x, y] of [[a, b], [b, a]]) {
@@ -934,7 +1240,8 @@ function explain(n) {
     if (isNum(b) && b !== 0) return `${operand(a)} divided by ${fmt(b)}`;
     return `${operand(a)} divided by ${operand(b)} (0 where that is 0)`;
   }
-  if (op === 'avg') return `halfway between ${operand(a)} and ${operand(b)}`;
+  if (op === 'avg') return two ? `halfway between ${operand(a)} and ${operand(b)}`
+                               : `the average of ${list}`;
   return describe(n);
 }
 
@@ -950,8 +1257,19 @@ function groupedText(node, depth = 0) {
     p.textContent = c;
     return p;
   };
-  out.append(paren('('), groupedText(node.a, depth + 1), ` ${OPS[node.op]} `,
-             groupedText(node.b, depth + 1), paren(')'));
+  if (infix(node, OPS)) {
+    out.append(paren('('), groupedText(node.args[0], depth + 1), ` ${OPS[node.op]} `,
+               groupedText(node.args[1], depth + 1), paren(')'));
+  } else {
+    // A call: its name, then its operands between brackets of the box's colour.
+    out.append(`${node.op}`, paren('('));
+    node.args.forEach((arg, i) => {
+      if (i) out.append(', ');
+      out.append(groupedText(arg, depth + 1));
+    });
+    out.append(paren(')'));
+  }
+  if (node.mod) out.append(' mod 1');
   return out;
 }
 
@@ -970,22 +1288,36 @@ function nodeEditor(key, tree, path, depth = 0) {
   boxDrag(box, {key, path, tree});
 
   const head = document.createElement('div');
-  head.className = 'ops';
+  head.className = 'ops fpick';       // fpick: the operator menu hangs off this row
+  const arity = arityOf(node.op);
   if (path.length) head.append(grip(box, {key, path, tree}));
   for (const [name, glyph] of Object.entries(OPS)) {
     const b = document.createElement('button');
     b.className = name === node.op ? 'on' : '';
     b.textContent = glyph;
     b.title = name;
-    b.onclick = () => setFormula(key, replace(tree, path, {...node, op: name}));
+    b.onclick = () => setFormula(key, replace(tree, path, withOp(node, name)));
     head.append(b);
   }
-  // Which side is which matters for - and the others read left to right.
+  // The row has room for the operators a sum is written with. The rig has more,
+  // and this is the way to them; when the operation is one of those, the button
+  // says which, rather than leaving nothing lit.
+  const glyphed = node.op in OPS;
+  const more = document.createElement('button');
+  more.className = glyphed ? '' : 'named on';
+  more.textContent = glyphed ? '…' : node.op;
+  more.title = glyphed ? 'every operator' : `${node.op} - pick another operator`;
+  more.onclick = fieldMenu(head, node.op, (name) => setFormula(key, replace(tree, path, withOp(node, name))),
+                           operatorSource);
+  head.append(more);
+
+  // Which side is which matters for - and the others read left to right. Reversed
+  // rather than swapped, so it still means something with more than two.
   const flip = document.createElement('button');
   flip.className = 'flip';
   flip.textContent = '\u21c4';
-  flip.title = 'swap the two sides';
-  flip.onclick = () => setFormula(key, replace(tree, path, {...node, a: node.b, b: node.a}));
+  flip.title = 'turn the operands round';
+  flip.onclick = () => setFormula(key, replace(tree, path, {...node, args: [...node.args].reverse()}));
 
   // The + on a single value pairs that value with another, which nests the new term
   // inside. This is its counterpart for a whole operation: the operation, with
@@ -995,20 +1327,75 @@ function nodeEditor(key, tree, path, depth = 0) {
   outer.className = 'outer';
   outer.textContent = '+ outer';
   outer.title = 'add a term outside this whole operation: all of it becomes the first half of a new operation, and you choose the other half';
-  outer.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', a: node, b: null}));
-  head.append(outer, flip);
+  outer.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', args: [node, null]}));
+  // Held to 0-1 by default; with this on, the result wraps round instead (1.1 is 0.1).
+  const mod = document.createElement('button');
+  mod.className = 'modsw' + (node.mod ? ' on' : '');
+  mod.setAttribute('role', 'switch');
+  mod.setAttribute('aria-checked', String(!!node.mod));
+  const knob = document.createElement('span');
+  knob.className = 'modknob';
+  const word = document.createElement('span');
+  word.textContent = 'mod';
+  mod.append(knob, word);
+  mod.title = node.mod ? 'mod is on: past 1 this wraps round (1.1 becomes 0.1). Click to clamp to 0-1 instead'
+                       : 'mod is off: this is clamped to 0-1. Click to wrap round past 1 instead (1.1 becomes 0.1)';
+  mod.onclick = () => {
+    const {mod: was, ...rest} = node;
+    setFormula(key, replace(tree, path, was ? rest : {...rest, mod: true}));
+  };
+  // An operator written with any number of operands can be given another. The
+  // rest have the number they are written with, so there is nothing to add.
+  const plus = document.createElement('button');
+  plus.className = 'plus';
+  plus.textContent = '+ operand';
+  plus.title = 'another operand';
+  plus.onclick = () => setFormula(key, replace(tree, path, {...node, args: [...node.args, null]}));
+
+  head.append(...(arity === 'nary' ? [plus] : []), outer, mod, ...(node.args.length > 1 ? [flip] : []));
 
   const drop = document.createElement('button');
   drop.className = 'drop';
   drop.textContent = '\u00d7';
   drop.title = 'remove this operation and keep only its first operand';
-  drop.onclick = () => setFormula(key, replace(tree, path, node.a));
+  drop.onclick = () => setFormula(key, replace(tree, path, node.args[0]));
   head.append(drop);
 
   const kids = document.createElement('div');
   kids.className = 'kids';
-  kids.append(nodeEditor(key, tree, [...path, 'a'], depth + 1),
-              nodeEditor(key, tree, [...path, 'b'], depth + 1));
+  const operands = node.args.map((_, i) => nodeEditor(key, tree, [...path, 'args', i], depth + 1));
+
+  if (arity === 'binary' && operands.length === 2) {
+    kids.append(...operands);
+  } else {
+    // Anything else lists its operands in order, numbered, since position is all
+    // that tells them apart - and for a select it is the number on the knob. A
+    // binary operator that somehow holds another count also lands here, so that
+    // nothing is left off the screen.
+    operands.forEach((view, i) => {
+      const line = document.createElement('div');
+      line.className = 'operand';
+      if (operands.length > 1) {
+        const n = document.createElement('i');
+        n.textContent = i;
+        line.append(n);
+      }
+      line.append(view);
+
+      // Down to one, because an operation with nothing in it is not one. The
+      // others are written with the number they have, so none can be dropped.
+      if (arity === 'nary' && operands.length > 1) {
+        const cut = document.createElement('button');
+        cut.className = 'cut';
+        cut.textContent = '×';
+        cut.title = `drop operand ${i}`;
+        cut.onclick = () => setFormula(key, replace(tree, path,
+            {...node, args: node.args.filter((_, which) => which !== i)}));
+        line.append(cut);
+      }
+      kids.append(line);
+    });
+  }
   box.append(head, kids);
   return box;
 }
@@ -1020,8 +1407,10 @@ const modeOf = (tree) => typeof tree === 'string' ? 'field'
 // What the wheel says, as the formula it stands for: the field squeezed into a
 // width, then moved to a start. Spelled out in full even when the width is 1
 // and the start is 0, so the editor always shows the same three things.
-const hueTree = (h) => ({op: 'add', a: {op: 'mul', a: h.field, b: Math.round(h.width * 1000) / 1000},
-                         b: Math.round(h.start * 1000) / 1000});
+const hueTree = (h) => ({op: 'add',
+                         args: [{op: 'mul', args: [h.field, Math.round(h.width * 1000) / 1000]},
+                                Math.round(h.start * 1000) / 1000],
+                         ...(h.mod ? {mod: true} : {})});
 
 // ---- turning a field's knobs ----------------------------------------------
 // A field takes its values from knobs on the desk, and its slot can show them:
@@ -1037,26 +1426,99 @@ let mapping = null;         // {name, since}: a control waiting for a knob to be
 
 // The fields a formula names, however deep.
 const fieldsIn = (n) => typeof n === 'string' ? [n]
-    : n !== null && typeof n === 'object'
-      ? (isGradient(n) ? gradientFields(n) : [...fieldsIn(n.a), ...fieldsIn(n.b)])
-      : [];
+    : n !== null && typeof n === 'object' ? n.args.flatMap(fieldsIn)
+    : [];
+
+// The operators a formula names, however deep. An operator can own knobs of its
+// own - a select has the one that picks - so what is behind a formula is not only
+// what its fields own.
+const opsIn = (n) => n !== null && typeof n === 'object'
+    ? [n.op, ...n.args.flatMap(opsIn)] : [];
 
 // A turned copy of a rotary (rotary180, v_rotary90...) is the same rotation
 // seen from elsewhere and shares its knobs, which are named for the original.
 const knobOwner = (name) => name.replace(/^((?:v_)?rotary)\d+$/, '$1');
 
-// The knobs behind a formula: a control's comment is `field.role`, so it
-// belongs to a field when it begins with that field's name.
+// The knobs behind a formula: a control's comment is `owner.role`, so it belongs
+// to whatever is in front of the dot (see docs/CONTROLS.md).
+//
+// A field owns exactly the controls named after it. Several fields are named
+// after another with something on the end - `random_lines` is not a kind of
+// `random` - and matching loosely would hand each the other's knobs.
+//
+// An operator takes any control whose owner it carries as a prefix, because
+// several share one that is named after none of them: `gradient_1_h` and
+// `gradient_1_s` both ask for `gradient_1.select`. No operator is named after
+// another field or operator plus a suffix, so nothing is swept up that way.
 const controlsFor = (tree) => {
-  const names = fieldsIn(tree).map(knobOwner);
-  return controls.filter(c => c.kind === 'cc' && !c.hidden &&
-      c.comments.some(t => names.some(n => t.startsWith(n + '.'))));
+  const fields = fieldsIn(tree).map(knobOwner);
+  const ops = opsIn(tree);
+
+  return controls.filter(c => c.kind === 'cc' && !c.hidden && c.comments.some((t) => {
+    const owner = t.split('.')[0];
+    return fields.includes(owner) || ops.some(o => o === owner || o.startsWith(owner + '_'));
+  }));
 };
 
 const CC_MAX = 127;
 const DRAG_PER_PX = 0.8;            // a touch over 150px for the whole range
 const clampCC = (v) => Math.max(0, Math.min(CC_MAX, v));
 const liveValue = (c) => knobs[c.number]?.value ?? c.value;
+
+// What a CC number is for, so its legend can say "bowtie" or "100 ms" rather
+// than 0-127. /rig says, per control name, what sort of control it is: a sweep,
+// a hue, or a list of named options. A knob two controls share may be described
+// by only one of them, so a described one wins; a stray knob is a plain 0-127.
+const PLAIN = {kind: 'float_range', start: 0, end: 127, unit: null};
+const isPlain = (m) => m.kind === 'float_range' && !m.unit && m.start === 0 && m.end === 127;
+const metaFor = (name) => rig?.control_meta?.[name] ?? PLAIN;
+const metaOf = (names) => names.map(metaFor).find(m => !isPlain(m)) ?? PLAIN;
+const metaOn = (cc) => metaOf(controls.filter(c => c.kind === 'cc' && c.number === Number(cc))
+                                      .flatMap(c => c.comments));
+
+// A gradient and a custom list are chosen from rather than swept, so these are
+// the only places a drag is allowed to stop. Empty means it sweeps.
+const DISCRETE = ['custom', 'gradient'];
+const optionsOf = (meta) => DISCRETE.includes(meta.kind)
+    ? Object.keys(meta.items ?? {}).map(Number).sort((a, b) => a - b)
+    : [];
+
+// The wire carries 0-127 whatever the list holds, and a field clamps, so the
+// nearest option is what it will actually act on.
+const nearestAt = (options, value) => options.reduce(
+    (best, k, i) => Math.abs(k - value) < Math.abs(options[best] - value) ? i : best, 0);
+
+// Where a value sits in its own range, 0-1, which is what a dial draws.
+function fracOf(meta, value) {
+  const options = optionsOf(meta);
+  if (options.length)
+    return options.length < 2 ? 0 : nearestAt(options, value) / (options.length - 1);
+  return Math.max(0, Math.min(1, value / CC_MAX));
+}
+
+// What to print for a value: the option's name, or the knob read in its own range.
+function readOut(meta, value) {
+  const options = optionsOf(meta);
+  if (options.length) return meta.items[options[nearestAt(options, value)]];
+  if (meta.kind === 'gradient') return value;       // no list declared yet
+
+  // The same curve FloatRange.at() uses on the other side.
+  const at = meta.geometric
+      ? meta.start * (meta.end / meta.start) ** (value / CC_MAX)
+      : meta.start + (meta.end - meta.start) * (value / CC_MAX);
+  const shown = Math.abs(at) >= 10 ? String(Math.round(at))
+                                   : (Number.isInteger(at) ? String(at) : at.toFixed(2));
+  return meta.unit ? `${shown} ${meta.unit}` : shown;
+}
+
+// Where a drag lands: the next option along for a list, anywhere for a sweep.
+const PER_STEP_PX = 24;             // a thumb's worth of travel per option
+function dragTo(meta, from, dy) {
+  const options = optionsOf(meta);
+  if (!options.length) return clampCC(Math.round(from + dy * DRAG_PER_PX));
+  const at = nearestAt(options, from) + Math.round(dy / PER_STEP_PX);
+  return options[Math.max(0, Math.min(options.length - 1, at))];
+}
 
 // A rev counter: three quarters of a turn with the gap at the bottom.
 const DIAL_FROM = Math.PI * 0.75, DIAL_SWEEP = Math.PI * 1.5, DIAL_R = 15;
@@ -1069,7 +1531,7 @@ function arc(from, to) {
          `${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
 
-function makeDial(value) {
+function makeDial(value, meta = PLAIN) {
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('viewBox', '0 0 40 40');
@@ -1084,12 +1546,12 @@ function makeDial(value) {
   pin.setAttribute('class', 'pin');
   svg.append(track, fill, pin);
 
-  setDial(svg, value);
+  setDial(svg, value, meta);
   return svg;
 }
 
-function setDial(svg, value) {
-  const frac = Math.max(0, Math.min(1, value / CC_MAX));
+function setDial(svg, value, meta = PLAIN) {
+  const frac = fracOf(meta, value);
   const a = DIAL_FROM + DIAL_SWEEP * frac;
   svg.querySelector('.fill').setAttribute('d', frac > 0.002 ? arc(DIAL_FROM, a) : '');
 
@@ -1106,9 +1568,9 @@ function turnKnob(cc, value) {
   if (wire && wire.readyState === WebSocket.OPEN) wire.send(JSON.stringify({cc: Number(cc), value}));
 }
 
-function knobList(found) {
+function knobList(found, compact = false) {
   const box = document.createElement('div');
-  box.className = 'knobs';
+  box.className = compact ? 'knobs mini' : 'knobs';
 
   for (const c of found) {
     const name = c.comments[0] ?? `cc ${c.number}`;
@@ -1121,28 +1583,47 @@ function knobList(found) {
 
     const label = document.createElement('b');
     label.textContent = name;
+    const meta = metaOf(c.comments);
     const now = document.createElement('span');
     now.className = 'now';
-    now.textContent = liveValue(c);
+    now.textContent = readOut(meta, liveValue(c));
     const at = document.createElement('span');
     at.className = 'at';
     at.dataset.was = `cc ${c.number}${c.number === c.default ? '' : ' \u00b7 moved'}`;
-    row.append(makeDial(liveValue(c)), label, now, at);
+    // The raw 0-127 the knob sits at, to type over: it lands the same as a turn.
+    const typed = document.createElement('input');
+    typed.type = 'number';
+    typed.className = 'cc-box';
+    typed.min = '0'; typed.max = String(CC_MAX); typed.step = '1';
+    typed.value = liveValue(c);
+    typed.title = 'type a value, 0-127';
+    typed.onchange = () => {
+      const want = Math.max(0, Math.min(CC_MAX, Math.round(Number(typed.value))));
+      if (Number.isNaN(want) || typed.value === '') { typed.value = liveValue(c); return; }
+      typed.value = want;
+      turnKnob(c.number, want);
+      setDial(row.querySelector('.dial'), want, meta);
+      now.textContent = readOut(meta, want);
+      setTimeout(() => { if (turning?.cc === c.number) turning = null; }, 300);
+    };
+    typed.onkeydown = (e) => { if (e.key === 'Enter') typed.blur(); };
+    row.append(makeDial(liveValue(c), meta), label, now, typed, at);
 
     let from = null;
     row.onpointerdown = (e) => {
+      if (e.target === typed) return;           // typing is not a drag
       from = {y: e.clientY, value: liveValue(c), turned: false};
       row.setPointerCapture(e.pointerId);
       e.preventDefault();
     };
     row.onpointermove = (e) => {
       if (from === null) return;
-      const want = clampCC(Math.round(from.value + (from.y - e.clientY) * DRAG_PER_PX));
+      const want = dragTo(meta, from.value, from.y - e.clientY);
       if (want === liveValue(c)) return;
       from.turned = true;
       turnKnob(c.number, want);
-      setDial(row.querySelector('.dial'), want);
-      now.textContent = want;
+      setDial(row.querySelector('.dial'), want, meta);
+      now.textContent = readOut(meta, want);
     };
     // A frame already on its way may still carry the value from before the last
     // turn, so the dial is left to the drag for a moment after letting go.
@@ -1150,7 +1631,8 @@ function knobList(found) {
       from = null;
       setTimeout(() => { if (turning?.cc === c.number) turning = null; }, 300);
     };
-    row.onpointerup = () => {
+    row.onpointerup = (e) => {
+      if (e.target === typed) return;
       const tapped = from !== null && !from.turned;
       done();
 
@@ -1204,13 +1686,28 @@ function lastMoved() {
   return best;
 }
 
+// Frames can come faster than the screen draws; the page paints the newest once a frame.
+let knobsQueued = false;
+function paintKnobs() {
+  if (knobsQueued) return;
+  knobsQueued = true;
+  requestAnimationFrame(() => {
+    knobsQueued = false;
+    syncKnobs();
+    syncMapKnobs();
+  });
+}
+
 // After a frame from the socket: every dial on the page follows the desk.
 function syncKnobs() {
   for (const el of document.querySelectorAll('#effects .knob')) {
     const k = knobs[el.dataset.cc];
     if (!k) continue;
-    setDial(el.querySelector('.dial'), k.value);
-    el.querySelector('.now').textContent = k.value;
+    const meta = metaOn(el.dataset.cc);
+    setDial(el.querySelector('.dial'), k.value, meta);
+    el.querySelector('.now').textContent = readOut(meta, k.value);
+    const box = el.querySelector('.cc-box');
+    if (box && document.activeElement !== box) box.value = k.value;
   }
 }
 
@@ -1222,7 +1719,7 @@ function listen() {
   wire.onmessage = (e) => {
     knobs = JSON.parse(e.data);
     if (turning && knobs[turning.cc]) knobs[turning.cc].value = turning.value;
-    syncKnobs();
+    paintKnobs();
 
     const moved = mapping && lastMoved();
     if (moved && moved.knob.age_ms < Date.now() - mapping.since) assign(mapping.name, moved.cc);
@@ -1234,7 +1731,8 @@ listen();
 
 function slotRow(key, saved) {
   // A formula half-built in the editor is what is on show, not what is saved.
-  let tree = key in editing ? editing[key] : saved;
+  const {fader, inner} = isValueSlot(key) ? splitFader(saved) : {fader: null, inner: saved};
+  let tree = key in editing ? editing[key] : inner;
 
   // A hue slot in a shape the wheel can show gets the wheel, and keeps it while
   // the formula editor is open below, for as long as the formula stays valid. An
@@ -1272,7 +1770,7 @@ function slotRow(key, saved) {
     if (compound && !confirm('Replace this formula with that field? The formula is lost.')) return;
     // A hue keeps its editor open across a new field; anything else is done with it.
     if (hue) delete editing[key]; else leaveFormula(key);
-    writeSlot(key, !hue ? v : buildHue({field: v, start: hue.start, width: hue.field ? hue.width : 1}));
+    writeSlot(key, !hue ? v : buildHue({field: v, start: hue.start, width: hue.field ? hue.width : 1, mod: hue.mod}));
   });
 
   const seg = makeSeg(open && hue ? [mode, 'formula'] : mode, [
@@ -1295,10 +1793,10 @@ function slotRow(key, saved) {
        formulaOpen.add(key);
        if (hue && hue.field === null) {
          // A fixed hue becomes the start; the field is left to choose.
-         editing[key] = {op: 'add', a: {op: 'mul', a: null, b: 1}, b: hue.start};
+         editing[key] = {op: 'add', args: [{op: 'mul', args: [null, 1]}, hue.start]};
        } else if (!hue && isLeaf(tree)) {
          // A single operand becomes the first of two; the second is left to fill in.
-         editing[key] = {op: 'mul', a: tree ?? 0, b: null};
+         editing[key] = {op: 'mul', args: [tree ?? 0, null]};
        }
        drawEffects();
      }},
@@ -1336,14 +1834,14 @@ function slotRow(key, saved) {
 
           // The formula follows the thumbs as they move, not when they are let go.
           if (editor) {
-            const range = {field: hue.field, start: s0, width: e0 - s0};
+            const range = {field: hue.field, start: s0, width: e0 - s0, mod: hue.mod};
             const t = trimmed.has(key) ? buildHue(range) : hueTree(range);
             summary.replaceChildren(groupedText(t));
             words.textContent = hueWords({field: hue.field, start: s0, width: e0 - s0});
             editor.replaceChildren(nodeEditor(key, t, []));
           }
         },
-        (s0, e0) => writeSlot(key, buildHue({field: hue.field, start: s0, width: e0 - s0}))));
+        (s0, e0) => writeSlot(key, buildHue({field: hue.field, start: s0, width: e0 - s0, mod: hue.mod}))));
   };
 
   if (mode === 'field') {
@@ -1422,9 +1920,54 @@ function slotRow(key, saved) {
   head.className = 'slot-head';
   head.append(name, seg);
 
-  row.append(head, ctl);
+  // Type the formula instead of building it. On a value slot the fader is not
+  // part of the text, as it is not part of the editor.
+  const pencil = document.createElement('button');
+  pencil.className = 'pencil' + (texting.has(key) ? ' on' : '');
+  pencil.textContent = '\u270e';
+  pencil.title = texting.has(key) ? 'back to the editor' : 'type the formula';
+  pencil.onclick = () => {
+    if (texting.has(key)) texting.delete(key); else texting.add(key);
+    drawEffects();
+  };
+  head.append(pencil);
 
-  const found = controlsFor(shown);
+  // A fader over the whole of a brightness slot, as the outermost step. It is
+  // not drawn in the expression; it is chosen here, and only here.
+  if (isValueSlot(key)) {
+    const pick = document.createElement('select');
+    pick.className = 'fade';
+    pick.title = 'multiply the whole slot by a fader, as the outermost step';
+    // A fader another slot already reads - another effect's brightness, or
+    // anything else - is greyed out; this slot's own is not "elsewhere".
+    const elsewhere = new Set();
+    for (const [k, t] of Object.entries(views[rig.selected]?.live.slots ?? {})) {
+      if (k === key) continue;
+      fieldsIn(t).forEach(n => elsewhere.add(n));
+    }
+    for (const f of [null, ...FADERS]) {
+      const o = document.createElement('option');
+      if (f !== null && elsewhere.has(f)) {
+        o.disabled = true;
+        o.title = 'already used by another slot';
+      }
+      o.value = f ?? '';
+      o.textContent = f ?? 'no fader';
+      pick.append(o);
+    }
+    pick.value = fader ?? '';
+    pick.onchange = () => writeSlot(key, inner, pick.value || null);
+    head.append(pick);
+  }
+
+  row.append(head, ctl);
+  if (texting.has(key)) {
+    ctl.hidden = true;
+    row.append(textEditor(key, shown));
+  }
+
+  // The fader is not in the expression, but it is still turned from here.
+  const found = controlsFor(fader === null ? shown : withFader(shown, fader));
   if (found.length) row.append(knobList(found));
   return row;
 }
@@ -1677,7 +2220,36 @@ function drawEffects() {
       setActive(names.filter(n => n !== name));
     };
 
-    head.append(cardGrip(card, head, name, names), title, count, sw, bin);
+    // The fader over the brightness stays in view when the effect is folded.
+    const faders = keys.filter(isValueSlot)
+        .map(k => splitFader(view.live.slots[k] ?? null).fader).filter(f => f !== null);
+    const fadeTag = faders.map(f => {
+      const tag = document.createElement('span');
+      tag.className = 'fade-tag';
+      tag.textContent = f;
+      tag.title = `brightness is on ${f}`;
+      return tag;
+    });
+
+    // Beside the name, so a folded effect still says what it is for.
+    const note = document.createElement('input');
+    note.className = 'note';
+    note.type = 'text';
+    note.placeholder = 'add a note';
+    note.spellcheck = false;
+    note.value = view.live.notes?.[name] ?? '';
+    note.onchange = () => setNote(name, note.value.trim());
+    note.onkeydown = (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); note.blur(); }
+      if (ev.key === 'Escape') { note.value = view.live.notes?.[name] ?? ''; note.blur(); }
+    };
+
+    // ... and so does its dial, to turn it without opening the effect.
+    const faderDials = controlsFor(faders.reduce((t, f) => t === null ? f : {op: 'add', args: [t, f]}, null));
+    const dials = faderDials.length ? knobList(faderDials, true) : null;
+
+    head.append(cardGrip(card, head, name, names), title, note, ...fadeTag, ...(dials ? [dials] : []),
+                count, sw, bin);
     cardDropTarget(card, name);
 
     card.append(head);
@@ -1797,12 +2369,14 @@ async function openCopy(kind = 'copy') {
 document.getElementById('save-copy').onclick = () => openCopy('copy');
 document.getElementById('new-preset').onclick = () => openCopy('new');
 
-// A preset with nothing plugged in: every effect is in the chain, so there is a
-// card for each to open, and every slot is blank, so nothing draws until one is
-// filled. No knobs are listed - a patch that says nothing about them leaves them
-// where they are - and nothing is muted.
-const blankPatch = (name) => ({ccs: {}, slots: {}, cc_map: {}, active: Object.keys(rig.effects),
-                               muted: [], name});
+// A preset with nothing plugged in: the chain is empty, so no effect has a card
+// until it is added from the menu, and nothing is muted. No knobs are listed - a
+// patch that says nothing about them leaves them where they are. The box on the
+// desk says where its own defaults go (surfaces.json), so a new preset starts with
+// those controls on it - and with any that would land on it by accident parked on
+// a CC nothing sends.
+const blankPatch = (name) => ({ccs: {}, slots: {}, cc_map: {...surfaces[surfaceId]?.defaults},
+                               active: [], muted: [], name});
 
 copyDialog.querySelector('form').onsubmit = async (e) => {
   e.preventDefault();
@@ -1838,10 +2412,432 @@ copyDialog.querySelector('form').onsubmit = async (e) => {
   savedTimer = setTimeout(() => { savedNote.textContent = ''; }, 4000);
 };
 
+// ---- the controller map -------------------------------------------------
+
+// A picture of the box on the desk, with each of its controls labelled by what
+// the playing preset has it drive. The picture and the table that says which
+// CC or note is which part of it come from surfaces.json; what the controls
+// drive is /controls, so assigning a knob changes the map on the next refresh.
+const SURFACES = '/static/surfaces.json';
+let surfaces = {};
+let surfaceId = (() => { try { return localStorage.getItem('surface'); } catch { return null; } })();
+const surfaceSvg = {};      // the pictures, fetched once each
+let mapPick = null;         // the callback waiting for a control to be pressed on the map
+const mapBox = document.getElementById('map');
+let mapDrawn = '';          // what the map was last drawn from, so a quiet second draws nothing
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const short = (t, n = 8) => t.length > n ? t.slice(0, n - 1) + '…' : t;
+
+// Whether a control owner is an operator's: its name, or a prefix of it - several
+// operators share one named after none of them (`gradient_1` for `gradient_1_h`).
+// The same rule as controlsFor, and docs/CONTROLS.md says why.
+const isOperatorOwner = (owner) => rig.operators.some(o => o.name === owner || o.name.startsWith(owner + '_'));
+
+// A control's comment is `owner.role`. The ones owned by a field of the rig, or by
+// an operator, are the ones a formula can bring in.
+const fieldOwners = (c) => {
+  const names = new Set(rig.fields.map(f => f.name));
+  return [...new Set(c.comments.map(t => knobOwner(t.split('.')[0]))
+                              .filter(n => names.has(n) || isOperatorOwner(n)))];
+};
+
+// What a formula owns controls through: the fields it names, and the owners of the
+// operators it names, however deep. An operator keeps a knob of its own - a select
+// has the one that picks - so the desk is not only what its fields own.
+const ownersIn = (tree) => {
+  const ops = opsIn(tree);
+  const viaOps = [...new Set(controls.flatMap(c => c.comments.map(t => t.split('.')[0])))]
+      .filter(o => ops.some(n => n === o || n.startsWith(o + '_')));
+  return [...fieldsIn(tree).map(knobOwner), ...viaOps];
+};
+
+// The effects each owner is used by in the playing preset: a slot is
+// `effect.slot`, and its formula names the fields and operators it reads.
+function effectsUsing() {
+  const live = views[rig.selected]?.live;
+  const by = new Map();
+  for (const [key, tree] of Object.entries(live?.slots ?? {}))
+    for (const f of ownersIn(tree)) by.set(f, (by.get(f) ?? new Set()).add(key.split('.')[0]));
+  return by;
+}
+
+// The owners the playing preset's slots reach, whatever their depth.
+function fieldsInUse() {
+  const live = views[rig.selected]?.live;
+  const used = new Set();
+  for (const tree of Object.values(live?.slots ?? {})) ownersIn(tree).forEach(n => used.add(n));
+  return used;
+}
+
+async function loadSurfaces() {
+  try {
+    surfaces = await get(SURFACES);
+    if (!(surfaceId in surfaces)) surfaceId = Object.keys(surfaces)[0] ?? null;
+    if (surfaceId && !surfaceSvg[surfaceId])
+      surfaceSvg[surfaceId] = await fetch(surfaces[surfaceId].svg).then(r => r.text());
+  } catch (e) { /* no map; the rest of the page works without one */ }
+}
+
+function drawMap() {
+  const surface = surfaces[surfaceId];
+  if (!surface || !surfaceSvg[surfaceId]) return;
+
+  const used = fieldsInUse();
+  const effectsBy = effectsUsing();
+  const here = controls.filter(c => !c.hidden);
+  const key = JSON.stringify([surfaceId, [...used], [...effectsBy].map(([f, e]) => [f, [...e]]), here.map(c => [c.kind, c.number, c.comments])]);
+  if (key === mapDrawn) return;
+  mapDrawn = key;
+
+  mapBox.replaceChildren();
+  const head = document.createElement('div');
+  head.className = 'map-head';
+  const pick = document.createElement('select');
+  for (const [id, s] of Object.entries(surfaces)) {
+    const opt = document.createElement('option');
+    opt.value = id; opt.textContent = s.name; opt.selected = id === surfaceId;
+    pick.append(opt);
+  }
+  pick.onchange = async () => {
+    surfaceId = pick.value;
+    try { localStorage.setItem('surface', surfaceId); } catch { /* remembering is a courtesy */ }
+    mapDrawn = '';
+    await loadSurfaces();
+    drawMap();
+  };
+  head.append(pick);
+  mapBox.append(head);
+
+  const holder = document.createElement('div');
+  holder.className = 'surface';
+  holder.innerHTML = surfaceSvg[surfaceId];
+  mapBox.append(holder);
+
+  // Every knob and fader the picture has follows the desk.
+  for (const [cc, id] of Object.entries(surface.ccs)) {
+    const spot = holder.querySelector(`#${CSS.escape(id)}`);
+    if (spot) spot.dataset.cc = cc;
+  }
+
+  const off = [];
+  const roles = new Map();          // spot -> the [field, role] of everything on it
+  for (const c of here) {
+    // A note can be several pads: the Akai's pads fold onto fewer BSP notes.
+    const ids = [].concat((c.kind === 'cc' ? surface.ccs : surface.notes ?? {})[c.number] ?? []);
+    const spots = ids.map(id => holder.querySelector(`#${CSS.escape(id)}`)).filter(Boolean);
+    if (!spots.length) { if (c.kind === 'cc' && fieldOwners(c).some(n => used.has(n))) off.push(c); continue; }
+
+    for (const spot of spots) {
+      spot.classList.add('assigned');
+      if (fieldOwners(c).some(n => used.has(n))) spot.classList.add('lit');
+      spot.dataset.owners = JSON.stringify([...new Set([...JSON.parse(spot.dataset.owners ?? '[]'), ...fieldOwners(c)])]);
+      roles.set(spot, [...(roles.get(spot) ?? []), ...c.comments.map(t => t.split('.'))]);
+    }
+  }
+
+  for (const [spot, rs] of roles) {
+    if (!rs.length) continue;
+    const tag = spot.querySelector('.tag');
+    const x = tag.getAttribute('x'), y = Number(tag.getAttribute('y'));
+    const fx = [...new Set(rs.flatMap(r => [...(effectsBy.get(knobOwner(r[0])) ?? [])]))];
+    spot.dataset.effects = fx.join(', ');
+    [rs[0][0] + (rs.length > 1 ? ` +${rs.length - 1}` : ''), rs[0][1] ?? '', fx.join(', ')]
+      .forEach((text, i) => {
+        if (!text || (i && spot.classList.contains('pad'))) return;   // pads have no room; the legend has the role and effects
+        const t = document.createElementNS(SVG_NS, 'text');
+        t.setAttribute('class', i ? 'what role' + (i > 1 ? ' fx' : '') : 'what');
+        t.setAttribute('x', x); t.setAttribute('y', y + 12 + 11 * i);
+        t.textContent = short(text, Number(spot.dataset.chars ?? 8));
+        spot.append(t);
+      });
+    const title = document.createElementNS(SVG_NS, 'title');
+    title.textContent = rs.map(r => r.join('.')).join('\n') + (spot.dataset.effects ? `\nin ${spot.dataset.effects}` : '');
+    spot.append(title);
+    // A tooltip belongs to the shape under the pointer, so the whole pad, not
+    // just its text, needs one.
+    for (const shape of spot.querySelectorAll('rect, circle, line'))
+      shape.append(title.cloneNode(true));
+  }
+  for (const [spot, rs] of roles) spot.dataset.names = JSON.stringify(rs.map(r => r.join('.')));
+  for (const spot of holder.querySelectorAll('.spot.assigned')) spot.onclick = () => {
+    if (mapPick) pressedOnMap(spot); else if (spot.dataset.cc) unassignBar(spot);
+  };
+  // Clicking a knob or fader nothing is on offers a control for it. Turning one
+  // never asks anything.
+  for (const spot of holder.querySelectorAll('.spot[data-cc]:not(.assigned)'))
+    spot.onclick = () => { if (!mapPick) assignMenu(spot); };
+
+  // The picture has no room for whole names, so the same assignments are listed
+  // in full beneath it: control, what it moves, and the effects that use it.
+  // Pads come first, in the Akai's own numbering, then the knobs and faders as drawn.
+  const isPad = s => s.classList.contains('pad');
+  const padNo = s => Number(s.id.replace(/\D/g, ''));
+  const rows = [...holder.querySelectorAll('.spot.assigned')].filter(s => roles.get(s)?.length)
+    .sort((a, b) => isPad(b) - isPad(a) || (isPad(a) && padNo(a) - padNo(b)));
+  if (rows.length) {
+    const legend = document.createElement('table');
+    legend.className = 'map-legend';
+    for (const spot of rows) {
+      const rs = roles.get(spot);
+      const tr = legend.insertRow();
+      tr.classList.toggle('lit', spot.classList.contains('lit'));
+      const hover = on => { tr.classList.toggle('hover', on); spot.classList.toggle('hover', on); };
+      tr.onmouseenter = () => hover(true); tr.onmouseleave = () => hover(false);
+      spot.onmouseenter = () => hover(true); spot.onmouseleave = () => hover(false);
+      const cells = [
+        spot.querySelector('.tag')?.textContent ?? spot.id,
+        rs.map(r => r.join('.')).join(', '),
+        spot.dataset.effects || '',
+      ];
+      cells.forEach((text, i) => {
+        const td = tr.insertCell();
+        td.textContent = text;
+        if (i === 2) td.className = 'fx';
+      });
+    }
+    mapBox.append(legend);
+  }
+
+  if (off.length) {
+    const note = document.createElement('p');
+    note.className = 'dim map-off';
+    note.textContent = `used, but not on this box: ${off.map(c => c.comments[0]).join(', ')} `;
+    const go = document.createElement('button');
+    go.textContent = 'assign them';
+    go.onclick = assignUsed;
+    note.append(go);
+    mapBox.append(note);
+  }
+
+  mapBox.classList.toggle('picking', mapPick !== null);
+  if (mapPick) showMapPrompt();
+  syncMapKnobs();
+}
+
+// The knobs and faders follow the desk.
+function syncMapKnobs() {
+  for (const spot of mapBox.querySelectorAll('.spot.assigned[data-cc]')) {
+    const k = knobs[spot.dataset.cc];
+    if (!k || spot._shown === k.value) continue;
+    spot._shown = k.value;
+    const frac = fracOf(metaOn(spot.dataset.cc), k.value);
+    const pointer = spot.querySelector('.pointer');
+    const cap = spot.querySelector('.cap');
+    if (pointer) pointer.setAttribute('transform',
+        `rotate(${-135 + 270 * frac} ${cap.getAttribute('cx')} ${cap.getAttribute('cy')})`);
+    const thumb = spot.querySelector('.thumb');
+    if (thumb) {
+      const lo = Number(spot.dataset.lo), hi = Number(spot.dataset.hi);
+      thumb.setAttribute('y', lo - (lo - hi) * frac);
+    }
+  }
+}
+
+// ---- picking a field by pressing its control
+
+function startMapPick(onPick) {
+  mapPick = onPick;
+  mapDrawn = '';
+  drawMap();
+  mapBox.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+}
+
+function endMapPick() {
+  mapPick = null;
+  mapDrawn = '';
+  drawMap();
+}
+
+function showMapPrompt(choices = null) {
+  mapBox.querySelector('.map-prompt')?.remove();
+  const bar = document.createElement('div');
+  bar.className = 'map-prompt';
+  const msg = document.createElement('span');
+  msg.textContent = choices ? 'which field?' : 'press a control on the map to plug its field in';
+  bar.append(msg);
+  for (const name of choices ?? []) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.onclick = () => finishMapPick(name);
+    bar.append(b);
+  }
+  const cancel = document.createElement('button');
+  cancel.textContent = 'cancel';
+  cancel.onclick = endMapPick;
+  bar.append(cancel);
+  mapBox.prepend(bar);
+}
+
+function finishMapPick(name) {
+  const done = mapPick;
+  endMapPick();
+  done?.(name);
+}
+
+function pressedOnMap(spot) {
+  if (!mapPick) return;
+  const owners = JSON.parse(spot.dataset.owners ?? '[]');
+  if (owners.length === 1) finishMapPick(owners[0]);
+  else if (owners.length) showMapPrompt(owners);
+}
+
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && mapPick) endMapPick(); });
+
+// ---- putting a new field's controls on the box
+
+// The controls that want a fader, and where they would like to be: the four
+// general ones on F1-F4, the wipe speeds on any of the others, since a fader
+// shows when they are at halfway. Everything else goes on the knobs.
+const FADER_HOME = {'fader_a.value': 0, 'fader_b.value': 1, 'param_a.value': 2, 'param_b.value': 3};
+const FADER_ANY = ['wipe1.speed', 'wipe2.speed'];
+
+const fieldOf = (name) => name.split('.')[0];
+const fieldsOfSlots = (slots) => new Set(Object.values(slots).flatMap(ownersIn));
+
+// The patch's cc_map once every control the slots use is on a fader or knob of
+// the box on the map. One already on the box stays where it is, and the CCs
+// those are on are taken; the rest go to the next free fader or knob. Returns
+// what was said about each one placed.
+function withControls(patch, slots) {
+  const surface = surfaces[surfaceId];
+  const cc_map = {...patch.cc_map};
+  const said = [];
+  if (!surface) return {cc_map, said};
+
+  const now = fieldsOfSlots(slots);
+  const effective = (c) => cc_map[c.comments[0]] ?? c.number;
+  const ours = controls.filter(c => c.kind === 'cc' && !c.hidden && c.comments.length
+                                    && now.has(knobOwner(fieldOf(c.comments[0]))));
+  const wanting = ours.filter(c => !(effective(c) in surface.ccs));
+  if (!wanting.length) return {cc_map, said};
+
+  const taking = new Set(wanting.map(c => c.comments[0]));
+  const taken = new Set(ours.filter(c => !taking.has(c.comments[0])).map(effective));
+
+  const faders = (surface.faders ?? []).filter(cc => !taken.has(cc));
+  const knobs = (surface.knobs ?? []).filter(cc => !taken.has(cc));
+  const place = (list, at) => list.splice(at >= 0 && at < list.length ? at : 0, 1)[0];
+
+  const rank = (c) => c.comments[0] in FADER_HOME ? 0 : FADER_ANY.includes(c.comments[0]) ? 1 : 2;
+  for (const c of [...wanting].sort((a, b) => rank(a) - rank(b))) {
+    const name = c.comments[0];
+    let cc;
+    if (name in FADER_HOME) {
+      // its own fader if that is free, the next one if not
+      const home = (surface.faders ?? [])[FADER_HOME[name]];
+      const at = faders.indexOf(home);
+      cc = faders.length ? place(faders, at) : knobs.length ? place(knobs, 0) : undefined;
+    } else if (FADER_ANY.includes(name)) {
+      cc = faders.length ? place(faders, 0) : knobs.length ? place(knobs, 0) : undefined;
+    } else {
+      cc = knobs.length ? place(knobs, 0) : faders.length ? place(faders, 0) : undefined;
+    }
+
+    if (cc === undefined) { said.push(`no free knob for ${name}`); continue; }
+    cc_map[name] = cc;
+    said.push(`${name} \u2192 ${surface.ccs[cc]}`);
+  }
+  return {cc_map, said};
+}
+
+// Put every control the playing preset uses, and that is not on the box, there.
+async function assignUsed() {
+  const n = rig.selected;
+  if (n === null) return;
+  const fresh = await get(`/presets/${n}`);
+  const {cc_map, said} = withControls(fresh.live, fresh.live.slots);
+  if (!said.length) return;
+  const r = await put(`/presets/${n}`, {...fresh.live, cc_map});
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  savedNote.textContent = said.join(', ');
+  clearTimeout(savedTimer);
+  savedTimer = setTimeout(() => { savedNote.textContent = ''; }, 6000);
+  await refresh();
+}
+
+// A CC nothing sends and nothing listens to: not on the box, not declared by
+// any control, not where the patch has put one.
+function freeCC(cc_map) {
+  const used = new Set([...Object.keys(surfaces[surfaceId].ccs).map(Number),
+                        ...Object.values(cc_map),
+                        ...controls.filter(c => c.kind === 'cc').flatMap(c => [c.number, c.default])]);
+  for (let cc = CC_MAX; cc >= 0; cc--) if (!used.has(cc)) return cc;
+  return CC_MAX;
+}
+
+// Take a control off the knob or fader that was clicked: it goes back to the CC
+// it was declared with, which is not on this box.
+function unassignBar(spot) {
+  mapBox.querySelector('.map-menu')?.remove();
+  mapBox.querySelector('.map-prompt')?.remove();
+  const bar = document.createElement('div');
+  bar.className = 'map-prompt';
+  const msg = document.createElement('span');
+  msg.textContent = `${surfaces[surfaceId].ccs[spot.dataset.cc]}: take off`;
+  bar.append(msg);
+  for (const name of JSON.parse(spot.dataset.names ?? '[]')) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.onclick = async () => {
+      const n = rig.selected;
+      if (n === null) return;
+      const fresh = await get(`/presets/${n}`);
+      const {[name]: _, ...cc_map} = fresh.live.cc_map;
+      // Left out of the map a control goes back to the CC it was declared with, and
+      // one declared on this very knob would never leave it, so it is parked.
+      const declared = controls.find(c => c.kind === 'cc' && c.comments[0] === name)?.default;
+      if (declared === Number(spot.dataset.cc)) cc_map[name] = freeCC(cc_map);
+      const r = await put(`/presets/${n}`, {...fresh.live, cc_map});
+      if (!r.ok) { alert((await r.json()).detail); return; }
+      await refresh();
+    };
+    bar.append(b);
+  }
+  const cancel = document.createElement('button');
+  cancel.textContent = 'cancel';
+  cancel.onclick = () => bar.remove();
+  bar.append(cancel);
+  mapBox.prepend(bar);
+}
+
+// A menu of the controls, to put one on the knob or fader that was clicked.
+function assignMenu(spot) {
+  const cc = Number(spot.dataset.cc);
+  mapBox.querySelector('.map-menu')?.remove();
+  const box = document.createElement('div');
+  box.className = 'fpick map-menu';
+  mapBox.prepend(box);
+
+  const surface = surfaces[surfaceId];
+  const where = (c) => surface.ccs[(patchMap()[c.comments[0]]) ?? c.number] ?? '';
+  const open = fieldMenu(box, null, async (name) => {
+    box.remove();
+    const n = rig.selected;
+    if (n === null) return;
+    const fresh = await get(`/presets/${n}`);
+    const r = await put(`/presets/${n}`, {...fresh.live, cc_map: {...fresh.live.cc_map, [name]: cc}});
+    if (!r.ok) { alert((await r.json()).detail); return; }
+    await refresh();
+  }, {
+    placeholder: `put on ${surface.ccs[cc]}: search controls`,
+    noMap: true,
+    entries: () => controls.filter(c => c.kind === 'cc' && !c.hidden && c.comments.length)
+        .map(c => ({group: fieldOf(c.comments[0]), text: c.comments[0], hint: where(c), value: c.comments[0]}))
+        .sort((a, b) => a.group.localeCompare(b.group) || a.text.localeCompare(b.text)),
+  });
+  open();
+}
+const patchMap = () => views[rig.selected]?.live?.cc_map ?? {};
+
 // ---- keeping up ----------------------------------------------------------
 
 // Which preset the half-built formulas belong to. Another one has its own slots.
 let formulasFor = null;
+
+// What the effects list was last drawn from. The poll comes every second; a list that
+// is torn down and rebuilt with nothing new in it flickers under the scrolling.
+let effectsDrawn = '';
 
 async function refresh() {
   [rig, views, controls] = await Promise.all([get('/rig'), get('/presets'), get('/controls')]);
@@ -1852,7 +2848,17 @@ async function refresh() {
     formulasFor = rig.selected;
   }
   drawPresets();
-  if (!adding && !picking && !dragging && !reordering && !turning && !inUse()) drawEffects();
+  drawMap();
+  if (!adding && !picking && !dragging && !reordering && !turning && !inUse()) {
+    // Where the knobs sit is not part of what the list shows - the dials follow
+    // the socket - so a knob moving must not tear the list down.
+    const key = JSON.stringify([
+      rig,
+      Object.values(views).map(v => ({...v, live: {...v.live, ccs: null}})),
+      controls.map(({value, ...c}) => c),
+    ]);
+    if (key !== effectsDrawn) { effectsDrawn = key; drawEffects(); }
+  }
 }
 
 async function drawStats() {
@@ -1860,7 +2866,7 @@ async function drawStats() {
   document.getElementById('fps').textContent = `${s.fps.toFixed(0)} fps`;
 }
 
-refresh(); drawStats();
+loadSurfaces().then(refresh); drawStats();
 
 // The preset can change from the controller - a program change - so the bar
 // follows it rather than showing what it was at load.

@@ -39,15 +39,15 @@ header button { white-space: nowrap; }
 .pcell.act:disabled { opacity: .25; }
 
 /* effects down the left half, the rest of the page on the right */
-.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 12px 16px;
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; padding: 12px 16px;
         align-items: start; }
 main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 aside { min-width: 0; }
 
-/* The effects can take the whole window. The right half is empty for now, so it
-   goes while they do. */
+/* The effects can take the whole window; the controller map then sits below them. */
 .cols.wide { grid-template-columns: 1fr; }
-.cols.wide aside { display: none; }
+#map { position: sticky; top: 12px; }
+.cols.wide #map { position: relative; }
 .wide-toggle { margin-left: auto; }
 .wide-toggle[aria-pressed="true"] { border-color: var(--accent); }
 
@@ -59,9 +59,10 @@ aside { min-width: 0; }
 .effect.drop-before { box-shadow: 0 -3px 0 0 var(--accent); }
 .effect.drop-after { box-shadow: 0 3px 0 0 var(--accent); }
 .effect-head .card-grip { font-size: 16px; padding: 4px 2px; }
-.effect-head .title { flex: 1; display: flex; align-items: center; gap: 8px; border: none;
+.effect-head .title { flex: none; display: flex; align-items: center; gap: 8px; border: none;
                       background: none; text-align: left; padding: 4px 0; font-size: 14px; }
-.effect-head .title b { font-weight: 600; }
+.effect-head .fade-tag { font-size: 12px; padding: 0 6px; border-radius: 8px; background: #24334d; color: #cfe3ff; }
+.effect-head .title b { font-weight: 400; font-size: 13px; color: var(--dim); }
 .chev { width: 14px; color: var(--dim); font-size: 16px; line-height: 1; text-align: center; }
 .dim { color: var(--dim); font-size: 12px; }
 
@@ -96,6 +97,7 @@ aside { min-width: 0; }
 .slot.mode-field { border-left-color: #4fb3a9; }
 .slot.mode-formula { border-left-color: #b08cf0; }
 .slot-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.slot-head .fade { margin-left: auto; padding: 1px 4px; font-size: 12px; }
 .slot-head .name { color: var(--text); font-weight: 600; font-size: 13px; min-width: 44px; }
 .slot .expr { color: var(--dim); font-family: ui-monospace, monospace; font-size: 12px;
               overflow-wrap: anywhere; }
@@ -172,9 +174,19 @@ aside { min-width: 0; }
 .paren.d2 { color: #b08cf0; } .paren.d3 { color: #e0a040; }
 .paren { font-weight: 700; }
 .node .kids { margin-left: 2px; }
-.ops { display: flex; gap: 3px; margin: 2px 0; }
+.ops { display: flex; flex-wrap: wrap; gap: 3px; margin: 2px 0; }
 .ops button { padding: 0 8px; min-width: 26px; }
 .ops button.on { border-color: var(--g); color: var(--g); }
+/* an operator with no glyph is lit by name, and a name wants room either side */
+.ops button.named { padding: 0 10px; }
+.ops .plus { font-size: 12px; }
+
+/* operands that are listed rather than laid either side of the operator */
+.operand { display: flex; align-items: flex-start; gap: 6px; }
+.operand > i { flex: none; width: 14px; padding-top: 6px; font-style: normal; font-size: 11px;
+               color: var(--dim); text-align: right; }
+.operand > .node, .operand > .leaf { flex: 1 1 auto; min-width: 0; }
+.operand .cut { flex: none; margin-top: 4px; padding: 0 7px; color: var(--dim); }
 .ops .outer { margin-left: auto; color: var(--dim); font-size: 12px; }
 .ops .flip { margin-left: 4px; color: var(--dim); padding: 0 8px; }
 .ops .drop { margin-left: 4px; color: var(--dim); font-size: 16px; line-height: 1; padding: 0 8px; }
@@ -219,6 +231,9 @@ aside { min-width: 0; }
 .knob .dial .pin { stroke: var(--text); stroke-width: 2; stroke-linecap: round; }
 .knob b { font-weight: 600; }
 .knob .now { min-width: 1.8em; text-align: right; font-variant-numeric: tabular-nums; }
+.knob .cc-box { width: 3.4em; padding: 1px 3px; font: inherit; font-variant-numeric: tabular-nums;
+  background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 3px; }
+.knob .cc-box:focus { border-color: var(--accent); outline: none; }
 .knob .at { color: var(--dim); font-variant-numeric: tabular-nums; }
 .knob.waiting { border-color: var(--accent); }
 .knob.waiting .at { color: var(--accent); }
@@ -237,3 +252,97 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 .copy-grid .pcell.pick { background: rgba(106, 143, 208, .35); border-color: var(--accent); }
 #copy-why.bad { color: var(--dirty); }
 .copy-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+/* ---- the controller map, in the style of the BeatStep picture on the touch layout ---- */
+.map-head { display: flex; gap: 8px; margin-bottom: 8px; }
+.map-head select { background: var(--panel); color: var(--text); border: 1px solid var(--line);
+                   border-radius: 4px; padding: 3px 6px; font: inherit; }
+.surface .box { display: block; width: 100%; max-width: 760px; }
+.box .shell { fill: #14181d; stroke: #22272e; }
+.box .cap { fill: #20262e; stroke: #39414d; }
+.box .track { fill: #0f1216; stroke: #2a3039; }
+.box .pointer { stroke: #6d7681; stroke-width: 2; stroke-linecap: round; }
+.box .tag { fill: #6d7681; font-size: 9px; text-anchor: middle; }
+.box .what { fill: #aab3bf; font-size: 7.5px; text-anchor: middle; pointer-events: none; }
+.box .what.role { fill: #7d8793; }
+.box .spot:not(.assigned) { opacity: .45; }
+.box .spot.assigned .cap { stroke: #5d6877; }
+.box .lit .cap { fill: #24334d; stroke: var(--accent); stroke-width: 2; }
+.box .lit .pointer { stroke: #cfe3ff; }
+.box .lit .tag, .box .lit .what { fill: #cfe3ff; }
+.map-off { font-size: 12px; margin: 8px 0 0; }
+#map.picking .spot.assigned { cursor: pointer; }
+#map.picking .spot.assigned:hover .cap { stroke: #e0b070; stroke-width: 2; }
+#map.picking { outline: 1px solid var(--accent); outline-offset: 6px; border-radius: 2px; }
+.map-prompt { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; color: var(--accent); }
+.fpick-map { display: block; width: 100%; margin: 4px 0; }
+
+/* the Akai's own picture: knobs over faders over the pads, larger type than the BeatStep's */
+.box.akai .section { fill: var(--dim); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+.box.akai .ring { fill: none; stroke: #2a3039; stroke-width: 3; }
+.box.akai .tag { font-size: 9.5px; }
+.box.akai .what { font-size: 11px; font-weight: 600; }
+.box.akai .what.role { font-size: 9.5px; font-weight: 400; }
+.box.akai .pad .tag { text-anchor: middle; }
+.box.akai .pad.assigned .cap { fill: #232a34; }
+.box.akai .pad.lit .cap { fill: #24334d; }
+.box.akai .fader.assigned .thumb { fill: #2b3441; }
+.box.akai .fader.lit .thumb { fill: #24334d; }
+.map-menu { height: 0; }
+.map-menu .fpick-list { min-width: 260px; }
+.spot[data-cc]:not(.assigned) { cursor: pointer; }
+.map-off button { margin-left: 6px; }
+.spot.assigned[data-cc] { cursor: pointer; }
+.box .what.fx { fill: #6a8fd0; font-style: italic; }
+.map-legend { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+.map-legend td { padding: 3px 8px 3px 0; border-top: 1px solid var(--line); vertical-align: top; }
+.map-legend td:first-child { color: var(--dim); white-space: nowrap; }
+.map-legend td.fx { color: #6a8fd0; font-style: italic; }
+.map-legend tr.lit td:nth-child(2) { color: #cfe3ff; }
+.box .spot.hover .cap, .box .spot.hover .thumb { stroke: var(--accent); stroke-width: 2; }
+.map-legend tr.hover td { background: rgba(106, 143, 208, .22); }
+
+/* typing a formula instead of building it. The pre holds the coloured text and
+   the textarea sits exactly on top with its own text invisible, so the caret
+   lands on the letters you can see. Both must be laid out the same way. */
+.slot-head .pencil { margin-left: auto; padding: 1px 8px; font-size: 13px; }
+.slot-head .pencil.on { background: #2f5597; color: #fff; }
+.slot-head .pencil + .fade { margin-left: 0; }
+.typing { padding: 4px 0; }
+.exprbox { position: relative; }
+.exprbox pre, .exprbox textarea {
+  margin: 0; padding: 6px 8px; border: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px; line-height: 1.35;
+  white-space: pre-wrap; overflow-wrap: anywhere; }
+.exprbox pre { background: #11161f; color: #dee; min-height: 30px; border-radius: 4px; }
+.exprbox textarea { position: absolute; inset: 0; width: 100%; background: transparent;
+                    color: transparent; caret-color: #cfe3ff; resize: none;
+                    overflow: hidden; outline-offset: -1px; }
+.exprbox .p0 { color: #e0b070; }
+.exprbox .p1 { color: #7fc7a0; }
+.exprbox .p2 { color: #8fb3e8; }
+.exprbox .p3 { color: #d08fd0; }
+.exprbox .p4 { color: #d6cf7a; }
+.exprbox .bad { color: #e06060; background: #3a1a1a; }
+.typing .setexpr { margin-top: 6px; padding: 2px 14px; }
+.typing .hint { color: #e06060; font-size: 12px; padding: 4px 0 0; }
+
+/* the player's own line about an effect, beside its name */
+.effect-head .note { flex: 1; min-width: 0; background: transparent; color: var(--text);
+  border: 1px solid transparent; border-radius: 4px; padding: 2px 6px; font: inherit; font-size: 15px; font-weight: 600; }
+.effect-head .note:hover { border-color: var(--line); }
+.effect-head .note:focus { color: var(--text); border-color: var(--accent); background: #11161f; outline: none; }
+.effect-head .note::placeholder { color: transparent; }
+.effect-head .note:hover::placeholder, .effect-head .note:focus::placeholder { color: var(--dim); }
+
+.ops .modsw { display: inline-flex; align-items: center; gap: 5px; margin-left: 4px; padding: 0 8px 0 3px;
+              font-size: 12px; color: var(--dim); border-radius: 10px; }
+.modsw .modknob { position: relative; width: 24px; height: 12px; border-radius: 6px; background: var(--line); }
+.modsw .modknob::after { content: ''; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px;
+                         border-radius: 50%; background: var(--dim); transition: left .12s; }
+.ops .modsw.on { color: var(--g); border-color: var(--g); }
+.modsw.on .modknob { background: var(--g); }
+.modsw.on .modknob::after { left: 14px; background: var(--panel); }
+.knobs.mini { margin-top: 0; flex-wrap: nowrap; }
+.knobs.mini .knob b, .knobs.mini .knob .at { display: none; }
