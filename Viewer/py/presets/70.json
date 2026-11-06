@@ -13,6 +13,7 @@
     "76": 24,
     "77": 69,
     "79": 9,
+    "89": 102,
     "91": 66,
     "93": 4,
     "102": 107,
@@ -135,7 +136,8 @@
   "cc_map": {},
   "active": [
     "bg_waves",
-    "prob_zaps"
+    "prob_zaps",
+    "ambient_light"
   ],
   "muted": [],
   "name": "dubstep-2"
