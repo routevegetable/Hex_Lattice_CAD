@@ -1489,7 +1489,13 @@ const liveValue = (c) => knobs[c.number]?.value ?? c.value;
 // by only one of them, so a described one wins; a stray knob is a plain 0-127.
 const PLAIN = {kind: 'float_range', start: 0, end: 127, unit: null};
 const isPlain = (m) => m.kind === 'float_range' && !m.unit && m.start === 0 && m.end === 127;
-const metaFor = (name) => rig?.control_meta?.[name] ?? PLAIN;
+// A gradient control lists no options of its own: what it can be on is whichever
+// gradients exist right now - the declared ones, and the playing preset's own - at
+// the position each is written down at. Given as items, it is then a list like any
+// other, and is stepped through and read out the same way.
+const withGradientItems = (m) => m.kind !== 'gradient' ? m
+    : {...m, items: Object.fromEntries(allGradients().map(g => [g.position, g.name]))};
+const metaFor = (name) => withGradientItems(rig?.control_meta?.[name] ?? PLAIN);
 const metaOf = (names) => names.map(metaFor).find(m => !isPlain(m)) ?? PLAIN;
 const metaOn = (cc) => metaOf(controls.filter(c => c.kind === 'cc' && c.number === Number(cc))
                                       .flatMap(c => c.comments));
@@ -1497,6 +1503,7 @@ const metaOn = (cc) => metaOf(controls.filter(c => c.kind === 'cc' && c.number =
 // A gradient and a custom list are chosen from rather than swept, so these are
 // the only places a drag is allowed to stop. Empty means it sweeps.
 const DISCRETE = ['custom', 'gradient'];
+const isDiscrete = (meta) => DISCRETE.includes(meta.kind);
 const optionsOf = (meta) => DISCRETE.includes(meta.kind)
     ? Object.keys(meta.items ?? {}).map(Number).sort((a, b) => a - b)
     : [];
@@ -1517,8 +1524,10 @@ function fracOf(meta, value) {
 // What to print for a value: the option's name, or the knob read in its own range.
 function readOut(meta, value) {
   const options = optionsOf(meta);
+  // A gradient is exactly the one written down at the position, or none: the
+  // knob is not read as the nearest of them.
+  if (meta.kind === 'gradient') return meta.items[value] ?? 'no gradient';
   if (options.length) return meta.items[options[nearestAt(options, value)]];
-  if (meta.kind === 'gradient') return gradientAt(value)?.name ?? String(value);
 
   // The same curve FloatRange.at() uses on the other side.
   const at = meta.geometric
@@ -1533,6 +1542,7 @@ function readOut(meta, value) {
 const PER_STEP_PX = 24;             // a thumb's worth of travel per option
 function dragTo(meta, from, dy) {
   const options = optionsOf(meta);
+  if (!options.length && isDiscrete(meta)) return from;          // nothing to step to
   if (!options.length) return clampCC(Math.round(from + dy * DRAG_PER_PX));
   const at = nearestAt(options, from) + Math.round(dy / PER_STEP_PX);
   return options[Math.max(0, Math.min(options.length - 1, at))];
@@ -1615,6 +1625,9 @@ function knobList(found, compact = false) {
     typed.min = '0'; typed.max = String(CC_MAX); typed.step = '1';
     typed.value = liveValue(c);
     typed.title = 'type a value, 0-127';
+    // Only a continuous control can be put anywhere in 0-127. One that picks from a
+    // list has places that mean something and places that do not.
+    typed.hidden = isDiscrete(meta);
     typed.onchange = () => {
       const want = Math.max(0, Math.min(CC_MAX, Math.round(Number(typed.value))));
       if (Number.isNaN(want) || typed.value === '') { typed.value = liveValue(c); return; }
@@ -1655,6 +1668,7 @@ function knobList(found, compact = false) {
       turnKnob(c.number, want);
       setDial(row.querySelector('.dial'), want, meta);
       now.textContent = readOut(meta, want);
+      syncGradientPickers();
     };
     // A frame already on its way may still carry the value from before the last
     // turn, so the dial is left to the drag for a moment after letting go.
@@ -2374,14 +2388,10 @@ const globalGradients = () => (rig?.gradients ?? []).map(g => ({...g, scope: 'gl
 const allGradients = () => [...globalGradients(), ...localGradients()]
     .sort((a, b) => a.position - b.position);
 
-// What a knob at `value` is on: the nearest position a gradient is at, the lower
-// one on a tie. The server reads the knob the same way.
-function gradientAt(value) {
-  let best = null;
-  for (const g of allGradients())
-    if (best === null || Math.abs(g.position - value) < Math.abs(best.position - value)) best = g;
-  return best;
-}
+// What a knob at `value` is on: the gradient written down at exactly that
+// position, or none. Not the nearest - what a knob between two of them makes the
+// rig play is the server's business, and this page does not guess at it.
+const gradientAt = (value) => allGradients().find(g => g.position === Number(value)) ?? null;
 
 const freePosition = (range, taken) => {
   for (let p = range[0]; p <= range[1]; p++) if (!taken.includes(p)) return p;
@@ -2892,7 +2902,7 @@ function openGradientEditor({gradient = null, copy = false, onSaved = null} = {}
   const drop = async () => {
     const on = [1, 2, 3].filter(n => channelCC(n) !== null && gradientAt(ccValue(channelCC(n)))?.name === existing.name);
     const note = on.length ? ` ${on.length > 1 ? 'Knobs' : 'Knob'} ${on.join(', ')} ${on.length > 1 ? 'are' : 'is'} on it`
-        + ' and will fall to the nearest other gradient.' : '';
+        + ' and will be on none of the others until you choose one.' : '';
     if (!confirm(`Delete ${existing.name} from this preset?${note}`)) return;
     if (await writeGradients((gs) => { delete gs[existing.name]; return gs; })) shut();
   };
