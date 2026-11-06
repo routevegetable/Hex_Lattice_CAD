@@ -121,7 +121,7 @@ CCs are declared in exactly two places: a literal handed to `midi.cc(...)`
 inside a field, operator or effect, and the number `FIELDS`/`OPERATORS`/
 `EFFECTS` passes in. Nowhere else.
 
-As of this writing 47 are taken:
+As of this writing 49 are taken:
 
 - **10, 16–19, 71–77, 79, 91, 93** — the sixteen BSP knobs, `KA1`–`KB8` in
   `instrument/hardware.py`. All spoken for; a new control here moves something
@@ -131,10 +131,10 @@ As of this writing 47 are taken:
 - **36–51** — the pads, as *notes*. A different space from CCs, but worth
   knowing before reading a number out of `hardware.py`. `PA1`–`PA6` and
   `PB1`–`PB8` are taken; `PA7` and `PA8` (50, 51) are free.
-- **14, 15, 81–86, 102–125** — off the desk: declared, mapped in the UI, and
+- **14, 15, 81–88, 102–125** — off the desk: declared, mapped in the UI, and
   reachable from a preset's `cc_map`.
 
-Free CCs: **1–9, 11–13, 56–70, 78, 80, 87–90, 92, 94–101, 126–127**.
+Free CCs: **1–9, 11–13, 56–70, 78, 80, 89–90, 92, 94–101, 126–127**.
 
 **Do not read free numbers off `/controls`.** `Console.controls()` only reports
 a mapping whose CC has actually said something on the wire, so a declared knob
