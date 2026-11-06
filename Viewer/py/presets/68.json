@@ -13,6 +13,7 @@
     "76": 38,
     "77": 66,
     "79": 25,
+    "89": 102,
     "91": 68,
     "93": 4,
     "102": 62,
@@ -210,7 +211,8 @@
   "active": [
     "bg_waves2",
     "prob_zaps",
-    "map_fiber"
+    "map_fiber",
+    "ambient_light"
   ],
   "muted": [],
   "name": "Cobalt"

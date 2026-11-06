@@ -21,6 +21,7 @@
     "84": 0,
     "85": 0,
     "86": 0,
+    "89": 102,
     "91": 66,
     "93": 2,
     "102": 0,
@@ -121,7 +122,8 @@
   },
   "cc_map": {},
   "active": [
-    "map_fiber"
+    "map_fiber",
+    "ambient_light"
   ],
   "muted": [],
   "name": "dubstep-9",

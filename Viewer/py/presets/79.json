@@ -21,6 +21,7 @@
     "84": 0,
     "85": 0,
     "86": 0,
+    "89": 102,
     "91": 66,
     "93": 1,
     "102": 55,
@@ -170,7 +171,8 @@
   },
   "active": [
     "prob_zaps",
-    "map_fiber"
+    "map_fiber",
+    "ambient_light"
   ],
   "muted": [],
   "name": "dubstep-10",

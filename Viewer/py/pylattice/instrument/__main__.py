@@ -6,6 +6,7 @@ import sys
 import time
 import traceback
 from typing import Callable
+from pylattice.effects.ambient_light import AmbientLight
 from pylattice.effects.glitter import Glitter
 from pylattice.effects.bisexual_spin import BisexualSpin
 from pylattice.effects.light_all_fibers import LightAllFibers
@@ -73,6 +74,7 @@ class EFFECTS:
     glitter = Glitter()
     sparks = Sparks()
     # map_tiles = MapTiles()
+    ambient_light = AmbientLight(graph, midi.for_("ambient_light"))
 
 
 init_boom_zaps(graph, lattice)
