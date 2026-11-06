@@ -11,12 +11,11 @@ from pylattice.lattice_writer import LatticeWriter
 class Sparks(Effect):
     """Every edge's 4 fibers independently self-trigger a flash - full
     brightness held briefly, then a linear fade - gated by `value` so a
-    strobe pad switches the whole thing on and off. `prob` is the expected
-    number of ends lit at any given instant, anywhere on the rig - set it
-    to 20 for "about 20 ends lit", or to 0.25 for "about a 1-in-4 chance
-    any end is lit at all" (at small values, expected-count and chance-of-
-    at-least-one converge to the same number - the classic rare-event
-    approximation - so one knob reads naturally as either).
+    strobe pad switches the whole thing on and off. `prob` is how many LEDs
+    are lit at any given instant, anywhere on the rig, as a share of
+    MAX_SPARKS: 0.2 asks for about 20 lit, 0.5 for about 50, 1 for all
+    MAX_SPARKS of them. A slot is held to 0-1 where it is a formula, so it is
+    the 0-1 that is scaled here rather than asked for in the hundreds.
 
     The two ends of a fiber flicker on fully independent schedules rather
     than mirroring each other, so it reads as individual points sparking
@@ -27,6 +26,10 @@ class Sparks(Effect):
     sat: Slot
     value: Slot
     prob: Slot
+
+    # The number of LEDs lit at once that a `prob` of 1 asks for. The rig has 960
+    # (120 edges, 2 ends, 4 LEDs each), so this is a little over a tenth of it.
+    MAX_SPARKS = 100
 
     HOLD_MS = 200  # full brightness for this long after a trigger
     DECAY_MS = 1500  # then a linear fade to 0 over this long
@@ -71,7 +74,7 @@ class Sparks(Effect):
                     # the expected simultaneous count. Dividing the target
                     # count by the roll count gives the per-roll likelihood
                     # that produces it.
-                    desired_count = self.prob.get(now, side_end)
+                    desired_count = self.prob.get(now, side_end) * self.MAX_SPARKS
                     likelihood = min(1.0, desired_count / self._total_trials)
                     trg = latch.maybe(now, salt, self.PERIOD_MS, likelihood, offset)
 
