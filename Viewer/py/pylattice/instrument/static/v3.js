@@ -3068,12 +3068,10 @@ document.getElementById('new-preset').onclick = () => openCopy('new');
 
 // A preset with nothing plugged in: the chain is empty, so no effect has a card
 // until it is added from the menu, and nothing is muted. No knobs are listed - a
-// patch that says nothing about them leaves them where they are. The box on the
-// desk says where its own defaults go (surfaces.json), so a new preset starts with
-// those controls on it - and with any that would land on it by accident parked on
-// a CC nothing sends.
-const blankPatch = (name) => ({ccs: {}, slots: {}, cc_map: {...surfaces[surfaceId]?.defaults},
-                               active: [], muted: [], name});
+// patch that says nothing about them leaves them where they are - and nothing is
+// mapped: every control starts on the CC it was declared with, wherever the box on
+// the desk has its knobs.
+const blankPatch = (name) => ({ccs: {}, slots: {}, cc_map: {}, active: [], muted: [], name});
 
 copyDialog.querySelector('form').onsubmit = async (e) => {
   e.preventDefault();
@@ -3388,12 +3386,6 @@ document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && mapPic
 
 // ---- putting a new field's controls on the box
 
-// The controls that want a fader, and where they would like to be: the four
-// general ones on F1-F4, the wipe speeds on any of the others, since a fader
-// shows when they are at halfway. Everything else goes on the knobs.
-const FADER_HOME = {'fader_a.value': 0, 'fader_b.value': 1, 'param_a.value': 2, 'param_b.value': 3};
-const FADER_ANY = ['wipe1.speed', 'wipe2.speed'];
-
 const fieldOf = (name) => name.split('.')[0];
 const fieldsOfSlots = (slots) => new Set(Object.values(slots).flatMap(ownersIn));
 // ... and what the effects that are drawing own themselves.
@@ -3401,8 +3393,10 @@ const ownersOfPatch = (patch, slots) => new Set([...fieldsOfSlots(slots), ...dra
 
 // The patch's cc_map once every control the slots use is on a fader or knob of
 // the box on the map. One already on the box stays where it is, and the CCs
-// those are on are taken; the rest go to the next free fader or knob. Returns
-// what was said about each one placed.
+// those are on are taken; the rest go to the next free knob, then the next free
+// fader, in the order they are listed. The box has no preferences of its own - no
+// control is meant for any one knob or fader. Returns what was said about each
+// one placed.
 function withControls(patch, slots) {
   const surface = surfaces[surfaceId];
   const cc_map = {...patch.cc_map};
@@ -3421,22 +3415,9 @@ function withControls(patch, slots) {
 
   const faders = (surface.faders ?? []).filter(cc => !taken.has(cc));
   const knobs = (surface.knobs ?? []).filter(cc => !taken.has(cc));
-  const place = (list, at) => list.splice(at >= 0 && at < list.length ? at : 0, 1)[0];
-
-  const rank = (c) => c.comments[0] in FADER_HOME ? 0 : FADER_ANY.includes(c.comments[0]) ? 1 : 2;
-  for (const c of [...wanting].sort((a, b) => rank(a) - rank(b))) {
+  for (const c of wanting) {
     const name = c.comments[0];
-    let cc;
-    if (name in FADER_HOME) {
-      // its own fader if that is free, the next one if not
-      const home = (surface.faders ?? [])[FADER_HOME[name]];
-      const at = faders.indexOf(home);
-      cc = faders.length ? place(faders, at) : knobs.length ? place(knobs, 0) : undefined;
-    } else if (FADER_ANY.includes(name)) {
-      cc = faders.length ? place(faders, 0) : knobs.length ? place(knobs, 0) : undefined;
-    } else {
-      cc = knobs.length ? place(knobs, 0) : faders.length ? place(faders, 0) : undefined;
-    }
+    const cc = knobs.length ? knobs.shift() : faders.length ? faders.shift() : undefined;
 
     if (cc === undefined) { said.push(`no free knob for ${name}`); continue; }
     cc_map[name] = cc;
