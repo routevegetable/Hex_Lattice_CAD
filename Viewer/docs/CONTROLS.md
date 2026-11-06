@@ -78,8 +78,9 @@ separate names when they are two settings that merely begin life together.
 
 ## What the UI does with the names
 
-`controlsFor(tree)` in `static/mobile.js` lists the knobs behind an open slot,
-and the two kinds of owner are matched differently:
+`controlsFor(tree)` in `static/mobile.js` and `static/v3.js` lists the knobs
+behind an open slot, and the two kinds of owner a slot can reach are matched
+differently:
 
 - **A field matches exactly.** `random_lines` takes `random_lines.*` and
   nothing else.
@@ -111,9 +112,18 @@ print([(a, b) for a in o for b in f | o if a != b and a.startswith(b + '_')] or 
 "
 ```
 
-`opsIn` and `fieldsIn` are what walk the expression for those names. `v3.js`
-has its own copies of all three, following the same rules. `app.js` is an older
-page that has not been kept up with any of this.
+`opsIn` and `fieldsIn` are what walk the expression for those names.
+
+**An effect's own controls are not behind any slot**, so they are found a
+different way: `controlsOwnedBy(name)` takes every control named `name.*`,
+exactly, like a field. Both pages show them with the effect rather than in a
+slot - at the top of its slots in `mobile.js`, at the top of its card in
+`v3.js` - and the controller map in `v3.js` counts them as in use while the
+effect is in the chain and not muted, so they light up and "assign them" can
+put them on the box.
+
+`v3.js` has its own copies of all of this, following the same rules. `app.js` is
+an older page that has not been kept up with any of it.
 
 ## Picking a CC number
 

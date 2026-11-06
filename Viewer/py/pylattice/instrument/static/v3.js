@@ -1478,6 +1478,19 @@ const controlsFor = (tree) => {
   }));
 };
 
+// The controls an effect owns itself, as against the ones behind whatever is patched
+// into its slots. A comment is `owner.role` and the owner can be an effect - whichever
+// asked the box for the knob. These shape how the effect draws rather than what
+// drives it (a zap's length, the ambient light's target), so they belong to the
+// effect and not to any slot's formula. Exact, like a field: `bg_waves` takes
+// `bg_waves.*` and not `bg_waves2.*`. docs/CONTROLS.md has the rest.
+const controlsOwnedBy = (name) => controls.filter(
+    c => c.kind === 'cc' && !c.hidden && c.comments.some(t => t.split('.')[0] === name));
+
+// The effects that are drawing in a patch: in its chain, and not muted. A muted
+// effect is silent, so what it owns is not in play.
+const drawingEffects = (live) => chain(live).filter(n => !(live.muted ?? []).includes(n));
+
 const CC_MAX = 127;
 const DRAG_PER_PX = 0.8;            // a touch over 150px for the whole range
 const clampCC = (v) => Math.max(0, Math.min(CC_MAX, v));
@@ -2303,6 +2316,10 @@ function drawEffects() {
     if (open) {
       // A colour is a hue and a saturation, so each pair gets a row of its own
       // to put a gradient on both at once. Both slots stay editable below it.
+      // What the effect itself listens to comes first: it is not behind any slot.
+      const own = controlsOwnedBy(name);
+      if (own.length) card.append(knobList(own));
+
       for (const pair of gradientPairs(keys)) card.append(gradientRow(name, pair, view.live));
       for (const key of keys) card.append(slotRow(key, view.live.slots[key] ?? null));
     }
@@ -3115,11 +3132,12 @@ const short = (t, n = 8) => t.length > n ? t.slice(0, n - 1) + '…' : t;
 const isOperatorOwner = (owner) => rig.operators.some(o => o.name === owner || o.name.startsWith(owner + '_'));
 
 // A control's comment is `owner.role`. The ones owned by a field of the rig, or by
-// an operator, are the ones a formula can bring in.
+// an operator, are the ones a formula can bring in; the ones owned by an effect are
+// the effect's own.
 const fieldOwners = (c) => {
   const names = new Set(rig.fields.map(f => f.name));
   return [...new Set(c.comments.map(t => knobOwner(t.split('.')[0]))
-                              .filter(n => names.has(n) || isOperatorOwner(n)))];
+                              .filter(n => names.has(n) || isOperatorOwner(n) || n in rig.effects))];
 };
 
 // What a formula owns controls through: the fields it names, and the owners of the
@@ -3139,6 +3157,9 @@ function effectsUsing() {
   const by = new Map();
   for (const [key, tree] of Object.entries(live?.slots ?? {}))
     for (const f of ownersIn(tree)) by.set(f, (by.get(f) ?? new Set()).add(key.split('.')[0]));
+
+  // An effect that owns controls is its own user: they are in play while it draws.
+  if (live) for (const name of drawingEffects(live)) by.set(name, (by.get(name) ?? new Set()).add(name));
   return by;
 }
 
@@ -3147,6 +3168,7 @@ function fieldsInUse() {
   const live = views[rig.selected]?.live;
   const used = new Set();
   for (const tree of Object.values(live?.slots ?? {})) ownersIn(tree).forEach(n => used.add(n));
+  if (live) drawingEffects(live).forEach(n => used.add(n));
   return used;
 }
 
@@ -3374,6 +3396,8 @@ const FADER_ANY = ['wipe1.speed', 'wipe2.speed'];
 
 const fieldOf = (name) => name.split('.')[0];
 const fieldsOfSlots = (slots) => new Set(Object.values(slots).flatMap(ownersIn));
+// ... and what the effects that are drawing own themselves.
+const ownersOfPatch = (patch, slots) => new Set([...fieldsOfSlots(slots), ...drawingEffects(patch)]);
 
 // The patch's cc_map once every control the slots use is on a fader or knob of
 // the box on the map. One already on the box stays where it is, and the CCs
@@ -3385,7 +3409,7 @@ function withControls(patch, slots) {
   const said = [];
   if (!surface) return {cc_map, said};
 
-  const now = fieldsOfSlots(slots);
+  const now = ownersOfPatch(patch, slots);
   const effective = (c) => cc_map[c.comments[0]] ?? c.number;
   const ours = controls.filter(c => c.kind === 'cc' && !c.hidden && c.comments.length
                                     && now.has(knobOwner(fieldOf(c.comments[0]))));
