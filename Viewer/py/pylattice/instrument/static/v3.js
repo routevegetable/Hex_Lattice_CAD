@@ -129,25 +129,45 @@ const fmt = (n) => {
 };
 const OPS = {add: '+', sub: '\u2212', mul: '\u00d7', div: '\u00f7', avg: '\u2248'};
 
-// ---- gradients -------------------------------------------------------------
+// ---- operators -------------------------------------------------------------
+// An operation is {op, args: [...]}: an operator and however many operands it is
+// written with. Which operators there are, and how many operands each takes, is
+// the rig's to say - `rig.operators` - so nothing here keeps a list that could
+// disagree with it. The glyphs above are only the ones a sum is written with.
 
-// STUB. The server stores no gradients yet, so every tree it sends is a field,
-// a constant or a combination, and this page can neither make nor edit a
-// gradient. These three are the only places that know the shape of one -
-// {gradient, of, ch} - so that one that turns up is shown as an opaque leaf and
-// not mistaken for a formula. The editor and its storage come with the server
-// side of gradients; they replace this section and nothing else.
-const isGradient = (n) => n !== null && typeof n === 'object' && n.gradient !== undefined;
-const describeGradient = (n) => `gradient ${n.gradient}(${describe(n.of)}).${n.ch ?? 'h'}`;
-const gradientFields = (n) => fieldsIn(n.of);
+// How many operands an operator is written with: 'unary', 'binary' or 'nary'.
+// Undefined for one the rig does not have - an operator a preset names that has
+// since gone is laid out as the general case rather than guessed at.
+const arityOf = (op) => rig?.operators?.find(o => o.name === op)?.arity;
+
+// Whether to write an operation as a sum rather than as a call. Only a binary
+// operator is one: it has two operands and a glyph to put between them. The rest
+// read `name(a, b, c)`, which is also what parseText takes back.
+const infix = (node, glyphs) => arityOf(node.op) === 'binary'
+    && node.args.length === 2 && node.op in glyphs;
+
+// The same operation under another operator, with its operands fitted to what
+// that one is written with: a unary gets one box, a binary two. Operands keep
+// their positions, a short list gains empty ones and a long one loses its tail
+// (undo has it, if it was wanted). One written with any number keeps what it has.
+function withOp(node, name) {
+  const arity = arityOf(name);
+  const want = arity === 'unary' ? 1 : arity === 'binary' ? 2 : node.args.length;
+  const args = node.args.slice(0, want);
+  while (args.length < want) args.push(null);
+  return {...node, op: name, args};
+}
 
 // A slot as text: what is plugged into it, however deep.
 function describe(node) {
   if (node === null || node === undefined) return 'nothing';
   if (typeof node === 'number') return fmt(node);
   if (typeof node === 'string') return node;
-  if (isGradient(node)) return describeGradient(node);
-  return `(${describe(node.a)} ${OPS[node.op]} ${describe(node.b)})${node.mod ? ' mod 1' : ''}`;
+
+  const mod = node.mod ? ' mod 1' : '';
+  if (infix(node, OPS))
+    return `(${describe(node.args[0])} ${OPS[node.op]} ${describe(node.args[1])})${mod}`;
+  return `${node.op}(${node.args.map(describe).join(', ')})${mod}`;
 }
 
 // ---- undo ----------------------------------------------------------------
@@ -419,6 +439,28 @@ const fieldSource = {
                 .map(f => ({group, text: f.name, hint: '', value: f.name}))),
 };
 
+// The operators, as a menu: grouped by what they do, each with how it is written -
+// a sum for a binary one, the call it is typed as for the rest. Nothing here lists
+// them; what there is to choose from is whatever /rig says.
+const OPERATOR_GROUPS = [
+  ['arithmetic', (o) => o.kind === 'Math'],
+  ['pick one', (o) => ['Select', 'Cycle', 'Randomize'].includes(o.kind)],
+  ['gradients', (o) => o.kind === 'GradientChooser'],
+];
+const operatorGroup = (o) => OPERATOR_GROUPS.find(([, is]) => is(o))?.[0] ?? 'other';
+const writtenAs = (o) => o.arity === 'binary'
+    ? `a ${OPS[o.name] ?? o.name} b`
+    : `${o.name}(${o.arity === 'unary' ? 'x' : '…'})`;
+
+const operatorSource = {
+  placeholder: 'search operators',
+  noMap: true,                  // an operator is not something a control drives
+  entries: () => [...OPERATOR_GROUPS.map(([g]) => g), 'other'].flatMap(group =>
+      rig.operators.filter(o => operatorGroup(o) === group)
+                   .sort((a, b) => a.name.localeCompare(b.name))
+                   .map(o => ({group, text: o.name, hint: writtenAs(o), value: o.name}))),
+};
+
 // The menu hangs off `box`, which the caller places and whatever opens it sits
 // in. This returns the thing that opens it, or closes it if it is already up.
 function fieldMenu(box, current, onPick, source = fieldSource) {
@@ -561,28 +603,41 @@ const clampAxis = (x) => Math.max(0, Math.min(AXIS, x));
 const isHueSlot = (key) => key.split('.').slice(1).join('.').includes('hue');
 
 // What a formula can reach, as [lowest, highest], taking every field to run 0..1.
-// It is null when that cannot be said: an operand left empty, a gradient, or a
+// It is null when that cannot be said: an operand left empty, an operator whose
+// output is not a function of its operands' ranges (a gradient, a zap), or a
 // division by anything but a fixed number.
 function reach(n) {
   if (typeof n === 'number') return [n, n];
   if (typeof n === 'string') return [0, 1];
   if (n === null || typeof n !== 'object' || n.op === undefined) return null;
 
-  const a = reach(n.a), b = reach(n.b);
-  if (!a || !b) return null;
+  const rs = n.args.map(reach);
+  if (!rs.length || rs.some(r => !r)) return null;
+  const [a, b] = rs;
+  const two = rs.length === 2;
 
   switch (n.op) {
-    case 'add': return [a[0] + b[0], a[1] + b[1]];
-    case 'sub': return [a[0] - b[1], a[1] - b[0]];
-    case 'avg': return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    case 'add': return two ? [a[0] + b[0], a[1] + b[1]] : null;
+    case 'sub': return two ? [a[0] - b[1], a[1] - b[0]] : null;
+    case 'avg': return [rs.reduce((s, r) => s + r[0], 0) / rs.length,
+                        rs.reduce((s, r) => s + r[1], 0) / rs.length];
     case 'mul': {
+      if (!two) return null;
       const p = [a[0] * b[0], a[0] * b[1], a[1] * b[0], a[1] * b[1]];
       return [Math.min(...p), Math.max(...p)];
     }
     case 'div': {
-      if (b[0] !== b[1] || b[0] === 0) return null;
+      if (!two || b[0] !== b[1] || b[0] === 0) return null;
       const q = [a[0] / b[0], a[1] / b[0]];
       return [Math.min(...q), Math.max(...q)];
+    }
+    // One operand comes out, whichever it is: anything any of them can reach.
+    // select reads 0 when its knob points past the last operand, so 0 is in range.
+    case 'cycle':
+    case 'randomize':
+    case 'select': {
+      const lo = Math.min(...rs.map(r => r[0])), hi = Math.max(...rs.map(r => r[1]));
+      return n.op === 'select' ? [Math.min(lo, 0), Math.max(hi, 0)] : [lo, hi];
     }
   }
   return null;
@@ -602,8 +657,9 @@ const usableSource = (src) => typeof src === 'string' ||
 // else is a source of its own, at width 1.
 function peelWidth(x) {
   // A layer that wraps round is a source of its own: the wheel has no way to say so.
-  if (x && typeof x === 'object' && !x.mod && (x.op === 'mul' || x.op === 'div')) {
-    const [f, k] = [x.a, x.b];
+  if (x && typeof x === 'object' && !x.mod && x.args.length === 2
+      && (x.op === 'mul' || x.op === 'div')) {
+    const [f, k] = x.args;
     if (typeof k === 'number' && (x.op === 'mul' || k !== 0))
       return {field: f, width: x.op === 'mul' ? k : 1 / k};
     if (x.op === 'mul' && typeof f === 'number') return {field: k, width: f};
@@ -617,8 +673,8 @@ function parseHue(t) {
   if (typeof t === 'number') return {field: null, start: t, width: 0};
 
   const options = [];
-  if (t && typeof t === 'object' && t.op === 'add') {
-    for (const [x, c] of [[t.a, t.b], [t.b, t.a]])
+  if (t && typeof t === 'object' && t.op === 'add' && t.args.length === 2) {
+    for (const [x, c] of [[t.args[0], t.args[1]], [t.args[1], t.args[0]]])
       if (typeof c === 'number') options.push({...peelWidth(x), start: c, mod: !!t.mod});
   }
   options.push({...peelWidth(t), start: 0, mod: !!t?.mod}, {field: t, width: 1, start: 0});
@@ -630,10 +686,10 @@ function buildHue({field, start, width, mod}) {
   if (field === null) return start;
   const w = Math.round(width * 1000) / 1000, st = Math.round(start * 1000) / 1000;
   let tree = field;
-  if (w !== 1) tree = {op: 'mul', a: tree, b: w};
-  if (st !== 0) tree = {op: 'add', a: tree, b: st};
+  if (w !== 1) tree = {op: 'mul', args: [tree, w]};
+  if (st !== 0) tree = {op: 'add', args: [tree, st]};
   // The wrap-round switch belongs to the outermost step, whichever that turned out to be.
-  if (mod && tree !== null && typeof tree === 'object' && !isGradient(tree)) tree = {...tree, mod: true};
+  if (mod && tree !== null && typeof tree === 'object') tree = {...tree, mod: true};
   return tree;
 }
 
@@ -708,13 +764,18 @@ let editing = {};                       // "effect.slot" -> a formula with an em
 const formulaOpen = new Set();          // slots showing the formula editor
 
 const at = (tree, path) => path.reduce((n, step) => n[step], tree);
-const isLeaf = (n) => n === null || typeof n !== 'object' || isGradient(n);
-const complete = (n) => n === null ? false : isLeaf(n) ? true : complete(n.a) && complete(n.b);
+const isLeaf = (n) => n === null || typeof n !== 'object';
+const complete = (n) => n === null ? false : isLeaf(n) ? true : n.args.every(complete);
 
 function replace(tree, path, value) {
   if (path.length === 0) return value;
   const [step, ...rest] = path;
-  return {...tree, [step]: replace(tree[step], rest, value)};
+  const inner = replace(tree[step], rest, value);
+
+  // An operation's operands are a list, and spreading a list into an object
+  // makes it one - so the two halves of a path step are rebuilt in kind.
+  if (Array.isArray(tree)) return tree.map((n, i) => (i === step ? inner : n));
+  return {...tree, [step]: inner};
 }
 
 // Hue slots opened as a formula read (field x squeeze) + start in full. Once a
@@ -757,16 +818,19 @@ function toText(node, nested = false) {
   if (node === null || node === undefined) return '';
   if (typeof node === 'number') return String(node);
   if (typeof node === 'string') return node;
-  if (isGradient(node)) return describeGradient(node);
 
-  const shown = `${toText(node.a, true)} ${TEXT_OPS[node.op]} ${toText(node.b, true)}`;
+  // Anything but a binary operator is a call: `select(a, b, c)`. Its brackets
+  // are its own, so an operation inside one needs none.
+  const shown = infix(node, TEXT_OPS)
+      ? `${toText(node.args[0], true)} ${TEXT_OPS[node.op]} ${toText(node.args[1], true)}`
+      : `${node.op}(${node.args.map(a => toText(a)).join(', ')})`;
   // A % in front of the bracket wraps the result round instead of holding it to 0-1.
   if (node.mod) return `%(${shown})`;
-  return nested ? `(${shown})` : shown;
+  return nested && infix(node, TEXT_OPS) ? `(${shown})` : shown;
 }
 
 function tokens(text) {
-  const grab = /\s*([()%]|[+\-*/~]|[A-Za-z_][\w.]*|\d*\.?\d+)/y;
+  const grab = /\s*([(),%]|[+\-*/~]|[A-Za-z_][\w.]*|\d*\.?\d+)/y;
   const out = [];
   let at = 0;
 
@@ -802,15 +866,29 @@ function parseText(text) {
       return inner;
     }
     if (tok === ')') throw new Error('a ) with no (');
+    if (tok === ',') throw new Error('a , outside an operation');
     if (FROM_TEXT[tok]) throw new Error(`"${tok}" needs something in front of it`);
     if (/^[\d.]/.test(tok)) return parseFloat(tok);
+
+    // `select(x, y, z)`: a name followed by a ( is an operator, not a field, so
+    // it is checked against the operators. The only way to write an operation
+    // of any number of operands but two, since there is no glyph for three.
+    if (t[i] === '(') {
+      if (!rig.operators.some(o => o.name === tok)) throw new Error(`no operator called "${tok}"`);
+      i++;
+      const args = [sum()];
+      while (t[i] === ',') { i++; args.push(sum()); }
+      if (t[i++] !== ')') throw new Error(`"${tok}(" with no )`);
+      return {op: tok, args};
+    }
+
     if (!names.has(tok)) throw new Error(`no field called "${tok}"`);
     return tok;
   };
 
   const binary = (ops, next) => () => {
     let left = next();
-    while (ops.includes(t[i])) left = {op: FROM_TEXT[t[i++]], a: left, b: next()};
+    while (ops.includes(t[i])) left = {op: FROM_TEXT[t[i++]], args: [left, next()]};
     return left;
   };
 
@@ -908,9 +986,10 @@ const isValueSlot = (key) => key.split('.').slice(1).join('.') === 'value';
 // (null for none) and the rest of the expression (null when the fader is all).
 function splitFader(tree) {
   if (typeof tree === 'string' && FADERS.includes(tree)) return {fader: tree, inner: null};
-  if (tree !== null && typeof tree === 'object' && tree.op === 'mul') {
-    if (FADERS.includes(tree.a)) return {fader: tree.a, inner: tree.b};
-    if (FADERS.includes(tree.b)) return {fader: tree.b, inner: tree.a};
+  if (tree !== null && typeof tree === 'object' && tree.op === 'mul' && tree.args.length === 2) {
+    const [a, b] = tree.args;
+    if (FADERS.includes(a)) return {fader: a, inner: b};
+    if (FADERS.includes(b)) return {fader: b, inner: a};
   }
   return {fader: null, inner: tree};
 }
@@ -919,7 +998,7 @@ function splitFader(tree) {
 const withFader = (inner, fader) =>
     fader === null || fader === undefined ? inner
     : inner === null || inner === undefined ? fader
-    : {op: 'mul', a: inner, b: fader};
+    : {op: 'mul', args: [inner, fader]};
 
 // A small constant | field switch, the same idea as a slot's own.
 function makeSeg(mode, parts, small) {
@@ -1090,7 +1169,7 @@ function leafEditor(key, tree, path) {
     wrap.className = 'wrap';
     wrap.textContent = '+';
     wrap.title = 'add a term next to this value: it and the new term become one operation (to add a term around a whole operation, use + outer on its box)';
-    wrap.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', a: node, b: null}));
+    wrap.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', args: [node, null]}));
     row.append(wrap);
   }
   return row;
@@ -1111,7 +1190,6 @@ function operand(n) {
   if (n === null || n === undefined) return '(empty)';
   if (isNum(n)) return fmt(n);
   if (typeof n === 'string') return n;
-  if (isGradient(n)) return describe(n);
   return `(${explain(n)})`;
 }
 
@@ -1119,10 +1197,23 @@ function explain(n) {
   if (n === null || n === undefined) return 'nothing yet';
   if (isNum(n)) return `the constant ${fmt(n)}`;
   if (typeof n === 'string') return n;
-  if (isGradient(n)) return describe(n);
 
-  const {op, a, b} = n;
-  const inverse = (x) => x && typeof x === 'object' && x.op === 'sub' && x.a === 1 ? x.b : null;
+  const {op, args} = n;
+  const [a, b] = args;
+  const two = args.length === 2;
+  const inverse = (x) => x && typeof x === 'object' && x.op === 'sub'
+      && x.args.length === 2 && x.args[0] === 1 ? x.args[1] : null;
+
+  // The arithmetic below is only about two operands; an operation that somehow
+  // holds another number falls through to the general reading.
+  if (!two && ['mul', 'add', 'sub', 'div'].includes(op)) return describe(n);
+  const list = args.map(operand).join(', ');
+  if (op === 'select') return `one of ${list}, picked by the select knob`;
+  if (op === 'cycle') return `${args.map(operand).join(' then ')}, each for a turn on the clock`;
+  if (op === 'randomize') return `one of ${list}, picked at random on every pad press`;
+  if (op === 'prob_zap') return `${operand(a)} sets how often an end flashes`;
+  if (/^gradient_\d+_[hs]$/.test(op))
+    return `gradient ${op.split('_')[1]} read at ${operand(a)}, ${op.endsWith('_h') ? 'for hue' : 'for saturation'}`;
 
   if (op === 'mul') {
     for (const [x, y] of [[a, b], [b, a]]) {
@@ -1149,7 +1240,8 @@ function explain(n) {
     if (isNum(b) && b !== 0) return `${operand(a)} divided by ${fmt(b)}`;
     return `${operand(a)} divided by ${operand(b)} (0 where that is 0)`;
   }
-  if (op === 'avg') return `halfway between ${operand(a)} and ${operand(b)}`;
+  if (op === 'avg') return two ? `halfway between ${operand(a)} and ${operand(b)}`
+                               : `the average of ${list}`;
   return describe(n);
 }
 
@@ -1165,8 +1257,18 @@ function groupedText(node, depth = 0) {
     p.textContent = c;
     return p;
   };
-  out.append(paren('('), groupedText(node.a, depth + 1), ` ${OPS[node.op]} `,
-             groupedText(node.b, depth + 1), paren(')'));
+  if (infix(node, OPS)) {
+    out.append(paren('('), groupedText(node.args[0], depth + 1), ` ${OPS[node.op]} `,
+               groupedText(node.args[1], depth + 1), paren(')'));
+  } else {
+    // A call: its name, then its operands between brackets of the box's colour.
+    out.append(`${node.op}`, paren('('));
+    node.args.forEach((arg, i) => {
+      if (i) out.append(', ');
+      out.append(groupedText(arg, depth + 1));
+    });
+    out.append(paren(')'));
+  }
   if (node.mod) out.append(' mod 1');
   return out;
 }
@@ -1186,22 +1288,36 @@ function nodeEditor(key, tree, path, depth = 0) {
   boxDrag(box, {key, path, tree});
 
   const head = document.createElement('div');
-  head.className = 'ops';
+  head.className = 'ops fpick';       // fpick: the operator menu hangs off this row
+  const arity = arityOf(node.op);
   if (path.length) head.append(grip(box, {key, path, tree}));
   for (const [name, glyph] of Object.entries(OPS)) {
     const b = document.createElement('button');
     b.className = name === node.op ? 'on' : '';
     b.textContent = glyph;
     b.title = name;
-    b.onclick = () => setFormula(key, replace(tree, path, {...node, op: name}));
+    b.onclick = () => setFormula(key, replace(tree, path, withOp(node, name)));
     head.append(b);
   }
-  // Which side is which matters for - and the others read left to right.
+  // The row has room for the operators a sum is written with. The rig has more,
+  // and this is the way to them; when the operation is one of those, the button
+  // says which, rather than leaving nothing lit.
+  const glyphed = node.op in OPS;
+  const more = document.createElement('button');
+  more.className = glyphed ? '' : 'named on';
+  more.textContent = glyphed ? '…' : node.op;
+  more.title = glyphed ? 'every operator' : `${node.op} - pick another operator`;
+  more.onclick = fieldMenu(head, node.op, (name) => setFormula(key, replace(tree, path, withOp(node, name))),
+                           operatorSource);
+  head.append(more);
+
+  // Which side is which matters for - and the others read left to right. Reversed
+  // rather than swapped, so it still means something with more than two.
   const flip = document.createElement('button');
   flip.className = 'flip';
   flip.textContent = '\u21c4';
-  flip.title = 'swap the two sides';
-  flip.onclick = () => setFormula(key, replace(tree, path, {...node, a: node.b, b: node.a}));
+  flip.title = 'turn the operands round';
+  flip.onclick = () => setFormula(key, replace(tree, path, {...node, args: [...node.args].reverse()}));
 
   // The + on a single value pairs that value with another, which nests the new term
   // inside. This is its counterpart for a whole operation: the operation, with
@@ -1211,7 +1327,7 @@ function nodeEditor(key, tree, path, depth = 0) {
   outer.className = 'outer';
   outer.textContent = '+ outer';
   outer.title = 'add a term outside this whole operation: all of it becomes the first half of a new operation, and you choose the other half';
-  outer.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', a: node, b: null}));
+  outer.onclick = () => setFormula(key, replace(tree, path, {op: 'mul', args: [node, null]}));
   // Held to 0-1 by default; with this on, the result wraps round instead (1.1 is 0.1).
   const mod = document.createElement('button');
   mod.className = 'modsw' + (node.mod ? ' on' : '');
@@ -1228,19 +1344,58 @@ function nodeEditor(key, tree, path, depth = 0) {
     const {mod: was, ...rest} = node;
     setFormula(key, replace(tree, path, was ? rest : {...rest, mod: true}));
   };
-  head.append(outer, mod, flip);
+  // An operator written with any number of operands can be given another. The
+  // rest have the number they are written with, so there is nothing to add.
+  const plus = document.createElement('button');
+  plus.className = 'plus';
+  plus.textContent = '+ operand';
+  plus.title = 'another operand';
+  plus.onclick = () => setFormula(key, replace(tree, path, {...node, args: [...node.args, null]}));
+
+  head.append(...(arity === 'nary' ? [plus] : []), outer, mod, ...(node.args.length > 1 ? [flip] : []));
 
   const drop = document.createElement('button');
   drop.className = 'drop';
   drop.textContent = '\u00d7';
   drop.title = 'remove this operation and keep only its first operand';
-  drop.onclick = () => setFormula(key, replace(tree, path, node.a));
+  drop.onclick = () => setFormula(key, replace(tree, path, node.args[0]));
   head.append(drop);
 
   const kids = document.createElement('div');
   kids.className = 'kids';
-  kids.append(nodeEditor(key, tree, [...path, 'a'], depth + 1),
-              nodeEditor(key, tree, [...path, 'b'], depth + 1));
+  const operands = node.args.map((_, i) => nodeEditor(key, tree, [...path, 'args', i], depth + 1));
+
+  if (arity === 'binary' && operands.length === 2) {
+    kids.append(...operands);
+  } else {
+    // Anything else lists its operands in order, numbered, since position is all
+    // that tells them apart - and for a select it is the number on the knob. A
+    // binary operator that somehow holds another count also lands here, so that
+    // nothing is left off the screen.
+    operands.forEach((view, i) => {
+      const line = document.createElement('div');
+      line.className = 'operand';
+      if (operands.length > 1) {
+        const n = document.createElement('i');
+        n.textContent = i;
+        line.append(n);
+      }
+      line.append(view);
+
+      // Down to one, because an operation with nothing in it is not one. The
+      // others are written with the number they have, so none can be dropped.
+      if (arity === 'nary' && operands.length > 1) {
+        const cut = document.createElement('button');
+        cut.className = 'cut';
+        cut.textContent = '×';
+        cut.title = `drop operand ${i}`;
+        cut.onclick = () => setFormula(key, replace(tree, path,
+            {...node, args: node.args.filter((_, which) => which !== i)}));
+        line.append(cut);
+      }
+      kids.append(line);
+    });
+  }
   box.append(head, kids);
   return box;
 }
@@ -1252,8 +1407,10 @@ const modeOf = (tree) => typeof tree === 'string' ? 'field'
 // What the wheel says, as the formula it stands for: the field squeezed into a
 // width, then moved to a start. Spelled out in full even when the width is 1
 // and the start is 0, so the editor always shows the same three things.
-const hueTree = (h) => ({op: 'add', a: {op: 'mul', a: h.field, b: Math.round(h.width * 1000) / 1000},
-                         b: Math.round(h.start * 1000) / 1000, ...(h.mod ? {mod: true} : {})});
+const hueTree = (h) => ({op: 'add',
+                         args: [{op: 'mul', args: [h.field, Math.round(h.width * 1000) / 1000]},
+                                Math.round(h.start * 1000) / 1000],
+                         ...(h.mod ? {mod: true} : {})});
 
 // ---- turning a field's knobs ----------------------------------------------
 // A field takes its values from knobs on the desk, and its slot can show them:
@@ -1269,20 +1426,38 @@ let mapping = null;         // {name, since}: a control waiting for a knob to be
 
 // The fields a formula names, however deep.
 const fieldsIn = (n) => typeof n === 'string' ? [n]
-    : n !== null && typeof n === 'object'
-      ? (isGradient(n) ? gradientFields(n) : [...fieldsIn(n.a), ...fieldsIn(n.b)])
-      : [];
+    : n !== null && typeof n === 'object' ? n.args.flatMap(fieldsIn)
+    : [];
+
+// The operators a formula names, however deep. An operator can own knobs of its
+// own - a select has the one that picks - so what is behind a formula is not only
+// what its fields own.
+const opsIn = (n) => n !== null && typeof n === 'object'
+    ? [n.op, ...n.args.flatMap(opsIn)] : [];
 
 // A turned copy of a rotary (rotary180, v_rotary90...) is the same rotation
 // seen from elsewhere and shares its knobs, which are named for the original.
 const knobOwner = (name) => name.replace(/^((?:v_)?rotary)\d+$/, '$1');
 
-// The knobs behind a formula: a control's comment is `field.role`, so it
-// belongs to a field when it begins with that field's name.
+// The knobs behind a formula: a control's comment is `owner.role`, so it belongs
+// to whatever is in front of the dot (see docs/CONTROLS.md).
+//
+// A field owns exactly the controls named after it. Several fields are named
+// after another with something on the end - `random_lines` is not a kind of
+// `random` - and matching loosely would hand each the other's knobs.
+//
+// An operator takes any control whose owner it carries as a prefix, because
+// several share one that is named after none of them: `gradient_1_h` and
+// `gradient_1_s` both ask for `gradient_1.select`. No operator is named after
+// another field or operator plus a suffix, so nothing is swept up that way.
 const controlsFor = (tree) => {
-  const names = fieldsIn(tree).map(knobOwner);
-  return controls.filter(c => c.kind === 'cc' && !c.hidden &&
-      c.comments.some(t => names.some(n => t.startsWith(n + '.'))));
+  const fields = fieldsIn(tree).map(knobOwner);
+  const ops = opsIn(tree);
+
+  return controls.filter(c => c.kind === 'cc' && !c.hidden && c.comments.some((t) => {
+    const owner = t.split('.')[0];
+    return fields.includes(owner) || ops.some(o => o === owner || o.startsWith(owner + '_'));
+  }));
 };
 
 const CC_MAX = 127;
@@ -1618,10 +1793,10 @@ function slotRow(key, saved) {
        formulaOpen.add(key);
        if (hue && hue.field === null) {
          // A fixed hue becomes the start; the field is left to choose.
-         editing[key] = {op: 'add', a: {op: 'mul', a: null, b: 1}, b: hue.start};
+         editing[key] = {op: 'add', args: [{op: 'mul', args: [null, 1]}, hue.start]};
        } else if (!hue && isLeaf(tree)) {
          // A single operand becomes the first of two; the second is left to fill in.
-         editing[key] = {op: 'mul', a: tree ?? 0, b: null};
+         editing[key] = {op: 'mul', args: [tree ?? 0, null]};
        }
        drawEffects();
      }},
@@ -2070,7 +2245,7 @@ function drawEffects() {
     };
 
     // ... and so does its dial, to turn it without opening the effect.
-    const faderDials = controlsFor(faders.reduce((t, f) => t === null ? f : {op: 'add', a: t, b: f}, null));
+    const faderDials = controlsFor(faders.reduce((t, f) => t === null ? f : {op: 'add', args: [t, f]}, null));
     const dials = faderDials.length ? knobList(faderDials, true) : null;
 
     head.append(cardGrip(card, head, name, names), title, note, ...fadeTag, ...(dials ? [dials] : []),
@@ -2254,28 +2429,44 @@ let mapDrawn = '';          // what the map was last drawn from, so a quiet seco
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const short = (t, n = 8) => t.length > n ? t.slice(0, n - 1) + '…' : t;
 
-// A control's comment is `field.role`. Only the ones that name a field of the
-// rig can be plugged into a slot.
+// Whether a control owner is an operator's: its name, or a prefix of it - several
+// operators share one named after none of them (`gradient_1` for `gradient_1_h`).
+// The same rule as controlsFor, and docs/CONTROLS.md says why.
+const isOperatorOwner = (owner) => rig.operators.some(o => o.name === owner || o.name.startsWith(owner + '_'));
+
+// A control's comment is `owner.role`. The ones owned by a field of the rig, or by
+// an operator, are the ones a formula can bring in.
 const fieldOwners = (c) => {
   const names = new Set(rig.fields.map(f => f.name));
-  return [...new Set(c.comments.map(t => knobOwner(t.split('.')[0])).filter(n => names.has(n)))];
+  return [...new Set(c.comments.map(t => knobOwner(t.split('.')[0]))
+                              .filter(n => names.has(n) || isOperatorOwner(n)))];
 };
 
-// The effects each field is used by in the playing preset: a slot is
-// `effect.slot`, and its formula names the fields it reads.
+// What a formula owns controls through: the fields it names, and the owners of the
+// operators it names, however deep. An operator keeps a knob of its own - a select
+// has the one that picks - so the desk is not only what its fields own.
+const ownersIn = (tree) => {
+  const ops = opsIn(tree);
+  const viaOps = [...new Set(controls.flatMap(c => c.comments.map(t => t.split('.')[0])))]
+      .filter(o => ops.some(n => n === o || n.startsWith(o + '_')));
+  return [...fieldsIn(tree).map(knobOwner), ...viaOps];
+};
+
+// The effects each owner is used by in the playing preset: a slot is
+// `effect.slot`, and its formula names the fields and operators it reads.
 function effectsUsing() {
   const live = views[rig.selected]?.live;
   const by = new Map();
   for (const [key, tree] of Object.entries(live?.slots ?? {}))
-    for (const f of fieldsIn(tree).map(knobOwner)) by.set(f, (by.get(f) ?? new Set()).add(key.split('.')[0]));
+    for (const f of ownersIn(tree)) by.set(f, (by.get(f) ?? new Set()).add(key.split('.')[0]));
   return by;
 }
 
-// The fields the playing preset's slots name, whatever their depth.
+// The owners the playing preset's slots reach, whatever their depth.
 function fieldsInUse() {
   const live = views[rig.selected]?.live;
   const used = new Set();
-  for (const tree of Object.values(live?.slots ?? {})) fieldsIn(tree).forEach(n => used.add(knobOwner(n)));
+  for (const tree of Object.values(live?.slots ?? {})) ownersIn(tree).forEach(n => used.add(n));
   return used;
 }
 
@@ -2502,7 +2693,7 @@ const FADER_HOME = {'fader_a.value': 0, 'fader_b.value': 1, 'param_a.value': 2, 
 const FADER_ANY = ['wipe1.speed', 'wipe2.speed'];
 
 const fieldOf = (name) => name.split('.')[0];
-const fieldsOfSlots = (slots) => new Set(Object.values(slots).flatMap(fieldsIn).map(knobOwner));
+const fieldsOfSlots = (slots) => new Set(Object.values(slots).flatMap(ownersIn));
 
 // The patch's cc_map once every control the slots use is on a fader or knob of
 // the box on the map. One already on the box stays where it is, and the CCs

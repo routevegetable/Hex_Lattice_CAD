@@ -1,0 +1,180 @@
+{
+  "ccs": {
+    "10": 127,
+    "14": 0,
+    "15": 0,
+    "16": 113,
+    "17": 49,
+    "18": 127,
+    "19": 46,
+    "71": 102,
+    "72": 0,
+    "73": 17,
+    "74": 0,
+    "75": 0,
+    "76": 0,
+    "77": 79,
+    "79": 1,
+    "81": 0,
+    "82": 0,
+    "83": 0,
+    "84": 0,
+    "85": 0,
+    "86": 0,
+    "89": 102,
+    "91": 66,
+    "93": 1,
+    "102": 55,
+    "103": 0,
+    "104": 5,
+    "105": 92,
+    "106": 0,
+    "107": 19,
+    "108": 17,
+    "109": 12,
+    "110": 3,
+    "111": 11,
+    "112": 3,
+    "113": 5,
+    "114": 19,
+    "115": 0,
+    "116": 5,
+    "117": 0,
+    "118": 0,
+    "119": 2,
+    "120": 5,
+    "121": 70,
+    "122": 47,
+    "123": 0,
+    "124": 45,
+    "125": 2
+  },
+  "slots": {
+    "bg_waves.flow": 0.0,
+    "bg_waves.value": 0.0,
+    "bg_waves.sat": 1.0,
+    "bg_waves.hue": 0.3,
+    "prob_zaps.value": {
+      "op": "mul",
+      "args": [
+        0.35,
+        "fader_a"
+      ],
+      "mod": false
+    },
+    "prob_zaps.prob": {
+      "op": "mul",
+      "args": [
+        {
+          "op": "sub",
+          "args": [
+            {
+              "op": "select",
+              "args": [
+                "rotary",
+                {
+                  "op": "sub",
+                  "args": [
+                    "v_rotary",
+                    0.21
+                  ],
+                  "mod": false
+                }
+              ],
+              "mod": false
+            },
+            0.3
+          ],
+          "mod": false
+        },
+        0.3
+      ],
+      "mod": false
+    },
+    "prob_zaps.hue": {
+      "op": "add",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            {
+              "op": "select",
+              "args": [
+                {
+                  "op": "sub",
+                  "args": [
+                    "v_rotary",
+                    0.21
+                  ],
+                  "mod": false
+                },
+                "rotary"
+              ],
+              "mod": false
+            },
+            0.8
+          ],
+          "mod": false
+        },
+        0.5
+      ],
+      "mod": false
+    },
+    "map_fiber.sat": {
+      "op": "sub",
+      "args": [
+        1.0,
+        {
+          "op": "mul",
+          "args": [
+            {
+              "op": "sub",
+              "args": [
+                "strobe0",
+                0.96
+              ],
+              "mod": false
+            },
+            3.0
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
+    },
+    "map_fiber.hue": {
+      "op": "add",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "rotary",
+            0.05
+          ],
+          "mod": false
+        },
+        0.05
+      ],
+      "mod": false
+    },
+    "map_fiber.value": {
+      "op": "mul",
+      "args": [
+        "loops",
+        "strobe0"
+      ],
+      "mod": false
+    }
+  },
+  "cc_map": {
+    "v_rotary.parts": 79
+  },
+  "active": [
+    "prob_zaps",
+    "map_fiber",
+    "ambient_light"
+  ],
+  "muted": [],
+  "name": "dubstep-10",
+  "notes": {}
+}

@@ -149,6 +149,8 @@ main { flex: 1; position: relative; overflow: hidden; }
 .kindsel > * { min-width: 30px; padding: 0 .3rem; font-size: .8rem;
                letter-spacing: .04em; justify-content: center; }
 .opsel button { min-width: 28px; padding: 0; justify-content: center; }
+/* the one that says which operator it is, when that is a name and not a glyph */
+.opsel button.named { padding: 0 .45rem; letter-spacing: .02em; }
 .kindsel > *:last-child, .opsel button:last-child { border-right: 0; }
 .kindsel > .on, .opsel button.on { background: #24334d; color: #fff; }
 .kindsel .name { margin-left: .4rem; color: #cde; font-size: .85rem;
@@ -158,12 +160,21 @@ main { flex: 1; position: relative; overflow: hidden; }
 .kindsel .math { flex-direction: column; font-size: .55rem; line-height: 1.15;
                  letter-spacing: .06em; padding: 0 .35rem; }
 
-/* the three things you can do to an operation itself, rather than to what is
-   in it: swap its operands, put it inside a new one, or drop it. */
-.unwrap, .wrap, .swap {
+/* an operand of an operation not written as a sum: its position is the only
+   thing telling it from the others, so it is numbered. */
+.operand { display: flex; align-items: center; gap: .3rem; }
+.operand > i { font-style: normal; color: #678; font-size: .7rem; min-width: .7rem; }
+/* the operand itself takes the room, so the buttons either side of it stay put */
+.operand > .row-wrap, .operand > .node { flex: 1; min-width: 0; }
+.operand > .node { margin-top: 0; }
+
+/* the things you can do to an operation itself, rather than to what is in it:
+   turn its operands round, give it another or take one away, put it inside a
+   new one, drop it. */
+.unwrap, .wrap, .swap, .plus, .cut {
           min-width: 28px; min-height: 26px; border: 0; border-left: 1px solid #333;
           background: #1d1d1d; font: inherit; line-height: 1; padding: 0; }
-.unwrap { color: #a77; }
+.unwrap, .cut { color: #a77; }
 .wrap, .swap { color: #8a9; }
 .hint { color: #666; font-size: .75rem; padding: 0 .5rem; }
 
@@ -280,6 +291,7 @@ input[type=range] { flex: 1; min-width: 5rem; max-width: 12rem; height: 24px;
                  background: #1a1f26; color: #dee; font: inherit; font-size: .8rem;
                  text-align: left; white-space: nowrap; overflow: hidden;
                  text-overflow: ellipsis; }
+.picker button.on { background: #24334d; color: #fff; }
 .picker input { min-height: 34px; font: inherit; width: 100%; padding: .15rem .4rem;
                 border: 0; background: #111; color: #eee; }
 

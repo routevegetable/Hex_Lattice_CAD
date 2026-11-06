@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 
 from pylattice.examples.midi import CCMeta, MIDI
 from pylattice.examples.tempo import Event
+from pylattice.fields.operators import Arity, Operator
 from pylattice.fields.types import ScalarField, Timing
 from pylattice.instrument.patch import Patch, PresetBank, named
 from pylattice.instrument.types import Effect
@@ -31,6 +32,21 @@ class FieldInfo:
     """A field a slot can be pointed at, and what kind it is."""
     name: str
     kind: str
+
+
+@dataclass
+class OperatorInfo:
+    """An operator an operation can name, what kind it is, and how many
+    arguments it is written with.
+
+    Read off OPERATORS, which is where they are declared - apart from the
+    fields, because an operator is not something a slot can be pointed at.
+    The arity is for laying one out on screen; nothing checks it, and an
+    operator is handed however many arguments the expression names.
+    """
+    name: str
+    kind: str
+    arity: Arity
 
 
 @dataclass
@@ -85,12 +101,15 @@ class Rig:
     """What can be patched - the names a Patch refers to, and the bank.
 
     Everything about what is *set* lives in the Patch itself; this is only the
-    vocabulary, so a UI knows which fields it may choose and which slots exist
-    at all, including the ones nothing is plugged into. A slot is named
-    `effect.slot` wherever a Patch refers to one; here the two halves are kept
-    apart, since the effect is what a UI groups by.
+    vocabulary, so a UI knows which fields and operators it may name and which
+    slots exist at all, including the ones nothing is plugged into. A slot is
+    named `effect.slot` wherever a Patch refers to one; here the two halves are
+    kept apart, since the effect is what a UI groups by.
     """
     fields: list[FieldInfo] = field(default_factory=list)
+
+    operators: list[OperatorInfo] = field(default_factory=list)
+
     effects: dict[str, EffectInfo] = field(default_factory=dict)
 
     # Presentation metadata for controls
@@ -103,10 +122,12 @@ class Rig:
 class Console:
     """Thread-safe access to the patch. Every method takes the lock."""
 
-    def __init__(self, midi: MIDI, fields: type, effects: type, bank: PresetBank):
+    def __init__(self, midi: MIDI, fields: type, operators: type, effects: type,
+                 bank: PresetBank):
         self.lock = threading.RLock()
         self._midi = midi
         self._fields = fields
+        self._operators = operators
         self._effects = effects
         self._bank = bank
         bank.live_ccs = self._live_ccs      # so the bank can keep up with the knobs
@@ -202,7 +223,7 @@ class Console:
         """Put a patch into the rig. Knobs it does not mention are left alone,
         but slots it does not mention are emptied - a patch is the whole
         picture. The lock is already held."""
-        patch.apply(self._midi, self._fields, self._effects)
+        patch.apply(self._midi, self._fields, self._operators, self._effects)
 
     # -- the four things you can do to a preset ---------------------------
 
@@ -302,6 +323,8 @@ class Console:
             return Rig(
                 fields=[FieldInfo(name, type(f).__name__)
                         for name, f in named(self._fields, ScalarField).items()],
+                operators=[OperatorInfo(name, type(op).__name__, op.arity)
+                           for name, op in named(self._operators, Operator).items()],
                 effects=effects,
                 control_meta={name: mapping.meta for name, mapping
                               in self._midi.get_mappings().items()},

@@ -4,6 +4,9 @@ A field is a value per end. This is the whole menu the web UI offers and a
 preset can name - docs/beatstep.svg has the same thing as a control layout.
 """
 
+import operator
+from typing import Callable
+from pylattice.examples.tempo import Event
 from pylattice.fields.artnet import artnet_universes
 from pylattice.fields.burst import BurstField
 from pylattice.fields.controls import CCField, StrobeField
@@ -13,12 +16,23 @@ from pylattice.fields.gradient import VGradientField
 from pylattice.fields.lfo import LFOField
 from pylattice.fields.hexes import HexesField
 from pylattice.fields.mask import D1, D2, EdgeMaskField, H, RandomLinesField, V
+from pylattice.fields.operators import (
+    Arity,
+    Cycle,
+    GradientChooser,
+    Randomize,
+    Operator,
+    ProbZap,
+    Select,
+)
 from pylattice.fields.random import NoteRandomField
 from pylattice.fields.ripple import NoteRippleField
 from pylattice.fields.rotary import RotaryField
 from pylattice.fields.scope import ScopeFieldBetter
 from pylattice.fields.trace import RandomTraceField, TraceLinesField
+from pylattice.fields.types import ScalarField, average, divide
 from pylattice.fields.wipe import NoteWipeField
+from pylattice.graph import EndRef
 from pylattice.instrument.hardware import (
     KA1,
     KA2,
@@ -41,6 +55,7 @@ from pylattice.instrument.hardware import (
     PA3,
     PA4,
     PA5,
+    PA6,
     PB1,
     PB2,
     PB3,
@@ -55,6 +70,24 @@ from pylattice.instrument.hardware import (
 
 ARTNET = artnet_universes(graph, count=4)
 
+
+
+class Math(Operator):
+    """A plain callable as an operator: its arguments evaluated, then handed
+    over as numbers.
+
+    The arity comes in with the callable rather than being set on the class,
+    because that is what has it - `operator.add` takes two, `average` takes
+    however many it is given.
+    """
+
+    def __init__(self, c: Callable, arity: Arity):
+        self._c = c
+        self.arity = arity
+
+    def get(self, now: Event, end: EndRef, *args: ScalarField) -> float:
+        arg_values = [arg.get(now, end) for arg in args]
+        return self._c(*arg_values)
 
 class FIELDS:
 
@@ -188,3 +221,49 @@ class FIELDS:
     v_gradient = VGradientField(midi.for_("v_gradient"), origin=KA6)
 
     burst = BurstField(graph, midi.for_("burst"), note=PB8, decay=KA7, attack=109)
+
+
+class OPERATORS:
+    """
+    Long-lived, like the fields: one object per operator, shared by every
+    operation that names it.
+    """
+
+    add = Math(operator.add, Arity.BINARY)
+    sub = Math(operator.sub, Arity.BINARY)
+    mul = Math(operator.mul, Arity.BINARY)
+    div = Math(divide, Arity.BINARY)
+    avg = Math(average, Arity.NARY)
+
+    # One field out of several, picked by a knob - `select(ripple, wipe1, fire)`
+    select = Select(midi.for_("select"), select=81)
+    select2 = Select(midi.for_("select2"), select=87)
+    select3 = Select(midi.for_("select3"), select=88)
+
+    # The same, picked by the clock instead of by hand - `cycle(ripple, wipe1)`
+    # alternates between them. The knob is how long one of them holds, 2s down
+    # to 60ms, so adding another appends a turn rather than shortening the
+    # others. CC 86.
+    cycle = Cycle(midi.for_("cycle"), rate=86)
+
+    # And picked at random, on PA6 - `randomize(ripple, wipe1, fire)` jumps to
+    # one of them on every press and stays there. No knob: how often it changes
+    # is whatever is playing the pad.
+    randomize = Randomize(midi.for_("randomize"), note=PA6)
+
+    # A gradient read at a field: `gradient_1_h(v_gradient)` is the hue of
+    # gradient 1 at wherever up the lattice that field says, and the _s beside
+    # it is the saturation of the same gradient at the same place. Unary - the
+    # gradient is chosen on a knob, not written into the expression.
+    #
+    gradient_1_h = GradientChooser(True, midi.for_("gradient_1"), 82)
+    gradient_1_s = GradientChooser(False, midi.for_("gradient_1"), 82)
+    gradient_2_h = GradientChooser(True, midi.for_("gradient_2"), 83)
+    gradient_2_s = GradientChooser(False, midi.for_("gradient_2"), 83)
+    gradient_3_h = GradientChooser(True, midi.for_("gradient_3"), 84)
+    gradient_3_s = GradientChooser(False, midi.for_("gradient_3"), 84)
+
+    # The prob_zaps effect as a value: `prob_zap(fader_a)` flashes ends at the
+    # rate that knob asks for, and whatever is reading it gets the flash.
+    prob_zap = ProbZap(graph, midi.for_("prob_zap"), length=85)
+    

@@ -1,8 +1,9 @@
 """What a field is: the protocols it implements, and how fields combine."""
 
 import operator
+import traceback
 from dataclasses import dataclass
-from time import perf_counter_ns
+from time import thread_time_ns
 from typing import Protocol, runtime_checkable
 
 from pylattice.examples.tempo import Event
@@ -104,9 +105,10 @@ def divide(a: float, b: float) -> float:
     return a / b if b else 0.0
 
 
-def average(a: float, b: float) -> float:
-    """Halfway between two values - an operator with no Python symbol."""
-    return (a + b) / 2
+def average(*values: float) -> float:
+    """The mean of however many values - an operator with no Python symbol.
+    """
+    return sum(values) / len(values)
 
 
 def as_field(x: "ScalarField | float") -> ScalarField:
@@ -147,6 +149,9 @@ class Timing:
 
     `calls` is that second's count, left raw. It is what turns a mean into a
     load: a slot averaging 2us over 2,600 gets is spending 5ms a second.
+
+    `per_end` and `per_end_max` are how many gets one end took within one
+    frame, as a mean and a worst over that second. Also left raw.
     """
 
     max: float = 0.0
@@ -154,6 +159,8 @@ class Timing:
     mean: float = 0.0
     sd: float = 0.0
     calls: int = 0
+    per_end: float = 0.0
+    per_end_max: int = 0
 
 
 class Slot(ScalarField):
@@ -176,6 +183,11 @@ class Slot(ScalarField):
         self.name = name
         self._field: ScalarField = ConstantField(0)
 
+        # Whether what is in here has already been seen to raise. A field that
+        # fails does so per end per frame, so the first one says what happened
+        # and the rest are silent; plugging something else in arms it again.
+        self._failed = False
+
         # What the gets of this second have cost, as running totals rather
         # than a list of them: a get happens once per end per frame, so
         # nothing on that path may allocate. Keeping the squares as well as
@@ -191,6 +203,13 @@ class Slot(ScalarField):
         self._worst = 0
         self._best = FOREVER
 
+        # Gets of each end in the current frame, and over this second how many
+        # end-in-a-frame pairs there were and the most gets any of them took.
+        self._frame: int | None = None
+        self._frame_gets: dict[EndRef, int] = {}
+        self._pairs = 0
+        self._most = 0
+
         # The smoothed numbers, or None until a second has gone by with
         # something in it - the first fold seeds them rather than ramping up
         # from zero.
@@ -205,11 +224,13 @@ class Slot(ScalarField):
                 f" not {type(field).__name__}"
             )
         self._field = resolved
+        self._failed = False
         return resolved
 
     def clear(self):
         """Unplug whatever is in here, back to how it started."""
         self._field = ConstantField(0)
+        self._failed = False
 
     @property
     def field(self) -> ScalarField:
@@ -221,9 +242,22 @@ class Slot(ScalarField):
         return True
 
     def get(self, now: Event, end: EndRef) -> float:
-        start = perf_counter_ns()
-        value = self._field.get(now, end)
-        took = perf_counter_ns() - start
+        # CPU time, so time this thread spends off the processor is not counted.
+        start = thread_time_ns()
+
+        # Catch exceptions from evaluating fields, log them once until the field is re-set.
+        try:
+            value = self._field.get(now, end)
+        except Exception:
+            value = 0.0
+
+            if not self._failed:
+                self._failed = True
+                print(f"slot {self.name!r} raised - reading 0 until something"
+                      f" else is plugged in:")
+                traceback.print_exc()
+
+        took = thread_time_ns() - start
 
         self._calls += 1
         self._spent += took
@@ -234,6 +268,19 @@ class Slot(ScalarField):
 
         if took < self._best:
             self._best = took
+
+        if now.when != self._frame:
+            self._frame = now.when
+            self._frame_gets.clear()
+
+        gets = self._frame_gets.get(end, 0) + 1
+        self._frame_gets[end] = gets
+
+        if gets == 1:
+            self._pairs += 1
+
+        if gets > self._most:
+            self._most = gets
 
         return value
 
@@ -258,8 +305,9 @@ class Slot(ScalarField):
         spread = max(self._squares / calls - mean * mean, 0.0) ** 0.5
 
         was = self.timing
+        per_end = calls / self._pairs
         fresh = Timing(self._worst / 1000, self._best / 1000,
-                       mean / 1000, spread / 1000, calls)
+                       mean / 1000, spread / 1000, calls, per_end, self._most)
 
         self.timing = fresh if was is None else Timing(
             max=was.max + SMOOTH * (fresh.max - was.max),
@@ -267,9 +315,12 @@ class Slot(ScalarField):
             mean=was.mean + SMOOTH * (fresh.mean - was.mean),
             sd=was.sd + SMOOTH * (fresh.sd - was.sd),
             calls=calls,
+            per_end=per_end,
+            per_end_max=self._most,
         )
 
         self._calls = self._spent = self._squares = self._worst = 0
+        self._pairs = self._most = 0
         self._best = FOREVER
 
         return self.timing
