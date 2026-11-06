@@ -14,6 +14,8 @@ export enum ModuleEdge {
     D2,
     E2,
     F2,
+    // Magic C3 edge - this is the C1 of the module next
+    C3,
 }
 
 
@@ -45,6 +47,7 @@ const CHANNEL_EDGES: { [x: number]: EdgeSeq[] } = {
         { edge: ModuleEdge.C2, points_up: true },
         { edge: ModuleEdge.A2, points_up: true },
         { edge: ModuleEdge.B2, points_up: false },
+        { edge: ModuleEdge.C3, points_up: false },
     ],
     // Channel 2
     [2]: [
@@ -138,7 +141,7 @@ export const ModuleFrame = {
     },
 
     // Inverse of serialize: parse the channel/edge byte stream back into `f`,
-    // mutating its ends in place. `f` must already have its 12 edges allocated
+    // mutating its ends in place. `f` must already have its 13 edges allocated
     // (see ModuleFrame.blank).
     deserialize(arr: Uint8Array, f: ModuleFrame): void {
         const CHANNELS = 4;
@@ -161,7 +164,7 @@ export const ModuleFrame = {
     // A fresh all-black ModuleFrame with every edge/end/filament allocated.
     blank(): ModuleFrame {
         const f = {} as ModuleFrame;
-        for (let e = 0; e < 12; e++) {
+        for (let e = 0; e < 13; e++) {
             f[e as ModuleEdge] = {
                 ends: {
                     top: [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],

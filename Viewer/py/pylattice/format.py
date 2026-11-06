@@ -92,6 +92,7 @@ STANDARD_MODULE = FrameFormat(
             (ModuleEdge.C2, True),
             (ModuleEdge.A2, True),
             (ModuleEdge.B2, False),
+            (ModuleEdge.C3, False),
         ],
         2: [(ModuleEdge.D2, False), (ModuleEdge.F2, False)],
         3: [(ModuleEdge.F1, False)],

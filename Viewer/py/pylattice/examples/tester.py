@@ -8,6 +8,7 @@ orientation directly from the structure.
     1. python3 serve.py
     2. python3 -m pylattice.examples.tester           # all edges, all modules
        python3 -m pylattice.examples.tester A1        # just edge A1, all modules
+       python3 -m pylattice.examples.tester C3        # the last module of a row's closing edge
        python3 -m pylattice.examples.tester A1 0-5    # edge A1, module "0-5" (x-y = lateral-height)
        python3 -m pylattice.examples.tester 0-5       # all edges, module "0-5"
 """
@@ -17,7 +18,7 @@ import time
 
 from pylattice.graph import Graph
 from pylattice.format import STANDARD_MODULE, WEIRD_TUBE
-from pylattice import ModuleFrame, LatticeClient, EdgeClass, TileRef
+from pylattice import ModuleEdge, ModuleFrame, LatticeClient, TileRef
 from pylattice.lattice_writer import LatticeWriter
 
 ROWS = 2          # stacked rings to cover
@@ -30,14 +31,8 @@ PURPLE = [0, 0.0, 1]
 
 graph = Graph(PER_ROW / 2, ROWS)
 
-# A module's 12 edges, addressed via the graph: two tiles (x even/odd) x 6 edge
-# classes. TileRef(x, 0).edge(class) is the EdgeRef; get_end_frame resolves it to
-# the right ModuleEdge (…1 for tile 0, …2 for tile 1).
-ALL_EDGES = [
-    (TileRef(graph, tx, 0).edge(ec), f"{ec.value}{tx + 1}")
-    for tx in (0, 1)
-    for ec in EdgeClass
-]
+# A module's edges, A1..F2 and then C3.
+ALL_EDGES = list(ModuleEdge)
 
 """
 How do I rotate an end about a vertex.
@@ -57,11 +52,10 @@ lattice = LatticeWriter(PER_ROW, ROWS)
 def build_frame(edges, step: int) -> ModuleFrame:
     """Blank frame with one (edge, filament) lit: top white, bottom purple."""
     mf = ModuleFrame.blank()
-    edge, _name = edges[step // (FILAMENTS * 2)]
+    ends = mf[edges[step // (FILAMENTS * 2)]].ends
     f = step % FILAMENTS
-    top, bottom = edge.ends()
-    mf.get_end_frame(top)[f][:] = WHITE
-    mf.get_end_frame(bottom)[f][:] = PURPLE
+    ends.top[f][:] = WHITE
+    ends.bottom[f][:] = PURPLE
     return mf
 
 
@@ -69,7 +63,7 @@ tile = TileRef(graph, 0, 0)
 
 
 def main() -> None:
-    # Args (edge first, then module coord): an edge name A1..F2 and/or "x-y".
+    # Args (edge first, then module coord): an edge name A1..F2 or C3 and/or "x-y".
     edge_name = None
     module = None
     for a in sys.argv[1:]:
@@ -79,9 +73,9 @@ def main() -> None:
             edge_name = a.upper()
 
     if edge_name:
-        edges = [e for e in ALL_EDGES if e[1] == edge_name]
+        edges = [e for e in ALL_EDGES if e.name == edge_name]
         if not edges:
-            sys.exit(f"unknown edge '{edge_name}' (expected A1..F2)")
+            sys.exit(f"unknown edge '{edge_name}' (expected A1..F2 or C3)")
     else:
         edges = ALL_EDGES
 
@@ -107,7 +101,7 @@ def main() -> None:
         while True:
             step = (step + 1) % (len(edges) * FILAMENTS * 2)
             frame = build_frame(edges, step)
-            _edge, name = edges[step // (FILAMENTS * 2)]
+            name = edges[step // (FILAMENTS * 2)].name
             print(
                 f"edge {name}  filament {step % FILAMENTS}  (top=white, bottom=purple)",
                 flush=True,

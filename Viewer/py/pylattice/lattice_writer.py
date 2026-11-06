@@ -1,6 +1,6 @@
 import math
 from . import format
-from .frame import EdgeFrame, EndFrame, Ends, ModuleFrame
+from .frame import EdgeFrame, EndFrame, Ends, ModuleEdge, ModuleFrame
 from .graph import EndRef
 from .lattice_client import LatticeClient
 
@@ -30,6 +30,13 @@ class LatticeWriter:
 
     # Send all module frames to their modules
     def show(self):
+        
+        # Populate the C3 edges on the furthest right modules
+        for y in range(0, self._rows):
+            end_mf = self._module_frames[self._cols-1][y]
+            start_mf = self._module_frames[0][y]
+            end_mf.edges[ModuleEdge.C3] = start_mf.edges[ModuleEdge.C1]
+        
         for x in range(0, self._cols):
             for y in range(0, self._rows):
                 channel_data = self._fmt.serialize(self._module_frames[x][y])

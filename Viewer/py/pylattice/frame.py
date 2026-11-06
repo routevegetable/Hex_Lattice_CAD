@@ -33,6 +33,9 @@ class ModuleEdge(IntEnum):
     E2 = 10
     F2 = 11
 
+    # Magic C3 edge - this is the C1 of the module next
+    C3 = 12
+
 
 EDGE_CLASS_TO_MODULE_EDGES: dict[EdgeClass, tuple[ModuleEdge, ModuleEdge]] = {
     EdgeClass.A: (ModuleEdge.A1, ModuleEdge.A2),
@@ -81,7 +84,7 @@ class ModuleFrame:
                         bottom=[[0.0, 0.0, 0.0] for _ in range(4)],
                     )
                 )
-                for _ in range(12)
+                for _ in range(12 + 1) # + 1 is the magic C3 edge
             ]
         )
 
