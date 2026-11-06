@@ -81,6 +81,5 @@ class AmbientLight(Effect):
 
         for end in self._bottom:
             frame = lattice[end]
-            for i in range(4):
-                r, g, b = frame[i]
-                frame[i] = [r + add_r, g + add_g, b + add_b]
+            r, g, b = frame[0]
+            frame[0] = [r + add_r, g + add_g, b + add_b]
