@@ -237,6 +237,8 @@ class OPERATORS:
 
     # One field out of several, picked by a knob - `select(ripple, wipe1, fire)`
     select = Select(midi.for_("select"), select=81)
+    select2 = Select(midi.for_("select2"), select=87)
+    select3 = Select(midi.for_("select3"), select=88)
 
     # The same, picked by the clock instead of by hand - `cycle(ripple, wipe1)`
     # alternates between them. The knob is how long one of them holds, 2s down

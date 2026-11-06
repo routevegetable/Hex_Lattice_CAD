@@ -2,6 +2,7 @@
 from collections.abc import Iterable
 import gc
 import math
+import sys
 import time
 import traceback
 from typing import Callable
@@ -118,6 +119,8 @@ def check_program():
     load_preset(chosen.data)
 
 
+#sys.setswitchinterval(0.01)
+
 # PyPy collects incrementally, so a bounded step per frame is what its GC
 # wants. CPython has no such thing - the youngest generation is the cheap
 # equivalent.
@@ -145,22 +148,28 @@ while True:
             effect.render(now, lattice, graph)
         lattice.show()
 
-    frames += 1
-    elapsed = now.when - counted_from.when
-    if elapsed >= 1000:
-        fps = frames * 1000 / elapsed
-        print(f"{fps:.1f} fps (Render: {dt_render/1000000}ms GC: {dt_gc/1000000}ms)")
-        CONSOLE.set_stats(fps, dt_render / 1000000, dt_gc / 1000000)
-        frames = 0
-        counted_from = now
-
     # Do GC every frame
     t1 = time.time_ns()
     dt_render = t1 - t0
     
     gc_step()
     dt_gc = time.time_ns() - t1
-    
+
+    frames += 1
+    render_len += dt_render
+    gc_len += dt_gc
+
+    # Means over the second, in ms per frame.
+    elapsed = now.when - counted_from.when
+    if elapsed >= 1000:
+        fps = frames * 1000 / elapsed
+        render_ms = render_len / frames / 1000000
+        gc_ms = gc_len / frames / 1000000
+        print(f"{fps:.1f} fps (Render: {render_ms:.2f}ms GC: {gc_ms:.2f}ms)")
+        CONSOLE.set_stats(fps, render_ms, gc_ms)
+        frames = render_len = gc_len = 0
+        counted_from = now
+
     # To sec
     dt = (dt_render + dt_gc) / 1000000000
 
