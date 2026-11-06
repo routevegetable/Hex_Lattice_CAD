@@ -228,6 +228,11 @@ class EventLatch(Generic[TData]):
         assert x is not None
         return x
 
+    def set(self, data: TData | None = None) -> Event[TData]:
+        """Latch a new event now, even in the same ms as the one latched."""
+        self.ev = Event.for_now(data)
+        return self.ev
+
     def read(self) -> Event[TData] | None:
         return self.ev
 

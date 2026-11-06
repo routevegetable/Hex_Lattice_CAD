@@ -154,18 +154,13 @@ class MIDI:
         # name -> which number it is listening to. A lookup, not a store.
         self._ccs: dict[str, CCMapping] = {}
 
-        # One program per channel, not one per number, so a single state does.
-        self._program = CCState()
+        # Called with the program number when a program change arrives, between
+        # the messages either side of it.
+        self.load_program: Callable[[int], None] = lambda program: None
 
     def tick(self):
         msg: mido.Message
-        # Controls that moved this tick, and where they ended up. Latching once
-        # at the end means a burst of messages keeps its last value - latching
-        # per message would keep the first, since Event.after is a strict >.
-        moved: dict[int, int] = {}
-        # Likewise the program, if one was selected this tick.
-        chosen: int | None = None
-        # Consume any pending MIDI messages
+        # Consume any pending MIDI messages, in the order they arrived
         while msg := self._m.poll():
             match msg.type:
                 case "note_on":
@@ -188,22 +183,16 @@ class MIDI:
                         note.pressure = 0
                 case "control_change":
                     print(msg)
-                    moved[msg.control] = msg.value
+                    # Every number, whether anything is listening or not: an
+                    # unplugged knob still has to be visible to be mapped onto.
+                    self._cc_state(msg.control).event.set(msg.value)
                 case "polytouch":
                     note = self._notes.get(self.pad(msg.note))
                     if note is not None:
                         note.pressure = msg.value
                 case "program_change":
                     print(msg)
-                    chosen = msg.program
-
-        for control, value in moved.items():
-            # Every number, whether anything is listening or not: an unplugged
-            # knob still has to be visible to be mapped onto.
-            self._cc_state(control).event.put(value)
-
-        if chosen is not None:
-            self._program.event.put(chosen)
+                    self.load_program(msg.program)
 
     def for_(self, prefix: str) -> "MIDIFor":
         """This same box, but everything asked of it says who asked.
@@ -281,17 +270,6 @@ class MIDI:
             if wanted is not None and wanted != m.midi_cc:
                 self._attach(name, wanted)
 
-    def program(self) -> Callable[[], Event[int]]:
-        """
-        Watch the program. Returns a getter for the latest program change -
-        its `data` is the 0-127 program number, its `when` is when it arrived.
-
-        Seeded at zero like cc(), so it is never None. That seed is not a
-        program change, though: it carries `when` 0, which nothing that watches
-        for the number changing will mistake for a selection.
-        """
-        return self._program.event.read
-
     def get_mappings(self) -> dict[str, CCMapping]:
         """Every named control, and where it is listening."""
         return dict(self._ccs)
@@ -321,7 +299,7 @@ class MIDI:
         state = self._cc_state(id)
 
         if state.value != value:
-            state.event.put(value)
+            state.event.set(value)
 
     def _cc_state(self, number: int) -> CCState:
         """What a CC number last read, made on demand. Every number that

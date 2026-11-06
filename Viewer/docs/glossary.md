@@ -221,9 +221,9 @@ another operand of the same formula, and the two **trade places**.
 **Frame** — one pass of the render loop: clear the lattice, read MIDI, let
 every effect draw, send it.
 
-**Tick** — `MIDI.tick()`, draining the MIDI port once per frame. Controls that
-moved during a tick are latched once at the end, so a burst keeps its last
-value.
+**Tick** — `MIDI.tick()`, draining the MIDI port once per frame. Messages take
+effect in the order they arrived, and a program change loads its preset on the
+spot, so a control sent after one lands on the new preset.
 
 **Art-Net universe** — 512 channels of DMX arriving over UDP 6454, read as an
 image. Each tile is a 2×2 square of pixels, one per vertex. Four universes,

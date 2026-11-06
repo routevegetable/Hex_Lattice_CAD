@@ -99,26 +99,7 @@ load_preset(0)
 
 # A program change loads the preset of the same number - the BSP sends one per
 # project, and a sequencer upstream can send them wherever it likes.
-program = midi.program()
-program_seen = 0
-
-
-def check_program():
-    """Load a preset when a program change picks it."""
-    global program_seen
-
-    chosen = program()
-
-    if chosen.when == program_seen:
-        return  # nothing new - the seed included
-
-    program_seen = chosen.when
-
-    if chosen.data >= BANK.size:
-        print(f"program {chosen.data}: only {BANK.size} presets")
-        return
-
-    load_preset(chosen.data)
+midi.load_program = load_preset
 
 
 #sys.setswitchinterval(0.01)
@@ -144,7 +125,6 @@ while True:
 
         now = Event.for_now()
         midi.tick()
-        check_program()
 
         for effect in CONSOLE.chain():
             effect.render(now, lattice, graph)
