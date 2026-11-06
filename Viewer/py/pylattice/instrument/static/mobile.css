@@ -349,3 +349,5 @@ table.timing td.load { position: relative; color: #dee; }
 table.timing td.load .bar { position: absolute; left: 0; top: 1px; bottom: 1px;
                             background: #2c4a7a; }
 table.timing td.load span { position: relative; }
+.usage { height: 5px; margin: 0 .5rem .3rem; background: #2a2a2a; overflow: hidden; }
+.usage > div { height: 100%; background: #2c4a7a; }

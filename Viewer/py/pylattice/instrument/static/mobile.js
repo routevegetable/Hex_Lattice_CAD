@@ -1504,7 +1504,18 @@ async function drawSystemPage() {
     const spent = s.render_ms * s.fps;
 
     box.append(infoRow('slots measured', slots.length));
-    box.append(infoRow('rendering', `${spent.toFixed(0)} ms of every second`));
+
+    const percent = spent / 10;
+    const rendering = infoRow('rendering',
+        `${spent.toFixed(0)} ms of every second \u00b7 ${percent.toFixed(0)}%`);
+    const track = document.createElement('div');
+    track.className = 'usage';
+    const bar = document.createElement('div');
+    bar.style.width = `${percent.toFixed(1)}%`;
+    track.append(bar);
+    rendering.append(track);
+    box.append(rendering);
+
     box.append(infoRow('their share', `${load.toFixed(2)} ms`
         + (spent ? ` \u00b7 ${(100 * load / spent).toFixed(0)}% of it` : '')));
     box.append(timingTable(slots));
@@ -1560,9 +1571,13 @@ const TIMING_COLUMNS = [
   ['max', 'worst', 'the slowest get of the second - one end, one frame'],
   ['sd', 'spread', 'how far the gets fall either side of the mean'],
   ['calls', 'gets', 'how many times it was asked, in the second'],
+  ['per_end', 'per end', 'gets of one end in one frame: the mean, then the most if that differs'],
 ];
 
 const SHORT = (v) => v.toFixed(v < 10 ? 2 : v < 100 ? 1 : 0);
+
+const perEnd = (t) => t.per_end === t.per_end_max ? String(t.per_end_max)
+                                                  : `${t.per_end.toFixed(1)} / ${t.per_end_max}`;
 
 function timingTable(slots) {
   if (!slots.length)
@@ -1598,7 +1613,8 @@ function timingTable(slots) {
     for (const [key] of TIMING_COLUMNS) {
       const td = tr.insertCell();
       td.className = 'num';
-      td.textContent = key === 'calls' ? row.calls : SHORT(row[key]);
+      td.textContent = key === 'calls' ? row.calls
+                     : key === 'per_end' ? perEnd(row) : SHORT(row[key]);
     }
 
     const td = tr.insertCell();
