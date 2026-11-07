@@ -1,13 +1,13 @@
 {
   "ccs": {
-    "10": 106,
+    "10": 101,
     "14": 0,
     "15": 0,
     "16": 113,
     "17": 77,
     "18": 127,
     "19": 103,
-    "71": 109,
+    "71": 72,
     "72": 0,
     "73": 2,
     "74": 0,
@@ -15,6 +15,14 @@
     "76": 0,
     "77": 92,
     "79": 9,
+    "81": 0,
+    "82": 0,
+    "83": 0,
+    "84": 0,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
     "89": 102,
     "91": 66,
     "93": 3,
@@ -41,149 +49,254 @@
     "122": 47,
     "123": 0,
     "124": 45,
-    "125": 3
+    "125": 3,
+    "126": 0,
+    "127": 0
   },
   "slots": {
     "bg_waves.hue": {
       "op": "add",
-      "a": 0.3,
-      "b": {
-        "op": "mul",
-        "a": {
+      "args": [
+        0.3,
+        {
           "op": "mul",
-          "a": "trace_lines",
-          "b": 100.0
-        },
-        "b": "param_a"
-      }
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                "trace_lines",
+                100.0
+              ],
+              "mod": false
+            },
+            "param_a"
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
     },
     "bg_waves.sat": {
       "op": "sub",
-      "a": 1.0,
-      "b": "wipe1"
+      "args": [
+        1.0,
+        "wipe1"
+      ],
+      "mod": false
     },
     "bg_waves.value": {
       "op": "sub",
-      "a": {
-        "op": "add",
-        "a": {
+      "args": [
+        {
           "op": "add",
-          "a": {
-            "op": "mul",
-            "a": "trace_lines",
-            "b": 0.1
-          },
-          "b": {
-            "op": "mul",
-            "a": {
+          "args": [
+            {
               "op": "add",
-              "a": {
-                "op": "mul",
-                "a": 0.33,
-                "b": "fader_a"
-              },
-              "b": 0.05
+              "args": [
+                {
+                  "op": "mul",
+                  "args": [
+                    "trace_lines",
+                    0.1
+                  ],
+                  "mod": false
+                },
+                {
+                  "op": "mul",
+                  "args": [
+                    {
+                      "op": "add",
+                      "args": [
+                        {
+                          "op": "mul",
+                          "args": [
+                            0.33,
+                            "fader_a"
+                          ],
+                          "mod": false
+                        },
+                        0.05
+                      ],
+                      "mod": false
+                    },
+                    "strobe0"
+                  ],
+                  "mod": false
+                }
+              ],
+              "mod": false
             },
-            "b": "strobe0"
-          }
+            {
+              "op": "mul",
+              "args": [
+                "fader_a",
+                0.5
+              ],
+              "mod": false
+            }
+          ],
+          "mod": false
         },
-        "b": "fader_a"
-      },
-      "b": {
-        "op": "mul",
-        "a": {
+        {
           "op": "mul",
-          "a": {
-            "op": "sub",
-            "a": "rotary",
-            "b": 0.3
-          },
-          "b": 2.0
-        },
-        "b": "param_b"
-      }
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                {
+                  "op": "sub",
+                  "args": [
+                    "rotary",
+                    0.3
+                  ],
+                  "mod": false
+                },
+                2.0
+              ],
+              "mod": false
+            },
+            "param_b"
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
     },
     "bg_waves.flow": {
       "op": "mul",
-      "a": "rotary",
-      "b": 0.3
+      "args": [
+        "rotary",
+        0.3
+      ],
+      "mod": false
     },
     "net.amp": {
       "op": "div",
-      "a": "strobe0",
-      "b": 0.73
+      "args": [
+        "strobe0",
+        0.73
+      ],
+      "mod": false
     },
     "net.hue": {
       "op": "add",
-      "a": 0.36,
-      "b": {
-        "op": "mul",
-        "a": "strobe1",
-        "b": {
+      "args": [
+        0.36,
+        {
           "op": "mul",
-          "a": 0.19,
-          "b": "param_a"
+          "args": [
+            "strobe1",
+            {
+              "op": "mul",
+              "args": [
+                0.19,
+                "param_a"
+              ],
+              "mod": false
+            }
+          ],
+          "mod": false
         }
-      }
+      ],
+      "mod": false
     },
     "net.sat": {
       "op": "sub",
-      "a": 1.0,
-      "b": {
-        "op": "mul",
-        "a": "strobe1",
-        "b": 0.32
-      }
+      "args": [
+        1.0,
+        {
+          "op": "mul",
+          "args": [
+            "strobe1",
+            0.32
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
     },
     "net.value": {
       "op": "add",
-      "a": {
-        "op": "mul",
-        "a": 0.24,
-        "b": "fader_a"
-      },
-      "b": {
-        "op": "mul",
-        "a": "strobe1",
-        "b": 0.17
-      }
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            0.24,
+            "fader_a"
+          ],
+          "mod": false
+        },
+        {
+          "op": "mul",
+          "args": [
+            "strobe1",
+            0.17
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
     },
     "map_fiber.value": {
       "op": "mul",
-      "a": "trace_lines",
-      "b": 0.86
+      "args": [
+        "trace_lines",
+        0.86
+      ],
+      "mod": false
     },
     "map_fiber.hue": {
       "op": "add",
-      "a": {
-        "op": "add",
-        "a": 0.02,
-        "b": {
+      "args": [
+        {
+          "op": "add",
+          "args": [
+            0.02,
+            {
+              "op": "mul",
+              "args": [
+                "rotary",
+                0.04
+              ],
+              "mod": false
+            }
+          ],
+          "mod": false
+        },
+        {
           "op": "mul",
-          "a": "rotary",
-          "b": 0.04
+          "args": [
+            "random",
+            {
+              "op": "mul",
+              "args": [
+                "strobe2",
+                0.51
+              ],
+              "mod": false
+            }
+          ],
+          "mod": false
         }
-      },
-      "b": {
-        "op": "mul",
-        "a": "random",
-        "b": {
-          "op": "mul",
-          "a": "strobe2",
-          "b": 0.51
-        }
-      }
+      ],
+      "mod": false
     },
     "map_fiber.sat": 1.0,
     "prob_zaps.prob": {
       "op": "mul",
-      "a": "strobe2",
-      "b": 0.27
+      "args": [
+        "strobe2",
+        0.27
+      ],
+      "mod": false
     },
     "prob_zaps.hue": {
       "op": "add",
-      "a": "d2_edges",
-      "b": "random"
+      "args": [
+        "d2_edges",
+        "random"
+      ],
+      "mod": false
     },
     "prob_zaps.value": 0.24
   },
@@ -198,5 +311,6 @@
     "ambient_light"
   ],
   "muted": [],
-  "name": "dubstep-4"
+  "name": "dubstep-4",
+  "notes": {}
 }

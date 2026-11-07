@@ -1406,7 +1406,7 @@ function controlChanges() {
     const was = stored.ccs[from];
     const now = c && liveValue(c);
 
-    return from !== to || (c && was !== now) ? [{name, from, to, was, now}] : [];
+    return from !== to || (c && was !== now) ? [{name, from, to, was, now, cc: c?.number}] : [];
   });
 }
 
@@ -1416,16 +1416,14 @@ function changesList() {
 
   box.append(infoRow('changed since saved', found.length || 'nothing'));
 
-  for (const {name, from, to, was, now} of found) {
+  for (const {name, from, to, was, now, cc} of found) {
     const meta = metaFor(name);
     const parts = [];
 
     if (from !== to) parts.push(`cc ${from ?? 'default'} \u2192 ${to ?? 'default'}`);
 
-    if (now !== undefined && was !== now) {
-      const before = was === undefined ? 'unset' : readOut(meta, was);
-      parts.push(`${before} \u2192 ${readOut(meta, now)}`);
-    }
+    if (now !== undefined && was !== now)
+      parts.push(`cc ${cc} changed to ${now} {${readOut(meta, now)}}`);
 
     box.append(infoRow(name, parts.join(' \u00b7 ')));
   }

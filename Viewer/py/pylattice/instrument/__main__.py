@@ -155,7 +155,7 @@ while True:
     # To sec
     dt = (dt_render + dt_gc) / 1000000000
 
-    PERIOD = 0.005
+    PERIOD = 0.003
     if dt < PERIOD:
         # We rendered faster than period
         # Sleep for the rest of it
