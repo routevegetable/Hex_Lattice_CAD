@@ -26,11 +26,11 @@ class NoteRippleField(ScalarField):
         * speed - how long the front takes to cross the lattice,
           2000ms at 0 down to 250ms at 127
         * decay - how long a vertex takes to fall back to 0 once the note is
-          let go, 500ms at 0 up to 2000ms at 127
+          let go, 50ms at 0 up to 2000ms at 127
     """
 
     RAMP = 300  # ms a vertex takes to go 0 -> 1 once the front reaches it
-    DECAY = FloatRange(500, 2000, "ms", geometric=True)  # fall back to 0 once let go
+    DECAY = FloatRange(50, 2000, "ms", geometric=True)  # fall back to 0 once let go
 
     SLOWEST = 2000  # ms to cross the lattice at CC 0
     FASTEST = 250  # ms to cross the lattice at CC 127
