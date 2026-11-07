@@ -122,6 +122,14 @@ slot - at the top of its slots in `mobile.js`, at the top of its card in
 effect is in the chain and not muted, so they light up and "assign them" can
 put them on the box.
 
+**The faders go on the box's faders, in order.** `fader_a` to `fader_h` are F1 to
+F8, which on the Akai are CCs 12-19. `v3.js` makes a new preset with that map, and
+"assign them" puts a fader on its own fader first. The server already declares
+`fader_c` to `fader_h` on 14-19, so only `fader_a` and `fader_b` - declared on
+BeatStep knobs - need mapping. One thing to know: CCs 16-19 are also where the
+BeatStep's `wipe2.speed`, `trace.speed`, `ripple2.speed` and `wipe1.speed` start,
+so in a preset that maps nothing a fader there moves one of those as well.
+
 `v3.js` has its own copies of all of this, following the same rules. `app.js` is
 an older page that has not been kept up with any of it.
 

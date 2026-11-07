@@ -996,6 +996,20 @@ function textEditor(key, tree) {
 // The faders a value slot can be put on, in the order they are offered.
 const FADERS = ['fader_a', 'fader_b', 'fader_c', 'fader_d', 'fader_e', 'fader_f', 'fader_g', 'fader_h'];
 
+// The faders are the box's faders, in order: fader_a to fader_h are F1 to F8, which
+// on the Akai are CCs 12-19. A control that is one of them has its fader to go on,
+// and nothing else is meant for it. The server declares fader_c to fader_h on those
+// CCs already, but fader_a and fader_b on the BeatStep's knobs, so on the Akai F1
+// and F2 drive nothing until a preset says so.
+const faderControl = (i) => `${FADERS[i]}.value`;
+const faderHome = (name, surface) => {
+  const i = FADERS.findIndex((_, at) => faderControl(at) === name);
+  return i < 0 ? undefined : surface?.faders?.[i];
+};
+// The rule as a cc_map: every fader the box has, on its own.
+const faderRule = (surface) => Object.fromEntries(
+    (surface?.faders ?? []).slice(0, FADERS.length).map((cc, i) => [faderControl(i), cc]));
+
 // The slot called `value` is the brightness - not hue, sat, or an effect's own
 // parameter.
 const isValueSlot = (key) => key.split('.').slice(1).join('.') === 'value';
@@ -3069,9 +3083,10 @@ document.getElementById('new-preset').onclick = () => openCopy('new');
 // A preset with nothing plugged in: the chain is empty, so no effect has a card
 // until it is added from the menu, and nothing is muted. No knobs are listed - a
 // patch that says nothing about them leaves them where they are - and nothing is
-// mapped: every control starts on the CC it was declared with, wherever the box on
-// the desk has its knobs.
-const blankPatch = (name) => ({ccs: {}, slots: {}, cc_map: {}, active: [], muted: [], name});
+// mapped but the faders: they go on the box's faders, as faderRule says, and every
+// other control starts on the CC it was declared with.
+const blankPatch = (name) => ({ccs: {}, slots: {}, cc_map: faderRule(surfaces[surfaceId]),
+                               active: [], muted: [], name});
 
 copyDialog.querySelector('form').onsubmit = async (e) => {
   e.preventDefault();
@@ -3394,9 +3409,10 @@ const ownersOfPatch = (patch, slots) => new Set([...fieldsOfSlots(slots), ...dra
 // The patch's cc_map once every control the slots use is on a fader or knob of
 // the box on the map. One already on the box stays where it is, and the CCs
 // those are on are taken; the rest go to the next free knob, then the next free
-// fader, in the order they are listed. The box has no preferences of its own - no
-// control is meant for any one knob or fader. Returns what was said about each
-// one placed.
+// fader, in the order they are listed. The exception is a fader (see faderHome):
+// it goes on its own fader if that is free, and the next free fader if not, and
+// is placed first so nothing else is put on the fader it wants. Returns what was
+// said about each one placed.
 function withControls(patch, slots) {
   const surface = surfaces[surfaceId];
   const cc_map = {...patch.cc_map};
@@ -3415,9 +3431,19 @@ function withControls(patch, slots) {
 
   const faders = (surface.faders ?? []).filter(cc => !taken.has(cc));
   const knobs = (surface.knobs ?? []).filter(cc => !taken.has(cc));
-  for (const c of wanting) {
+  const homeOf = (c) => faderHome(c.comments[0], surface);
+  const faderFirst = [...wanting].sort((a, b) => (homeOf(b) !== undefined) - (homeOf(a) !== undefined));
+
+  for (const c of faderFirst) {
     const name = c.comments[0];
-    const cc = knobs.length ? knobs.shift() : faders.length ? faders.shift() : undefined;
+    const home = homeOf(c);
+    let cc;
+
+    if (home !== undefined)
+      cc = faders.includes(home) ? faders.splice(faders.indexOf(home), 1)[0]
+         : faders.length ? faders.shift() : knobs.shift();
+    else
+      cc = knobs.length ? knobs.shift() : faders.shift();
 
     if (cc === undefined) { said.push(`no free knob for ${name}`); continue; }
     cc_map[name] = cc;
