@@ -3543,6 +3543,142 @@ const patchMap = () => views[rig.selected]?.live?.cc_map ?? {};
 
 // ---- keeping up ----------------------------------------------------------
 
+// ---- history -------------------------------------------------------------
+// The page saves every preset to this browser now and then, and keeps the saves
+// thinned out the way a backup is: close together lately, far apart long ago.
+// Nothing here is the instrument's - it is a copy for a wrong turn too big for undo.
+//
+// A save is only made when something changed, so the state at any moment is the
+// newest save at or before it. Each step asks for the state that long ago, and a
+// save that answers no step is dropped. As time passes a save moves from the
+// one-minute step to the five-minute step and so on, until a newer one takes over
+// and it falls off.
+const HISTORY_KEY = 'v3.history';
+const HISTORY_EVERY = 15 * 1000;        // how often to look for a change
+const MIN = 60 * 1000;
+const HISTORY_STEPS = [['1 minute', MIN], ['5 minutes', 5 * MIN], ['10 minutes', 10 * MIN],
+                       ['30 minutes', 30 * MIN], ['1 hour', 60 * MIN], ['1 day', 24 * 60 * MIN]];
+
+let saves = (() => {
+  try { const h = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]'); return Array.isArray(h) ? h : []; }
+  catch { return []; }
+})();                                    // {at, selected, key, live: {number: patch}}, oldest first
+
+// Where the knobs sit changes all the time and is no edit, so it is left out of
+// the comparison (it is still kept, and comes back with the rest).
+const historyKey = (live) => JSON.stringify(Object.entries(live).map(([n, p]) => [n, {...p, ccs: null}]));
+
+const stateAt = (when) => {
+  let found = null;
+  for (const s of saves) if (s.at <= when) found = s;
+  return found;
+};
+
+// The saves worth keeping: the newest, and the one each step points at.
+function thin(now) {
+  const keep = new Set([saves[saves.length - 1]]);
+  for (const [, age] of HISTORY_STEPS) { const s = stateAt(now - age); if (s) keep.add(s); }
+  saves = saves.filter(s => keep.has(s));
+}
+
+function storeHistory() {
+  // Out of room: let the oldest go and try again, down to the newest alone.
+  for (;;) {
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(saves)); return; }
+    catch { if (saves.length <= 1) return; saves.shift(); }
+  }
+}
+
+let historyBusy = false;
+async function saveHistory(force = false) {
+  if (!rig || historyBusy) return;
+  historyBusy = true;
+  try {
+    const all = await get('/presets');
+    const live = Object.fromEntries(Object.entries(all).map(([n, v]) => [n, v.live]));
+    const key = historyKey(live);
+    const last = saves[saves.length - 1];
+    if (force || !last || last.key !== key) {
+      const now = Date.now();
+      saves.push({at: now, selected: rig.selected, key, live});
+      thin(now);
+      storeHistory();
+    }
+  } catch { /* try again at the next look */ }
+  finally { historyBusy = false; }
+}
+
+const ago = (ms) => {
+  const m = Math.round(ms / MIN);
+  return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 6) / 10} h ago` : `${Math.round(m / 144) / 10} d ago`;
+};
+
+// Put every preset back as it was, then play the one that was playing. What is
+// there now is saved first, so going back can itself be gone back from.
+async function revertTo(snap) {
+  if (!confirm(`Put every preset back to how it was ${ago(Date.now() - snap.at)}? `
+               + 'What they are now is kept in history, so this can be undone.')) return;
+  await saveHistory(true);
+
+  for (const [n, patch] of Object.entries(snap.live)) {
+    const r = await put(`/presets/${n}`, patch);
+    if (!r.ok) { alert(`preset ${n}: ${(await r.json()).detail}`); break; }
+  }
+
+  const play = rig.selected ?? snap.selected;
+  if (play !== null && play !== undefined) await post(`/presets/${play}/select`);
+  editing = {};
+  await refresh();
+}
+
+const historyBox = document.getElementById('history');
+const historyOpen = document.getElementById('history-open');
+
+function closeHistory() { historyBox.querySelector('.fpick-list')?.remove(); }
+
+function openHistory() {
+  if (historyBox.querySelector('.fpick-list')) return closeHistory();
+
+  const list = document.createElement('div');
+  list.className = 'fpick-list';
+  const body = document.createElement('div');
+  body.className = 'fpick-body';
+  list.append(body);
+
+  const now = Date.now();
+  const current = saves.length ? saves[saves.length - 1].key : null;
+  let shown = null;
+
+  for (const [label, age] of HISTORY_STEPS) {
+    const snap = stateAt(now - age);
+    const row = document.createElement('div');
+    row.className = 'fpick-item';
+    // A step is out of reach when nothing is old enough, when it is the same
+    // picture as the step before, or when it is what is there already.
+    const useless = !snap || snap.key === current || snap === shown;
+    row.setAttribute('aria-disabled', String(useless));
+
+    const name = document.createElement('span');
+    name.textContent = label + ' ago';
+    const when = document.createElement('span');
+    when.className = 'dim';
+    when.textContent = !snap ? 'no save that old' : snap.key === current ? 'same as now'
+                     : snap === shown ? 'same as above' : `saved ${ago(now - snap.at)}`;
+    row.append(name, when);
+
+    if (!useless) row.onclick = () => { closeHistory(); revertTo(snap); };
+    if (snap && !useless) shown = snap;
+    body.append(row);
+  }
+
+  historyBox.append(list);
+}
+
+historyOpen.onclick = (e) => { e.stopPropagation(); openHistory(); };
+document.addEventListener('click', (e) => { if (!historyBox.contains(e.target)) closeHistory(); });
+
+setInterval(saveHistory, HISTORY_EVERY);
+
 // Which preset the half-built formulas belong to. Another one has its own slots.
 let formulasFor = null;
 
@@ -3577,7 +3713,7 @@ async function drawStats() {
   document.getElementById('fps').textContent = `${s.fps.toFixed(0)} fps`;
 }
 
-loadSurfaces().then(refresh); drawStats();
+loadSurfaces().then(refresh).then(() => saveHistory()); drawStats();
 
 // The preset can change from the controller - a program change - so the bar
 // follows it rather than showing what it was at load.

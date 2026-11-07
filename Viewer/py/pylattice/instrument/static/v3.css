@@ -11,7 +11,7 @@ button { background: var(--panel); color: var(--text); border: 1px solid var(--l
          border-radius: 4px; padding: 4px 10px; font: inherit; cursor: pointer; }
 button:disabled { opacity: .4; cursor: default; }
 
-header { display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 16px;
          border-bottom: 1px solid var(--line); }
 header button { white-space: nowrap; }
 #fps { color: var(--dim); min-width: 56px; }
@@ -392,3 +392,9 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 .gfoot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
 .gfoot .primary { background: #24334d; border-color: var(--accent); }
 .gdlg .hint { color: var(--dirty); min-height: 1.4em; margin-top: 6px; font-size: 12px; }
+
+/* history: the page's own autosaves of every preset, to go back to */
+#history { flex: none; }
+#history .fpick-list { left: auto; right: 0; min-width: 240px; }
+#history .fpick-item[aria-disabled=true] { color: var(--dim); cursor: default; }
+#history .fpick-item[aria-disabled=true]:hover { background: none; }
