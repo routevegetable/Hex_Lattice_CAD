@@ -97,6 +97,7 @@ class Math(Operator):
         arg_values = [arg.get(now, end) for arg in args]
         return self._c(*arg_values)
 
+
 class FIELDS:
 
     # CC fields
@@ -113,7 +114,9 @@ class FIELDS:
 
     # Ripples
     ripple = NoteRippleField(graph, midi.for_("ripple"), note=PB1, speed=KB1, decay=126)
-    ripple2 = NoteRippleField(graph, midi.for_("ripple2"), note=PB2, speed=KB2, decay=127)
+    ripple2 = NoteRippleField(
+        graph, midi.for_("ripple2"), note=PB2, speed=KB2, decay=127
+    )
 
     # Every edge jumps to a new random number
     random = NoteRandomField(midi.for_("random"), note=PB6, period=KA8)
@@ -130,9 +133,16 @@ class FIELDS:
     # The same trace, kept to the lattice's straight lines. Shares trace's
     # speed and attack - it is the same head on the same trail - and has a pad,
     # a decay and a mode of its own.
-    trace_lines = TraceLinesField(graph, midi.for_("trace_lines"), note=PB7,
-                                  speed=KB5, attack=108, decay=121, mode=120,
-                                  nodes=125)
+    trace_lines = TraceLinesField(
+        graph,
+        midi.for_("trace_lines"),
+        note=PB7,
+        speed=KB5,
+        attack=108,
+        decay=121,
+        mode=120,
+        nodes=125,
+    )
 
     # A spot going round and round one flat line of the lattice
     scope = ScopeFieldBetter(
@@ -214,8 +224,9 @@ class FIELDS:
 
     # Some number of edges from one family of lines - d1, d2 or h - re-picked
     # by the same pad that re-rolls random.
-    random_lines = RandomLinesField(graph, midi.for_("random_lines"),
-                                    note=PB6, count=119)
+    random_lines = RandomLinesField(
+        graph, midi.for_("random_lines"), note=PB6, count=119
+    )
 
     v_edges = EdgeMaskField(V)
     h_edges = EdgeMaskField(H)
@@ -229,6 +240,8 @@ class FIELDS:
     v_gradient = VGradientField(midi.for_("v_gradient"), origin=KA6)
 
     burst = BurstField(graph, midi.for_("burst"), note=PB8, decay=KA7, attack=109)
+
+    kick = (((0.3 - v_gradient) * 10) * v_edges) * strobe0
 
 
 class OPERATORS:
@@ -274,4 +287,3 @@ class OPERATORS:
     # The prob_zaps effect as a value: `prob_zap(fader_a)` flashes ends at the
     # rate that knob asks for, and whatever is reading it gets the flash.
     prob_zap = ProbZap(graph, midi.for_("prob_zap"), length=85)
-    

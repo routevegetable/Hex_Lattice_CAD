@@ -78,8 +78,9 @@ separate names when they are two settings that merely begin life together.
 
 ## What the UI does with the names
 
-`controlsFor(tree)` in `static/mobile.js` lists the knobs behind an open slot,
-and the two kinds of owner are matched differently:
+`controlsFor(tree)` in `static/mobile.js` and `static/v3.js` lists the knobs
+behind an open slot, and the two kinds of owner a slot can reach are matched
+differently:
 
 - **A field matches exactly.** `random_lines` takes `random_lines.*` and
   nothing else.
@@ -111,9 +112,26 @@ print([(a, b) for a in o for b in f | o if a != b and a.startswith(b + '_')] or 
 "
 ```
 
-`opsIn` and `fieldsIn` are what walk the expression for those names. `v3.js`
-has its own copies of all three, following the same rules. `app.js` is an older
-page that has not been kept up with any of this.
+`opsIn` and `fieldsIn` are what walk the expression for those names.
+
+**An effect's own controls are not behind any slot**, so they are found a
+different way: `controlsOwnedBy(name)` takes every control named `name.*`,
+exactly, like a field. Both pages show them with the effect rather than in a
+slot - at the top of its slots in `mobile.js`, at the top of its card in
+`v3.js` - and the controller map in `v3.js` counts them as in use while the
+effect is in the chain and not muted, so they light up and "assign them" can
+put them on the box.
+
+**The faders go on the box's faders, in order.** `fader_a` to `fader_h` are F1 to
+F8, which on the Akai are CCs 12-19. `v3.js` makes a new preset with that map, and
+"assign them" puts a fader on its own fader first. The server already declares
+`fader_c` to `fader_h` on 14-19, so only `fader_a` and `fader_b` - declared on
+BeatStep knobs - need mapping. One thing to know: CCs 16-19 are also where the
+BeatStep's `wipe2.speed`, `trace.speed`, `ripple2.speed` and `wipe1.speed` start,
+so in a preset that maps nothing a fader there moves one of those as well.
+
+`v3.js` has its own copies of all of this, following the same rules. `app.js` is
+an older page that has not been kept up with any of it.
 
 ## Picking a CC number
 
