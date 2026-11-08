@@ -1,13 +1,14 @@
 {
   "ccs": {
-    "12": 0,
-    "13": 0,
+    "12": 49,
+    "13": 74,
     "14": 0,
-    "15": 127,
+    "15": 0,
     "16": 0,
     "17": 0,
     "18": 0,
     "19": 36,
+    "22": 99,
     "71": 86,
     "72": 2,
     "73": 0,
@@ -15,6 +16,15 @@
     "76": 0,
     "77": 68,
     "79": 62,
+    "81": 0,
+    "82": 0,
+    "83": 0,
+    "84": 127,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
+    "89": 0,
     "91": 65,
     "93": 2,
     "102": 0,
@@ -33,133 +43,212 @@
     "115": 0,
     "116": 0,
     "117": 40,
+    "118": 0,
     "119": 1,
     "120": 0,
     "121": 0,
+    "122": 0,
+    "123": 0,
+    "124": 0,
+    "125": 0,
     "126": 0,
-    "127": 0,
-    "22": 0
+    "127": 0
   },
   "slots": {
     "map_fiber.hue": 0.7,
     "map_fiber.value": {
       "op": "mul",
-      "a": {
-        "op": "mul",
-        "a": {
+      "args": [
+        {
           "op": "mul",
-          "a": {
-            "op": "sub",
-            "a": 0.6,
-            "b": "rotary"
-          },
-          "b": {
-            "op": "sub",
-            "a": 0.8,
-            "b": "v_rotary"
-          }
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                {
+                  "op": "sub",
+                  "args": [
+                    0.6,
+                    "rotary"
+                  ],
+                  "mod": false
+                },
+                {
+                  "op": "sub",
+                  "args": [
+                    0.8,
+                    "v_rotary"
+                  ],
+                  "mod": false
+                }
+              ],
+              "mod": false
+            },
+            "wipe1"
+          ],
+          "mod": false
         },
-        "b": "wipe1"
-      },
-      "b": 5.0
+        5.0
+      ],
+      "mod": false
     },
     "map_fiber.sat": 0.5,
     "map_fiber2.hue": {
       "op": "add",
-      "a": {
-        "op": "mul",
-        "a": "param_a",
-        "b": 0.1
-      },
-      "b": 1.05,
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "param_a",
+            0.1
+          ],
+          "mod": false
+        },
+        1.05
+      ],
       "mod": true
     },
     "map_fiber2.sat": {
       "op": "add",
-      "a": 0.85,
-      "b": {
-        "op": "mul",
-        "a": "fader_e",
-        "b": 0.15
-      }
+      "args": [
+        0.85,
+        {
+          "op": "mul",
+          "args": [
+            "fader_e",
+            0.15
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
     },
     "map_fiber2.value": {
       "op": "mul",
-      "a": "hexes",
-      "b": "fader_e"
+      "args": [
+        "hexes",
+        "fader_e"
+      ],
+      "mod": false
     },
     "map_fiber3.value": {
       "op": "mul",
-      "a": {
-        "op": "mul",
-        "a": {
+      "args": [
+        {
           "op": "mul",
-          "a": {
-            "op": "mul",
-            "a": {
-              "op": "sub",
-              "a": 0.3,
-              "b": "v_gradient"
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                {
+                  "op": "mul",
+                  "args": [
+                    {
+                      "op": "sub",
+                      "args": [
+                        0.3,
+                        "v_gradient"
+                      ],
+                      "mod": false
+                    },
+                    10.0
+                  ],
+                  "mod": false
+                },
+                "v_edges"
+              ],
+              "mod": false
             },
-            "b": 10.0
-          },
-          "b": "v_edges"
+            "strobe0"
+          ],
+          "mod": false
         },
-        "b": "strobe0"
-      },
-      "b": "fader_b"
+        "fader_b"
+      ],
+      "mod": false
     },
     "bg_waves.value": {
       "op": "mul",
-      "a": "trace",
-      "b": "fader_c"
+      "args": [
+        "trace",
+        "fader_c"
+      ],
+      "mod": false
     },
-    "map_fiber3.hue": 0.67,
+    "map_fiber3.hue": 0.7,
     "map_fiber3.sat": 0.8,
     "net.hue": 0.67,
     "net.value": {
       "op": "mul",
-      "a": {
-        "op": "sub",
-        "a": 1.0,
-        "b": {
-          "op": "mul",
-          "a": "fire",
-          "b": 2.0
-        }
-      },
-      "b": "fader_a"
+      "args": [
+        {
+          "op": "sub",
+          "args": [
+            1.0,
+            {
+              "op": "mul",
+              "args": [
+                "fire",
+                2.0
+              ],
+              "mod": false
+            }
+          ],
+          "mod": false
+        },
+        "fader_a"
+      ],
+      "mod": false
     },
     "net.sat": {
       "op": "sub",
-      "a": 0.9,
-      "b": {
-        "op": "mul",
-        "a": 0.2,
-        "b": "strobe1"
-      }
+      "args": [
+        0.9,
+        {
+          "op": "mul",
+          "args": [
+            0.2,
+            "param_a"
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
     },
     "net.amp": {
       "op": "add",
-      "a": {
-        "op": "mul",
-        "a": "strobe1",
-        "b": 0.5
-      },
-      "b": 0.02
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "param_a",
+            0.8
+          ],
+          "mod": false
+        },
+        0.02
+      ],
+      "mod": false
     },
     "bg_waves.sat": 1.0,
     "prob_zaps.hue": 0.75,
     "prob_zaps.value": {
       "op": "mul",
-      "a": {
-        "op": "mul",
-        "a": "trace",
-        "b": 2.0
-      },
-      "b": "fader_d"
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "trace",
+            2.0
+          ],
+          "mod": false
+        },
+        "fader_d"
+      ],
+      "mod": false
     },
-    "prob_zaps.prob": 0.5
+    "prob_zaps.prob": 0.5,
+    "bg_waves2.value": 0.0
   },
   "cc_map": {
     "fader_a.value": 12,

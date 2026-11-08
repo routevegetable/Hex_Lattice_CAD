@@ -1,11 +1,13 @@
 {
   "ccs": {
-    "12": 0,
-    "13": 0,
-    "14": 0,
+    "12": 82,
+    "13": 77,
+    "14": 127,
     "15": 0,
     "16": 0,
     "17": 127,
+    "18": 0,
+    "19": 80,
     "22": 0,
     "23": 6,
     "24": 26,
@@ -19,6 +21,15 @@
     "75": 24,
     "77": 69,
     "79": 71,
+    "81": 0,
+    "82": 64,
+    "83": 66,
+    "84": 127,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
+    "89": 0,
     "91": 123,
     "93": 10,
     "102": 13,
@@ -36,58 +47,105 @@
     "114": 47,
     "115": 0,
     "116": 0,
-    "117": 0
+    "117": 0,
+    "118": 0,
+    "119": 1,
+    "120": 0,
+    "121": 0,
+    "122": 0,
+    "123": 0,
+    "124": 0,
+    "125": 0,
+    "126": 127,
+    "127": 0
   },
   "slots": {
     "net.value": "fader_b",
     "net.sat": {
       "op": "add",
-      "a": "fader_a",
-      "b": 0.9
+      "args": [
+        "fader_a",
+        0.9
+      ],
+      "mod": false
     },
     "net.amp": "fader_a",
     "net.hue": {
       "op": "sub",
-      "a": 0.6,
-      "b": {
-        "op": "mul",
-        "a": "fader_a",
-        "b": 0.2
-      }
+      "args": [
+        0.6,
+        {
+          "op": "mul",
+          "args": [
+            "fader_a",
+            0.2
+          ],
+          "mod": false
+        }
+      ],
+      "mod": true
     },
     "bg_waves.value": {
       "op": "mul",
-      "a": "loops",
-      "b": "param_a"
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "loops",
+            "param_a"
+          ],
+          "mod": false
+        },
+        "fader_c"
+      ],
+      "mod": false
     },
     "bg_waves.sat": 1.0,
     "bg_waves.hue": {
       "op": "add",
-      "a": {
-        "op": "mul",
-        "a": "loops",
-        "b": 0.33
-      },
-      "b": 0.02
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "loops",
+            0.33
+          ],
+          "mod": false
+        },
+        0.02
+      ],
+      "mod": false
     },
     "sparks.hue": {
       "op": "add",
-      "a": {
-        "op": "mul",
-        "a": {
+      "args": [
+        {
           "op": "mul",
-          "a": "rotary",
-          "b": "v_rotary180"
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                "rotary",
+                "v_rotary180"
+              ],
+              "mod": false
+            },
+            0.35
+          ],
+          "mod": false
         },
-        "b": 0.35
-      },
-      "b": 0.02
+        0.02
+      ],
+      "mod": false
     },
     "sparks.sat": 0.99,
     "sparks.prob": {
       "op": "mul",
-      "a": "param_b",
-      "b": 20.0
+      "args": [
+        "param_b",
+        0.2
+      ],
+      "mod": false
     },
     "sparks.value": 1.0
   },
@@ -117,5 +175,6 @@
     "sparks"
   ],
   "muted": [],
-  "name": "ao-1"
+  "name": "ao-1",
+  "notes": {}
 }

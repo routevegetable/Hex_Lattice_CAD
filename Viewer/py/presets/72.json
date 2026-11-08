@@ -15,6 +15,7 @@
     "76": 0,
     "77": 92,
     "79": 9,
+    "89": 102,
     "91": 66,
     "93": 3,
     "94": 2,
@@ -193,7 +194,8 @@
     "v_rotary.parts": 94
   },
   "active": [
-    "bg_waves"
+    "bg_waves",
+    "ambient_light"
   ],
   "muted": [],
   "name": "dubstep-4"

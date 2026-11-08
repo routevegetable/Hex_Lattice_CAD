@@ -13,6 +13,7 @@
     "76": 0,
     "77": 69,
     "79": 9,
+    "89": 102,
     "91": 66,
     "93": 4,
     "102": 99,
@@ -113,7 +114,8 @@
     "net",
     "map_fiber",
     "bg_waves",
-    "prob_zaps"
+    "prob_zaps",
+    "ambient_light"
   ],
   "muted": [],
   "name": "dubstep-1"
