@@ -4,6 +4,14 @@ const get = (p) => fetch(p).then(r => r.json());
 const post = (p, body) => fetch(p, body === undefined ? {method: 'POST'} :
                                  {method: 'POST', headers: {'Content-Type': 'application/json'},
                                   body: JSON.stringify(body)});
+// What the server said was wrong, as text. A refusal it wrote itself is a string; one
+// from checking the request's shape (a 422) is a list of {loc, msg}, which alert()
+// would show as [object Object].
+const problem = (body) => typeof body?.detail === 'string' ? body.detail
+    : Array.isArray(body?.detail)
+      ? body.detail.map(d => `${(d.loc ?? []).slice(1).join('.')}: ${d.msg}`).join('\n')
+      : JSON.stringify(body);
+
 const put = (p, body) => fetch(p, {method: 'PUT', headers: {'Content-Type': 'application/json'},
                                    body: JSON.stringify(body)});
 
@@ -30,7 +38,7 @@ const isDirty = (view) => !!view && !same(edited(view.live, view.stored), view.s
 
 async function act(path) {
   const r = await post(path);
-  if (!r.ok) { alert((await r.json()).detail); return; }
+  if (!r.ok) { alert(problem(await r.json())); return; }
   await refresh();
 }
 
@@ -209,11 +217,11 @@ const snapshot = async () => ({number: rig.selected, patch: (await get(`/presets
 // rather than flashing whatever it held before.
 async function recall(rec) {
   const r = await put(`/presets/${rec.number}`, rec.patch);
-  if (!r.ok) { alert((await r.json()).detail); return; }
+  if (!r.ok) { alert(problem(await r.json())); return; }
 
   if (rig.selected !== rec.number) {
     const s = await post(`/presets/${rec.number}/select`);
-    if (!s.ok) { alert((await s.json()).detail); return; }
+    if (!s.ok) { alert(problem(await s.json())); return; }
   }
 
   editing = {};
@@ -264,7 +272,7 @@ async function setNote(name, text) {
   const {[name]: _gone, ...rest} = fresh.live.notes ?? {};
   const notes = text ? {...rest, [name]: text} : rest;
   const r = await put(`/presets/${n}`, {...fresh.live, notes});
-  if (!r.ok) { alert((await r.json()).detail); return; }
+  if (!r.ok) { alert(problem(await r.json())); return; }
   await refresh();
 }
 
@@ -277,7 +285,7 @@ async function setMuted(names) {
   const fresh = await get(`/presets/${n}`);
   remember(n, fresh.live);
   const r = await put(`/presets/${n}`, {...fresh.live, muted: names});
-  if (!r.ok) { alert((await r.json()).detail); return; }
+  if (!r.ok) { alert(problem(await r.json())); return; }
   await refresh();
 }
 
@@ -316,7 +324,7 @@ async function setActive(names) {
 
   remember(n, fresh.live);
   const r = await put(`/presets/${n}`, {...fresh.live, active});
-  if (!r.ok) { alert((await r.json()).detail); return; }
+  if (!r.ok) { alert(problem(await r.json())); return; }
   await refresh();
 }
 
@@ -342,7 +350,7 @@ async function writeSlot(key, tree, fader) {
   // Controls a field brings are not placed on the box: that is done by hand, on
   // the map (or with "assign them").
   const r = await put(`/presets/${n}`, {...fresh.live, slots});
-  if (!r.ok) { alert((await r.json()).detail); return; }
+  if (!r.ok) { alert(problem(await r.json())); return; }
   await refresh();
 }
 
@@ -1746,7 +1754,7 @@ async function assign(name, cc) {
   remember(n, fresh.live);
   const r = await put(`/presets/${n}`,
                       {...fresh.live, cc_map: {...fresh.live.cc_map, [name]: Number(cc)}});
-  if (!r.ok) { alert((await r.json()).detail); return; }
+  if (!r.ok) { alert(problem(await r.json())); return; }
   await refresh();
 }
 
@@ -2460,7 +2468,7 @@ async function writeGradients(change) {
   const fresh = await get(`/presets/${n}`);
   remember(n, fresh.live);
   const r = await put(`/presets/${n}`, {...fresh.live, gradients: change([...(fresh.live.gradients ?? [])])});
-  if (!r.ok) { alert(`The gradient was not saved: ${(await r.json()).detail}`); return false; }
+  if (!r.ok) { alert(`The gradient was not saved: ${problem(await r.json())}`); return false; }
   await refresh();
   return true;
 }
@@ -2473,7 +2481,7 @@ async function writeSlots(changes) {
   const fresh = await get(`/presets/${n}`);
   remember(n, fresh.live);
   const r = await put(`/presets/${n}`, {...fresh.live, slots: {...fresh.live.slots, ...changes}});
-  if (!r.ok) { alert((await r.json()).detail); return false; }
+  if (!r.ok) { alert(problem(await r.json())); return false; }
   await refresh();
   return true;
 }
@@ -3116,10 +3124,10 @@ copyDialog.querySelector('form').onsubmit = async (e) => {
   const patch = making === 'new' ? blankPatch(name)
                                  : {...(await get(`/presets/${rig.selected}`)).live, name};
   let r = await put(`/presets/${number}`, patch);
-  if (!r.ok) { alert((await r.json()).detail); return; }
+  if (!r.ok) { alert(problem(await r.json())); return; }
 
   r = await post(`/presets/${number}/commit`);
-  if (!r.ok) { alert((await r.json()).detail); return; }
+  if (!r.ok) { alert(problem(await r.json())); return; }
 
   // A copy leaves what is playing alone. A blank one is made to be filled in, so
   // it is the one to play.
@@ -3469,7 +3477,7 @@ async function assignUsed() {
   const {cc_map, said} = withControls(fresh.live, fresh.live.slots);
   if (!said.length) return;
   const r = await put(`/presets/${n}`, {...fresh.live, cc_map});
-  if (!r.ok) { alert((await r.json()).detail); return; }
+  if (!r.ok) { alert(problem(await r.json())); return; }
   savedNote.textContent = said.join(', ');
   clearTimeout(savedTimer);
   savedTimer = setTimeout(() => { savedNote.textContent = ''; }, 6000);
@@ -3509,7 +3517,7 @@ function unassignBar(spot) {
       const declared = controls.find(c => c.kind === 'cc' && c.comments[0] === name)?.default;
       if (declared === Number(spot.dataset.cc)) cc_map[name] = freeCC(cc_map);
       const r = await put(`/presets/${n}`, {...fresh.live, cc_map});
-      if (!r.ok) { alert((await r.json()).detail); return; }
+      if (!r.ok) { alert(problem(await r.json())); return; }
       await refresh();
     };
     bar.append(b);
@@ -3537,7 +3545,7 @@ function assignMenu(spot) {
     if (n === null) return;
     const fresh = await get(`/presets/${n}`);
     const r = await put(`/presets/${n}`, {...fresh.live, cc_map: {...fresh.live.cc_map, [name]: cc}});
-    if (!r.ok) { alert((await r.json()).detail); return; }
+    if (!r.ok) { alert(problem(await r.json())); return; }
     await refresh();
   }, {
     placeholder: `put on ${surface.ccs[cc]}: search controls`,
@@ -3631,7 +3639,7 @@ async function revertTo(snap) {
 
   for (const [n, patch] of Object.entries(snap.live)) {
     const r = await put(`/presets/${n}`, patch);
-    if (!r.ok) { alert(`preset ${n}: ${(await r.json()).detail}`); break; }
+    if (!r.ok) { alert(`preset ${n}: ${problem(await r.json())}`); break; }
   }
 
   const play = rig.selected ?? snap.selected;
