@@ -31,9 +31,10 @@ from pylattice.lattice_writer import LatticeWriter
 from pathlib import Path
 from pylattice.instrument.api import serve
 from pylattice.instrument.fields import FIELDS, OPERATORS
+from pylattice.instrument.bank import BANK
 from pylattice.instrument.hardware import graph, lattice, midi
 from pylattice.instrument.console import Console
-from pylattice.instrument.patch import Patch, PresetBank
+from pylattice.instrument.patch import Patch
 from pylattice.instrument.types import Effect
 
 
@@ -80,7 +81,6 @@ class EFFECTS:
 init_boom_zaps(graph, lattice)
 
 
-BANK = PresetBank(Path("presets"))
 CONSOLE = Console(midi, FIELDS, OPERATORS, EFFECTS, BANK)
 serve(CONSOLE)
 
