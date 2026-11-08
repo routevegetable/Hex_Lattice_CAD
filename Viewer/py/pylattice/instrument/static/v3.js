@@ -2344,16 +2344,17 @@ function drawEffects() {
 // ---- colour gradients ------------------------------------------------------
 // A gradient is stops of [frac, hue, sat]: what colour every place along 0..1 is.
 // One knob (gradient_1 to gradient_3) picks which gradient a pair of operators
-// reads, by position. The pair row puts those operators in a hue and a saturation
+// reads, by its number. The pair row puts those operators in a hue and a saturation
 // slot together, and the editor makes and changes a preset's own.
 //
-// The server only plays what it is given: the declared gradients, with a
-// preset's own laid over them. The rules about what a preset's own may be are
-// this page's, and it keeps them - see GRADIENT_POSITIONS and the editor's save.
+// A gradient's number is its place in a list. 0-63 are the declared ones, in the
+// order the server's code lists them (which only ever grows). 64-127 are the
+// playing preset's own, in the order its file lists them: 64 is its first. So a
+// preset's own gradients are a list, and taking one out moves the ones after it.
+// The server refuses a preset with more than 64 of its own.
 
-// Declared in the server's code at 0-63. A preset's own are kept to 64-127, so
-// the two never share a position and neither moves when the other changes.
-const GRADIENT_POSITIONS = {declared: [0, 63], own: [64, 127]};
+const GRADIENT_OWN_FIRST = 64;
+const GRADIENT_OWN_MAX = 64;
 const GRADIENT_NAME = /^[A-Za-z0-9_-]{1,40}$/;
 
 const mk = (tag, cls, text) => {
@@ -2412,21 +2413,23 @@ function strip(stops, w = 96, h = 14) {
 
 // ---- which gradients there are
 
-const localGradients = () => Object.entries(views[rig.selected]?.live.gradients ?? {})
-    .map(([name, g]) => ({name, position: g.position, stops: g.stops, scope: 'preset'}))
-    .sort((a, b) => a.position - b.position);
+// The playing preset's own, with the number a knob picks each at and its place in
+// the preset's list.
+const localGradients = () => (views[rig.selected]?.live.gradients ?? [])
+    .map((g, index) => ({name: g.name, position: GRADIENT_OWN_FIRST + index, index, stops: g.stops, scope: 'preset'}));
 const globalGradients = () => (rig?.gradients ?? []).map(g => ({...g, scope: 'global'}));
 const allGradients = () => [...globalGradients(), ...localGradients()]
     .sort((a, b) => a.position - b.position);
 
-// What a knob at `value` is on: the gradient written down at exactly that
-// position, or none. Not the nearest - what a knob between two of them makes the
-// rig play is the server's business, and this page does not guess at it.
+// What a knob at `value` is on: the gradient at exactly that number, or none. The
+// server plays the same: a knob where there is no gradient reads 0.
 const gradientAt = (value) => allGradients().find(g => g.position === Number(value)) ?? null;
 
-const freePosition = (range, taken) => {
-  for (let p = range[0]; p <= range[1]; p++) if (!taken.includes(p)) return p;
-  return null;
+// The number a gradient added to the playing preset would have, or null if it
+// already has as many as it can carry.
+const nextOwnPosition = () => {
+  const count = localGradients().length;
+  return count < GRADIENT_OWN_MAX ? GRADIENT_OWN_FIRST + count : null;
 };
 
 // The CC a gradient knob is on, which a preset may have moved.
@@ -2446,18 +2449,17 @@ function setChannel(n, position) {
 
 // ---- writing
 
-// Change the playing preset's own gradients: `change` is handed a copy of them
-// and returns what they should be. The editor that made them has seen to the name
-// and the stops, and keeps the position to 64-127; the server refuses a position
-// outside that or one that is taken, and what it says is shown, so a gradient that
-// did not go in is never silently dropped.
+// Change the playing preset's own gradients: `change` is handed a copy of the list
+// and returns what it should be. The editor that made them has seen to the name
+// and the stops; the server refuses more than 64 or one with no stops, and what it
+// says is shown, so a gradient that did not go in is never silently dropped.
 async function writeGradients(change) {
   const n = rig.selected;
   if (n === null) return false;
 
   const fresh = await get(`/presets/${n}`);
   remember(n, fresh.live);
-  const r = await put(`/presets/${n}`, {...fresh.live, gradients: change({...(fresh.live.gradients ?? {})})});
+  const r = await put(`/presets/${n}`, {...fresh.live, gradients: change([...(fresh.live.gradients ?? [])])});
   if (!r.ok) { alert(`The gradient was not saved: ${(await r.json()).detail}`); return false; }
   await refresh();
   return true;
@@ -2698,9 +2700,9 @@ function openGradientEditor({gradient = null, copy = false, onSaved = null} = {}
   nameIn.value = startName;
   nameIn.disabled = readonly;
   nameIn.placeholder = 'letters, digits, - and _';
-  const where = existing ? `position ${existing.position}`
-      : readonly ? `position ${gradient.position}, global`
-      : `position ${freePosition(GRADIENT_POSITIONS.own, locals.map(g => g.position)) ?? 'none free'}`;
+  const where = existing ? `number ${existing.position}`
+      : readonly ? `number ${gradient.position}, global`
+      : `number ${nextOwnPosition() ?? 'none free'}`;
   const nameRow = mk('label', 'gfield');
   nameRow.append(mk('span', null, 'name'), nameIn, mk('span', 'dim', `${where} · the knob value that picks it`));
   dlg.append(nameRow);
@@ -2886,18 +2888,16 @@ function openGradientEditor({gradient = null, copy = false, onSaved = null} = {}
   const cleanName = () => nameIn.value.trim();
   const say = (text) => { err.textContent = text; };
 
-  // The same gradient as a line of Python to paste into GLOBAL_GRADIENTS, at the
-  // lowest global position that is free.
+  // The same gradient as a few lines of Python to paste into GLOBAL_GRADIENTS. The
+  // list only grows, so a new one goes on the end and takes the next number.
   const copyPython = async () => {
-    // A global one being looked at is already declared, at its own position; any
-    // other is offered the lowest global position that is free.
-    const position = readonly ? gradient.position
-        : freePosition(GRADIENT_POSITIONS.declared, globalGradients().map(g => g.position));
+    const next = globalGradients().length;
     const name = readonly ? gradient.name : cleanName() || 'gradient';
-    const rows = asStops().map(s => `    (${s.map(x => x.toFixed(4)).join(', ')}),`).join('\n');
-    python.value = `# in instrument/gradients.py, GLOBAL_GRADIENTS - `
-        + (readonly ? 'already declared at this position\n' : `position ${position ?? '(none free)'} is free\n`)
-        + `Gradient("${name}", ${position ?? 0}, (\n${rows}\n)),`;
+    const rows = asStops().map(s => `        (${s.map(x => x.toFixed(4)).join(', ')}),`).join('\n');
+    python.value = (readonly
+            ? `# already in instrument/gradients.py, GLOBAL_GRADIENTS, as number ${gradient.position}\n`
+            : `# for instrument/gradients.py, GLOBAL_GRADIENTS: add it at the end (append only), as number ${next}\n`)
+        + `GradientDef(\n    "${name}",\n    [\n${rows}\n    ],\n),`;
     python.hidden = false;
     python.select();
     try { await navigator.clipboard.writeText(python.value); say('copied'); }
@@ -2912,9 +2912,8 @@ function openGradientEditor({gradient = null, copy = false, onSaved = null} = {}
     if (locals.some(g => g.name === name && g.name !== existing?.name))
       return say(`this preset already has a gradient called ${name}`);
 
-    const position = existing?.position
-        ?? freePosition(GRADIENT_POSITIONS.own, locals.map(g => g.position));
-    if (position === null) return say('this preset has no free gradient positions left');
+    const position = existing?.position ?? nextOwnPosition();
+    if (position === null) return say(`this preset already has ${GRADIENT_OWN_MAX} gradients, the most it can carry`);
 
     // The server sorts what it is given but trusts the rest, so a stop that is not
     // a place, a hue and a saturation between 0 and 1 stops here.
@@ -2922,9 +2921,10 @@ function openGradientEditor({gradient = null, copy = false, onSaved = null} = {}
     if (!out.length || out.some(s => s.length !== 3 || s.some(x => !(x >= 0 && x <= 1))))
       return say('every stop needs a place, a hue and a saturation, each between 0 and 1');
 
+    // Changing one keeps its place, so a knob on it stays on it; a new one goes on the end.
     const done = await writeGradients((gs) => {
-      if (existing && existing.name !== name) delete gs[existing.name];
-      gs[name] = {position, stops: out};
+      if (existing) gs[existing.index] = {name, stops: out};
+      else gs.push({name, stops: out});
       return gs;
     });
     if (!done) return;
@@ -2934,10 +2934,17 @@ function openGradientEditor({gradient = null, copy = false, onSaved = null} = {}
 
   const drop = async () => {
     const on = [1, 2, 3].filter(n => channelCC(n) !== null && gradientAt(ccValue(channelCC(n)))?.name === existing.name);
-    const note = on.length ? ` ${on.length > 1 ? 'Knobs' : 'Knob'} ${on.join(', ')} ${on.length > 1 ? 'are' : 'is'} on it`
-        + ' and will be on none of the others until you choose one.' : '';
-    if (!confirm(`Delete ${existing.name} from this preset?${note}`)) return;
-    if (await writeGradients((gs) => { delete gs[existing.name]; return gs; })) shut();
+    const after = locals.length - 1 - existing.index;
+    const notes = [
+      on.length ? `${on.length > 1 ? 'Knobs' : 'Knob'} ${on.join(', ')} ${on.length > 1 ? 'are' : 'is'} on it`
+          + ' and will be on whatever takes its place.' : '',
+      after > 1 ? `The ${after} gradients after it move down one number, so a knob on one of them`
+          + ' will be on the next gradient along instead.'
+      : after ? 'The gradient after it moves down one number, so a knob on it will be on the next'
+          + ' gradient along instead.' : '',
+    ].filter(Boolean).join(' ');
+    if (!confirm(`Delete ${existing.name} from this preset?${notes ? ` ${notes}` : ''}`)) return;
+    if (await writeGradients((gs) => { gs.splice(existing.index, 1); return gs; })) shut();
   };
 
   const close = mk('button', null, 'close');
