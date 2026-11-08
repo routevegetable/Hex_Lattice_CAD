@@ -1,0 +1,201 @@
+{
+  "ccs": {
+    "10": 7,
+    "12": 0,
+    "13": 0,
+    "14": 70,
+    "15": 0,
+    "16": 0,
+    "17": 31,
+    "18": 127,
+    "19": 80,
+    "22": 0,
+    "71": 37,
+    "72": 0,
+    "73": 23,
+    "74": 127,
+    "75": 24,
+    "76": 0,
+    "77": 127,
+    "79": 0,
+    "81": 0,
+    "82": 0,
+    "83": 0,
+    "84": 0,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
+    "89": 127,
+    "91": 64,
+    "93": 14,
+    "102": 87,
+    "103": 0,
+    "104": 3,
+    "105": 19,
+    "106": 0,
+    "107": 0,
+    "108": 0,
+    "109": 25,
+    "110": 20,
+    "111": 46,
+    "112": 59,
+    "113": 113,
+    "114": 92,
+    "115": 89,
+    "116": 0,
+    "117": 58,
+    "118": 0,
+    "119": 1,
+    "120": 3,
+    "121": 103,
+    "122": 0,
+    "123": 0,
+    "124": 69,
+    "125": 0,
+    "126": 0,
+    "127": 0
+  },
+  "slots": {
+    "light_all_fibers.value": {
+      "op": "mul",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            {
+              "op": "select",
+              "args": [
+                "d1_edges",
+                "d2_edges"
+              ],
+              "mod": false
+            },
+            "strobe0"
+          ],
+          "mod": false
+        },
+        "fader_b"
+      ],
+      "mod": false
+    },
+    "light_all_fibers2.sat": 1.0,
+    "light_all_fibers2.value": {
+      "op": "mul",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "hexes",
+            "strobe1"
+          ],
+          "mod": false
+        },
+        "fader_a"
+      ],
+      "mod": false
+    },
+    "light_all_fibers2.hue": {
+      "op": "add",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "strobe1",
+            0.05
+          ],
+          "mod": false
+        },
+        0.98
+      ],
+      "mod": true
+    },
+    "bg_waves.value": {
+      "op": "mul",
+      "args": [
+        0.5,
+        "fader_c"
+      ],
+      "mod": false
+    },
+    "bg_waves.hue": {
+      "op": "sub",
+      "args": [
+        0.68,
+        {
+          "op": "mul",
+          "args": [
+            "v_gradient",
+            0.4
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
+    },
+    "bg_waves.sat": 1.0,
+    "map_fiber.value": {
+      "op": "mul",
+      "args": [
+        "burst",
+        "fader_d"
+      ],
+      "mod": false
+    },
+    "map_fiber.hue": {
+      "op": "add",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "random",
+            0.3
+          ],
+          "mod": false
+        },
+        0.3
+      ],
+      "mod": false
+    },
+    "map_fiber.sat": 1.0,
+    "prob_zaps.value": {
+      "op": "mul",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            1.0,
+            "fire"
+          ],
+          "mod": false
+        },
+        "fader_e"
+      ],
+      "mod": false
+    },
+    "prob_zaps.prob": {
+      "op": "add",
+      "args": [
+        0.1,
+        "fader_e"
+      ],
+      "mod": false
+    },
+    "prob_zaps.hue": 0.65
+  },
+  "cc_map": {
+    "select.select": 22,
+    "fader_a.value": 12,
+    "fader_b.value": 13
+  },
+  "active": [
+    "bg_waves",
+    "light_all_fibers2",
+    "light_all_fibers",
+    "map_fiber",
+    "prob_zaps"
+  ],
+  "muted": [],
+  "name": "goldfisch-1",
+  "notes": {}
+}

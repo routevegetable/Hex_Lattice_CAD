@@ -41,7 +41,7 @@
     "117": 0
   },
   "slots": {
-    "sparks.prob": 60.0,
+    "sparks.prob": 0.6,
     "sparks.value": {
       "op": "mul",
       "a": {

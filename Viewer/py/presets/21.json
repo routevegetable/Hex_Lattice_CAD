@@ -1,12 +1,12 @@
 {
   "ccs": {
-    "12": 0,
-    "13": 127,
-    "14": 0,
-    "15": 0,
+    "12": 36,
+    "13": 0,
+    "14": 97,
+    "15": 41,
     "16": 0,
-    "17": 67,
-    "18": 13,
+    "17": 31,
+    "18": 127,
     "19": 0,
     "22": 38,
     "23": 120,
@@ -16,17 +16,20 @@
     "27": 0,
     "28": 0,
     "29": 0,
-    "71": 37,
     "72": 3,
     "73": 0,
-    "74": 127,
     "75": 24,
-    "76": 0,
-    "77": 127,
-    "79": 0,
+    "81": 0,
+    "82": 64,
+    "83": 0,
+    "84": 0,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
+    "89": 127,
     "91": 64,
-    "93": 0,
-    "102": 0,
+    "102": 98,
     "103": 0,
     "104": 3,
     "105": 19,
@@ -34,14 +37,21 @@
     "107": 0,
     "108": 0,
     "109": 0,
-    "110": 0,
     "111": 0,
     "112": 0,
-    "113": 0,
     "114": 92,
     "115": 0,
     "116": 0,
-    "117": 0
+    "118": 0,
+    "119": 1,
+    "120": 3,
+    "121": 103,
+    "122": 0,
+    "123": 0,
+    "124": 0,
+    "125": 0,
+    "126": 0,
+    "127": 0
   },
   "slots": {
     "bg_waves.hue": 0.5,
@@ -53,37 +63,76 @@
     "bg_waves2.sat": 1.0,
     "bg_waves2.flow": 0.0,
     "net.hue": {
-      "op": "add",
-      "a": {
-        "op": "mul",
-        "a": "param_a",
-        "b": 0.1
-      },
-      "b": 1.0,
-      "mod": true
+      "op": "gradient_1_h",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "v_gradient",
+            "strobe0"
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
     },
     "net.value": {
       "op": "mul",
-      "a": 0.6,
-      "b": "fader_a"
+      "args": [
+        0.6,
+        "fader_a"
+      ],
+      "mod": false
     },
     "net.sat": {
-      "op": "add",
-      "a": {
-        "op": "mul",
-        "a": 0.1,
-        "b": "strobe0"
-      },
-      "b": 0.88
+      "op": "mul",
+      "args": [
+        {
+          "op": "gradient_1_s",
+          "args": [
+            "rotary"
+          ],
+          "mod": false
+        },
+        {
+          "op": "sub",
+          "args": [
+            1.0,
+            {
+              "op": "sub",
+              "args": [
+                {
+                  "op": "mul",
+                  "args": [
+                    "rotary",
+                    10.0
+                  ],
+                  "mod": false
+                },
+                0.42
+              ],
+              "mod": false
+            }
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
     },
     "net.amp": {
       "op": "add",
-      "a": {
-        "op": "mul",
-        "a": "strobe0",
-        "b": 0.76
-      },
-      "b": 0.12
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "strobe0",
+            0.76
+          ],
+          "mod": false
+        },
+        0.12
+      ],
+      "mod": false
     },
     "sunrise.value": 0.0,
     "bisexual.value": 0.0,
@@ -92,51 +141,83 @@
     "prob_zaps.value": 1.0,
     "prob_zaps.prob": {
       "op": "mul",
-      "a": {
-        "op": "mul",
-        "a": "strobe1",
-        "b": "scope"
-      },
-      "b": 0.1
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "strobe1",
+            "scope"
+          ],
+          "mod": false
+        },
+        0.75
+      ],
+      "mod": false
     },
     "map_fiber.hue": {
       "op": "sub",
-      "a": 1.06,
-      "b": {
-        "op": "mul",
-        "a": {
+      "args": [
+        1.06,
+        {
           "op": "mul",
-          "a": "v_rotary",
-          "b": "rotary"
-        },
-        "b": 0.23
-      },
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                "v_rotary",
+                "rotary"
+              ],
+              "mod": false
+            },
+            0.23
+          ],
+          "mod": false
+        }
+      ],
       "mod": true
     },
     "map_fiber.value": {
       "op": "mul",
-      "a": {
-        "op": "mul",
-        "a": {
+      "args": [
+        {
           "op": "mul",
-          "a": {
-            "op": "mul",
-            "a": {
-              "op": "add",
-              "a": {
-                "op": "mul",
-                "a": "v_rotary180",
-                "b": "rotary180"
-              },
-              "b": 0.36
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                {
+                  "op": "mul",
+                  "args": [
+                    {
+                      "op": "add",
+                      "args": [
+                        {
+                          "op": "mul",
+                          "args": [
+                            "v_rotary180",
+                            "rotary180"
+                          ],
+                          "mod": false
+                        },
+                        0.36
+                      ],
+                      "mod": false
+                    },
+                    "fire"
+                  ],
+                  "mod": false
+                },
+                1.0
+              ],
+              "mod": false
             },
-            "b": "fire"
-          },
-          "b": 1.0
+            "fader_b"
+          ],
+          "mod": false
         },
-        "b": "fader_b"
-      },
-      "b": "strobe2"
+        "strobe2"
+      ],
+      "mod": false
     },
     "map_fiber.sat": 1.0,
     "map_fiber2.hue": 0.0,
@@ -151,7 +232,7 @@
     "glitter.spin_rate": 0.22,
     "sparks.value": 1.0,
     "sparks.sat": 0.25,
-    "sparks.prob": 15.0,
+    "sparks.prob": 0.15,
     "sparks.hue": 0.67
   },
   "cc_map": {
@@ -177,10 +258,54 @@
     "net",
     "prob_zaps",
     "map_fiber",
-    "map_fiber2"
+    "map_fiber2",
+    "ambient_light"
   ],
   "muted": [
     "map_fiber2"
   ],
-  "name": "flight-fm-1"
+  "name": "flight-fm-1",
+  "notes": {},
+  "gradients": {
+    "pink-n-purple": {
+      "position": 64,
+      "stops": [
+        [
+          0.0,
+          0.73,
+          1.0
+        ],
+        [
+          0.1397,
+          0.8612,
+          1.0
+        ],
+        [
+          0.2905,
+          0.7058,
+          0.9023
+        ],
+        [
+          0.4929,
+          0.8319,
+          0.9121
+        ],
+        [
+          0.6664,
+          0.7469,
+          0.9134
+        ],
+        [
+          0.8585,
+          0.8301,
+          0.9277
+        ],
+        [
+          1.0,
+          0.75,
+          1.0
+        ]
+      ]
+    }
+  }
 }

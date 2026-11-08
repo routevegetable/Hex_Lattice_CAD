@@ -4,11 +4,12 @@
     "12": 0,
     "13": 0,
     "14": 0,
+    "15": 127,
     "16": 51,
     "17": 0,
     "18": 127,
     "19": 89,
-    "22": 0,
+    "22": 32,
     "23": 120,
     "24": 45,
     "25": 0,
@@ -23,116 +24,199 @@
     "76": 0,
     "77": 0,
     "79": 71,
+    "81": 0,
+    "82": 0,
+    "83": 0,
+    "84": 127,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
+    "89": 0,
     "91": 123,
     "93": 16,
     "102": 40,
     "103": 0,
     "104": 3,
     "105": 19,
-    "114": 47,
-    "108": 0,
     "106": 0,
     "107": 0,
+    "108": 0,
+    "109": 0,
     "110": 0,
     "111": 0,
     "112": 0,
     "113": 0,
+    "114": 47,
     "115": 0,
     "116": 0,
-    "109": 0
+    "117": 0,
+    "118": 0,
+    "119": 1,
+    "120": 0,
+    "121": 0,
+    "122": 0,
+    "123": 0,
+    "124": 0,
+    "125": 0,
+    "126": 127,
+    "127": 0
   },
   "slots": {
     "bg_waves.sat": 1.0,
     "bg_waves2.sat": 0.0,
     "net.hue": {
-      "op": "add",
-      "a": {
-        "op": "mul",
-        "a": "v_gradient",
-        "b": 0.01
-      },
-      "b": 1.0,
-      "mod": true
+      "op": "gradient_1_h",
+      "args": [
+        "v_gradient"
+      ],
+      "mod": false
     },
-    "net.sat": 1.0,
+    "net.sat": {
+      "op": "gradient_1_s",
+      "args": [
+        "v_gradient"
+      ],
+      "mod": false
+    },
     "net.amp": {
       "op": "add",
-      "a": "strobe0",
-      "b": 0.2
+      "args": [
+        "strobe0",
+        0.2
+      ],
+      "mod": false
     },
     "net.value": {
       "op": "mul",
-      "a": {
-        "op": "mul",
-        "a": {
-          "op": "sub",
-          "a": 1.0,
-          "b": "v_gradient"
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            {
+              "op": "sub",
+              "args": [
+                1.0,
+                "v_gradient"
+              ],
+              "mod": false
+            },
+            0.99
+          ],
+          "mod": false
         },
-        "b": 0.99
-      },
-      "b": "param_a"
+        "param_a"
+      ],
+      "mod": false
     },
     "prob_zaps.hue": 0.12,
     "prob_zaps.value": {
       "op": "mul",
-      "a": 1.0,
-      "b": "fader_a"
+      "args": [
+        1.0,
+        "fader_a"
+      ],
+      "mod": false
     },
     "prob_zaps.prob": {
       "op": "mul",
-      "a": {
-        "op": "sub",
-        "a": {
-          "op": "add",
-          "a": "v_gradient",
-          "b": "fader_b"
+      "args": [
+        {
+          "op": "sub",
+          "args": [
+            {
+              "op": "add",
+              "args": [
+                "v_gradient",
+                "fader_b"
+              ],
+              "mod": false
+            },
+            0.5
+          ],
+          "mod": false
         },
-        "b": 0.5
-      },
-      "b": 0.3
+        0.3
+      ],
+      "mod": false
     },
-    "map_fiber.sat": 1.0,
+    "map_fiber.sat": {
+      "op": "gradient_2_s",
+      "args": [
+        "wipe1"
+      ],
+      "mod": false
+    },
     "map_fiber2.sat": 0.9,
     "map_fiber3.sat": 0.0,
     "sparks.sat": 0.0,
     "map_fiber.value": {
       "op": "mul",
-      "a": 0.6,
-      "b": "wipe1"
+      "args": [
+        0.6,
+        "wipe1"
+      ],
+      "mod": false
     },
-    "map_fiber.hue": 0.01,
+    "map_fiber.hue": {
+      "op": "gradient_2_h",
+      "args": [
+        "wipe1"
+      ],
+      "mod": false
+    },
     "map_fiber2.hue": 0.65,
     "map_fiber2.value": {
       "op": "mul",
-      "a": {
-        "op": "mul",
-        "a": {
+      "args": [
+        {
           "op": "mul",
-          "a": "v_edges",
-          "b": "strobe1"
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                "v_edges",
+                "strobe1"
+              ],
+              "mod": false
+            },
+            0.5
+          ],
+          "mod": false
         },
-        "b": 0.5
-      },
-      "b": "rotary"
+        "rotary"
+      ],
+      "mod": false
     },
     "bg_waves.hue": 0.05,
     "bg_waves.value": {
       "op": "mul",
-      "a": {
-        "op": "mul",
-        "a": {
+      "args": [
+        {
           "op": "mul",
-          "a": {
-            "op": "mul",
-            "a": "v_edges",
-            "b": "strobe1"
-          },
-          "b": 0.2
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                {
+                  "op": "mul",
+                  "args": [
+                    "v_edges",
+                    "strobe1"
+                  ],
+                  "mod": false
+                },
+                0.2
+              ],
+              "mod": false
+            },
+            "rotary"
+          ],
+          "mod": false
         },
-        "b": "rotary"
-      },
-      "b": "v_rotary"
+        "v_rotary"
+      ],
+      "mod": false
     }
   },
   "cc_map": {
@@ -155,5 +239,6 @@
     "bg_waves"
   ],
   "muted": [],
-  "name": "purge-3"
+  "name": "purge-3",
+  "notes": {}
 }

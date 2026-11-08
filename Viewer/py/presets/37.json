@@ -108,7 +108,7 @@
     "glitter.hue_2": 0.9,
     "sparks.prob": {
       "op": "mul",
-      "a": 20.0,
+      "a": 0.2,
       "b": "rotary180"
     },
     "sparks.hue": {

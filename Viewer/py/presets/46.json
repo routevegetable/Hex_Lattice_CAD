@@ -1,0 +1,311 @@
+{
+  "ccs": {
+    "12": 36,
+    "13": 0,
+    "14": 97,
+    "15": 41,
+    "16": 0,
+    "17": 31,
+    "18": 127,
+    "19": 0,
+    "22": 38,
+    "23": 120,
+    "24": 90,
+    "25": 1,
+    "26": 127,
+    "27": 0,
+    "28": 0,
+    "29": 0,
+    "72": 3,
+    "73": 0,
+    "75": 24,
+    "81": 0,
+    "82": 64,
+    "83": 0,
+    "84": 0,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
+    "89": 127,
+    "91": 64,
+    "102": 98,
+    "103": 0,
+    "104": 3,
+    "105": 19,
+    "106": 0,
+    "107": 0,
+    "108": 0,
+    "109": 0,
+    "111": 0,
+    "112": 0,
+    "114": 92,
+    "115": 0,
+    "116": 0,
+    "118": 0,
+    "119": 1,
+    "120": 3,
+    "121": 103,
+    "122": 0,
+    "123": 0,
+    "124": 0,
+    "125": 0,
+    "126": 0,
+    "127": 0
+  },
+  "slots": {
+    "bg_waves.hue": 0.5,
+    "bg_waves.value": 0.5,
+    "bg_waves.sat": 1.0,
+    "bg_waves.flow": 0.5,
+    "bg_waves2.hue": 0.0,
+    "bg_waves2.value": 0.0,
+    "bg_waves2.sat": 1.0,
+    "bg_waves2.flow": 0.0,
+    "net.hue": {
+      "op": "gradient_1_h",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "v_gradient",
+            "strobe0"
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
+    },
+    "net.value": {
+      "op": "mul",
+      "args": [
+        0.6,
+        "fader_a"
+      ],
+      "mod": false
+    },
+    "net.sat": {
+      "op": "mul",
+      "args": [
+        {
+          "op": "gradient_1_s",
+          "args": [
+            "rotary"
+          ],
+          "mod": false
+        },
+        {
+          "op": "sub",
+          "args": [
+            1.0,
+            {
+              "op": "sub",
+              "args": [
+                {
+                  "op": "mul",
+                  "args": [
+                    "rotary",
+                    10.0
+                  ],
+                  "mod": false
+                },
+                0.42
+              ],
+              "mod": false
+            }
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
+    },
+    "net.amp": {
+      "op": "add",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "strobe0",
+            0.76
+          ],
+          "mod": false
+        },
+        0.12
+      ],
+      "mod": false
+    },
+    "sunrise.value": 0.0,
+    "bisexual.value": 0.0,
+    "bisexual.speed": 0.0,
+    "prob_zaps.hue": 0.0,
+    "prob_zaps.value": 1.0,
+    "prob_zaps.prob": {
+      "op": "mul",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "strobe1",
+            "scope"
+          ],
+          "mod": false
+        },
+        0.75
+      ],
+      "mod": false
+    },
+    "map_fiber.hue": {
+      "op": "sub",
+      "args": [
+        1.06,
+        {
+          "op": "mul",
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                "v_rotary",
+                "rotary"
+              ],
+              "mod": false
+            },
+            0.23
+          ],
+          "mod": false
+        }
+      ],
+      "mod": true
+    },
+    "map_fiber.value": {
+      "op": "mul",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                {
+                  "op": "mul",
+                  "args": [
+                    {
+                      "op": "add",
+                      "args": [
+                        {
+                          "op": "mul",
+                          "args": [
+                            "v_rotary180",
+                            "rotary180"
+                          ],
+                          "mod": false
+                        },
+                        0.36
+                      ],
+                      "mod": false
+                    },
+                    "fire"
+                  ],
+                  "mod": false
+                },
+                1.0
+              ],
+              "mod": false
+            },
+            "fader_b"
+          ],
+          "mod": false
+        },
+        "strobe2"
+      ],
+      "mod": false
+    },
+    "map_fiber.sat": 1.0,
+    "map_fiber2.hue": 0.0,
+    "map_fiber2.value": 1.0,
+    "map_fiber2.sat": 0.0,
+    "map_fiber3.hue": 0.0,
+    "map_fiber3.value": 0.0,
+    "map_fiber3.sat": 0.0,
+    "glitter.hue_1": 0.59,
+    "glitter.hue_2": 0.0,
+    "glitter.value": 1.0,
+    "glitter.spin_rate": 0.22,
+    "sparks.value": 1.0,
+    "sparks.sat": 0.25,
+    "sparks.prob": 0.15,
+    "sparks.hue": 0.67
+  },
+  "cc_map": {
+    "fader_a.value": 12,
+    "wipe1.speed": 26,
+    "rotary.period": 24,
+    "v_gradient.origin": 26,
+    "fader_b.value": 13,
+    "param_a.value": 14,
+    "param_b.value": 15,
+    "rotary.shape": 23,
+    "v_rotary.shape": 25,
+    "v_rotary.period": 26,
+    "scope.speed": 27,
+    "rotary.parts": 28,
+    "v_rotary.parts": 29,
+    "strobe0.attack": 17,
+    "strobe1.decay": 15,
+    "fire.rate": 22,
+    "scope.pattern": 16
+  },
+  "active": [
+    "net",
+    "prob_zaps",
+    "map_fiber",
+    "map_fiber2",
+    "ambient_light"
+  ],
+  "muted": [
+    "map_fiber2"
+  ],
+  "name": "flight-fm-gradient",
+  "notes": {},
+  "gradients": {
+    "pink-n-purple": {
+      "position": 64,
+      "stops": [
+        [
+          0.0,
+          0.73,
+          1.0
+        ],
+        [
+          0.1397,
+          0.8612,
+          1.0
+        ],
+        [
+          0.2905,
+          0.7058,
+          0.9023
+        ],
+        [
+          0.4929,
+          0.8319,
+          0.9121
+        ],
+        [
+          0.6664,
+          0.7469,
+          0.9134
+        ],
+        [
+          0.8585,
+          0.8301,
+          0.9277
+        ],
+        [
+          1.0,
+          0.75,
+          1.0
+        ]
+      ]
+    }
+  }
+}

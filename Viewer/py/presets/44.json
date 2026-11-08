@@ -1,15 +1,15 @@
 {
   "ccs": {
-    "12": 0,
+    "12": 42,
     "13": 0,
-    "14": 0,
-    "15": 0,
+    "14": 16,
+    "15": 70,
     "16": 0,
     "17": 0,
     "18": 0,
-    "19": 0,
-    "22": 63,
-    "23": 41,
+    "19": 50,
+    "22": 75,
+    "23": 43,
     "71": 86,
     "72": 3,
     "73": 0,
@@ -17,6 +17,15 @@
     "76": 0,
     "77": 68,
     "79": 0,
+    "81": 0,
+    "82": 64,
+    "83": 66,
+    "84": 127,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
+    "89": 0,
     "91": 65,
     "93": 2,
     "102": 0,
@@ -52,63 +61,83 @@
     "bg_waves.sat": 1.0,
     "map_fiber.hue": {
       "op": "add",
-      "a": {
-        "op": "mul",
-        "a": "param_a",
-        "b": 0.05,
-        "mod": false
-      },
-      "b": 0.01,
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "param_a",
+            0.05
+          ],
+          "mod": false
+        },
+        0.01
+      ],
       "mod": false
     },
     "map_fiber.value": {
       "op": "mul",
-      "a": "ripple",
-      "b": "fader_h",
+      "args": [
+        "ripple",
+        "fader_h"
+      ],
       "mod": false
     },
     "map_fiber.sat": {
       "op": "add",
-      "a": {
-        "op": "mul",
-        "a": "param_b",
-        "b": 0.3,
-        "mod": false
-      },
-      "b": 0.96,
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "param_b",
+            0.3
+          ],
+          "mod": false
+        },
+        0.96
+      ],
       "mod": false
     },
     "glitter.hue_1": {
       "op": "add",
-      "a": {
-        "op": "mul",
-        "a": "fader_b",
-        "b": 0.05,
-        "mod": false
-      },
-      "b": 0.98,
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "fader_b",
+            0.05
+          ],
+          "mod": false
+        },
+        0.98
+      ],
       "mod": false
     },
     "glitter.hue_2": {
       "op": "add",
-      "a": {
-        "op": "mul",
-        "a": "fader_c",
-        "b": 0.04,
-        "mod": false
-      },
-      "b": 1.01,
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "fader_c",
+            0.04
+          ],
+          "mod": false
+        },
+        1.01
+      ],
       "mod": true
     },
     "glitter.value": {
       "op": "mul",
-      "a": 1.0,
-      "b": "fader_a",
+      "args": [
+        1.0,
+        "fader_a"
+      ],
       "mod": false
     },
     "glitter.spin_rate": "fader_d",
-    "glitter.sat_1": 1.0,
-    "glitter.sat_2": 1.0
+    "glitter.sat_1": 0.99,
+    "glitter.sat_2": 0.99
   },
   "cc_map": {
     "fader_a.value": 12,
