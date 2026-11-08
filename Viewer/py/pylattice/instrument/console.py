@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 
 from pylattice.examples.midi import CCMeta, MIDI
 from pylattice.examples.tempo import Event
+from pylattice.instrument.gradients import GLOBAL_GRADIENTS
 from pylattice.fields.operators import Arity, Operator
 from pylattice.fields.types import ScalarField, Timing
 from pylattice.instrument.patch import Patch, PresetBank, named
@@ -97,6 +98,18 @@ class EffectInfo:
 
 
 @dataclass
+class GradientInfo:
+    """A declared gradient, for a UI to list and draw.
+
+    Only the ones declared in code: a preset's own come with the preset, in its
+    patch. The stops are (frac, hue, sat), as `gradient_hs` takes them.
+    """
+    name: str
+    position: int      # the knob value that picks it: its place in the declared list
+    stops: list[tuple[float, float, float]]
+
+
+@dataclass
 class Rig:
     """What can be patched - the names a Patch refers to, and the bank.
 
@@ -114,6 +127,9 @@ class Rig:
 
     # Presentation metadata for controls
     control_meta: dict[str, CCMeta] = field(default_factory=dict)
+
+    # The gradients every preset can use, and the index a knob picks each at.
+    gradients: list[GradientInfo] = field(default_factory=list)
 
     selected: int | None = None
     size: int = 16
@@ -234,6 +250,9 @@ class Console:
         other preset is silent - it just sits there until something selects it.
         """
         with self.lock:
+            # Refused here, not when something plays it: a preset that cannot be
+            # played must not be stored, whether or not it is the playing one.
+            patch.check_gradients()
             self._bank.put(number, patch)
 
             if number == self._selected:
@@ -328,6 +347,8 @@ class Console:
                 effects=effects,
                 control_meta={name: mapping.meta for name, mapping
                               in self._midi.get_mappings().items()},
+                gradients=[GradientInfo(g.name, index, list(g.stops))
+                           for index, g in enumerate(GLOBAL_GRADIENTS)],
                 selected=self._selected,
                 size=self._bank.size,
             )

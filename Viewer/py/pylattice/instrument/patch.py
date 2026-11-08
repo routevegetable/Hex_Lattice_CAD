@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from pylattice.examples.midi import MIDI
+from pylattice.fields.gradients import OWN_SLOTS, GradientDef
 from pylattice.fields.operators import Operator, OperatorField
 from pylattice.fields.types import ConstantField, ScalarField
 from pylattice.instrument.types import Effect
@@ -165,7 +166,34 @@ class Patch:
     # note has no entry.
     notes: dict[str, str] = field(default_factory=dict)
 
-    def apply(self, midi: MIDI, fields: type, operators: type, effects: type):
+    # Gradients that belong to this preset alone, in order. A knob reaches the
+    # first at 64, the next at 65, and so on, beside the declared ones at 0-63; so
+    # what the knobs mean follows this order, and removing one moves the ones after
+    # it. Empty - which is also what a file written before gradients gives - means
+    # it uses only the declared ones.
+    gradients: list[GradientDef] = field(default_factory=list)
+
+    def check_gradients(self):
+        """Raise ValueError if this preset's own gradients cannot be reached or
+        played: more than a knob has room for, or one with no stops. Changes
+        nothing, so it can be asked before a write."""
+        if len(self.gradients) > OWN_SLOTS:
+            raise ValueError(
+                f"a preset can carry at most {OWN_SLOTS} gradients of its own, "
+                f"this has {len(self.gradients)}"
+            )
+
+        for g in self.gradients:
+            if not g.stops:
+                raise ValueError(f"gradient {g.name} has no stops")
+
+    def apply(
+        self,
+        midi: MIDI,
+        fields: type,
+        operators: type,
+        effects: type,
+    ):
         """Put the knobs back and re-patch the slots.
 
         A patch is the entire picture: a slot it does not mention ends up with
@@ -174,6 +202,8 @@ class Patch:
         blank rig, and reverting to one clears it. Everything that applies a
         patch sends all of it, the UI included.
         """
+        self.check_gradients()
+
         # Where the controls live comes first: the values below are addressed
         # by CC number, so they have to land after everything is plugged in.
         midi.set_cc_map(self.cc_map)
@@ -230,6 +260,7 @@ class Patch:
             if mine:
                 effect.bind(**mine)
 
+
     def copy(self) -> "Patch":
         """An independent copy. The slot refs nest, so they go deep - two
         patches must never share a dict, or editing one edits the other."""
@@ -241,6 +272,7 @@ class Patch:
             muted=set(self.muted),
             name=self.name,
             notes=dict(self.notes),
+            gradients=copy.deepcopy(self.gradients),
         )
 
     def save(self, path: str):
@@ -254,6 +286,15 @@ class Patch:
             "name": self.name,
             "notes": self.notes,
         }
+
+        # Only when there are some, so a preset that has none is written as it
+        # always was and saving it does not touch the file.
+        if self.gradients:
+            out["gradients"] = [
+                {"name": g.name, "stops": [list(s) for s in g.stops]}
+                for g in self.gradients
+            ]
+
         Path(path).write_text(json.dumps(out, indent=2))
 
     @classmethod
@@ -270,7 +311,22 @@ class Patch:
             muted=set(saved.get("muted", [])),
             name=saved.get("name"),
             notes=dict(saved.get("notes", {})),
+            gradients=_gradients_from_json(saved.get("gradients", [])),
         )
+
+
+def _gradients_from_json(raw) -> list[GradientDef]:
+    """A preset's own gradients, in order.
+
+    Files written before they were ordered keyed them by name and gave each a
+    position, 64 and up; they come in by position, so the first is still where a
+    knob at 64 finds it. Saving writes the list, so such a file converts the first
+    time it is saved.
+    """
+    if isinstance(raw, dict):
+        raw = [{"name": name, **g} for name, g in sorted(raw.items(), key=lambda kv: kv[1]["position"])]
+
+    return [GradientDef(g["name"], [tuple(stop) for stop in g["stops"]]) for g in raw]
 
 
 @dataclass

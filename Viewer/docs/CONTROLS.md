@@ -159,6 +159,19 @@ The consequence is that a discrete control on a physical absolute knob only
 uses the bottom of its travel. `rotary.parts` on KA6 is like this. Fixing it
 properly means scaling incoming CC per meta rather than spreading the lists.
 
+**A `GradientChoice` holds an index, and an index only means something if the
+list never reorders.** A knob at 0–63 is on a gradient declared in
+`instrument/gradients.py`, by its place in `GLOBAL_GRADIENTS`; a knob at 64–127 is
+on one of the playing preset's own, by its place in the preset's `gradients` list
+(64 is its first). A knob is on the gradient at *exactly* its index and on none
+where there isn't one (it reads 0, which is dark); it is never snapped to the
+nearest. `GLOBAL_GRADIENTS` is append-only: never remove or move one, because a
+preset's knob holds the number. A preset's own list is ordered too, so deleting
+one moves the ones after it. The server refuses a preset with more than 64 of its
+own, or one with no stops. The names are for the UI to show.
+The three knobs are `gradient_1.select` to `gradient_3.select`, each shared by
+its `_h` and `_s` operators; see `fields/gradients.py`.
+
 ## Adding a control: the checklist
 
 1. Pick a free number from the list above, confirmed against the source.

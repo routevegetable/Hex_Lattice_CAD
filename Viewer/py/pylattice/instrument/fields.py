@@ -33,6 +33,8 @@ from pylattice.fields.trace import RandomTraceField, TraceLinesField
 from pylattice.fields.types import ScalarField, average, divide
 from pylattice.fields.wipe import NoteWipeField
 from pylattice.graph import EndRef
+from pylattice.instrument.bank import BANK
+from pylattice.instrument.gradients import GradientDef, gradient_at
 from pylattice.instrument.hardware import (
     KA1,
     KA2,
@@ -70,6 +72,12 @@ from pylattice.instrument.hardware import (
 
 ARTNET = artnet_universes(graph, count=4)
 
+
+
+def _gradient_at(idx: int) -> GradientDef | None:
+    """What a gradient knob at `idx` is on: a declared gradient, or one of the
+    playing preset's own."""
+    return gradient_at(BANK, idx)
 
 
 class Math(Operator):
@@ -256,12 +264,12 @@ class OPERATORS:
     # it is the saturation of the same gradient at the same place. Unary - the
     # gradient is chosen on a knob, not written into the expression.
     #
-    gradient_1_h = GradientChooser(True, midi.for_("gradient_1"), 82)
-    gradient_1_s = GradientChooser(False, midi.for_("gradient_1"), 82)
-    gradient_2_h = GradientChooser(True, midi.for_("gradient_2"), 83)
-    gradient_2_s = GradientChooser(False, midi.for_("gradient_2"), 83)
-    gradient_3_h = GradientChooser(True, midi.for_("gradient_3"), 84)
-    gradient_3_s = GradientChooser(False, midi.for_("gradient_3"), 84)
+    gradient_1_h = GradientChooser(True, midi.for_("gradient_1"), 82, _gradient_at)
+    gradient_1_s = GradientChooser(False, midi.for_("gradient_1"), 82, _gradient_at)
+    gradient_2_h = GradientChooser(True, midi.for_("gradient_2"), 83, _gradient_at)
+    gradient_2_s = GradientChooser(False, midi.for_("gradient_2"), 83, _gradient_at)
+    gradient_3_h = GradientChooser(True, midi.for_("gradient_3"), 84, _gradient_at)
+    gradient_3_s = GradientChooser(False, midi.for_("gradient_3"), 84, _gradient_at)
 
     # The prob_zaps effect as a value: `prob_zap(fader_a)` flashes ends at the
     # rate that knob asks for, and whatever is reading it gets the flash.
