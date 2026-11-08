@@ -129,20 +129,7 @@
       "mod": false
     },
     "prob_zaps.prob": 0.26,
-    "map_fiber.hue": {
-      "op": "mul",
-      "args": [
-        {
-          "op": "gradient_1_h",
-          "args": [
-            "ripple2"
-          ],
-          "mod": false
-        },
-        0.5
-      ],
-      "mod": false
-    },
+    "map_fiber.hue": 0.01,
     "map_fiber.value": {
       "op": "mul",
       "args": [
@@ -151,13 +138,7 @@
       ],
       "mod": false
     },
-    "map_fiber.sat": {
-      "op": "gradient_1_s",
-      "args": [
-        "ripple2"
-      ],
-      "mod": false
-    },
+    "map_fiber.sat": 0.13,
     "map_fiber2.hue": {
       "op": "add",
       "args": [
