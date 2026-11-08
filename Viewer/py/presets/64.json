@@ -13,7 +13,6 @@
     "76": 0,
     "77": 43,
     "79": 21,
-    "89": 102,
     "91": 2,
     "93": 0,
     "102": 25,
@@ -121,8 +120,7 @@
   "active": [
     "bg_waves",
     "map_fiber",
-    "prob_zaps",
-    "ambient_light"
+    "prob_zaps"
   ],
   "muted": [],
   "name": "cubes"

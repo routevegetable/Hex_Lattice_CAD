@@ -13,7 +13,6 @@
     "76": 38,
     "77": 66,
     "79": 0,
-    "89": 102,
     "91": 68,
     "93": 4,
     "102": 97,
@@ -103,8 +102,7 @@
     "burst.decay": 79
   },
   "active": [
-    "bg_waves",
-    "ambient_light"
+    "bg_waves"
   ],
   "muted": [],
   "name": "Swing Star"

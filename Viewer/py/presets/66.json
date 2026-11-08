@@ -13,7 +13,6 @@
     "76": 38,
     "77": 86,
     "79": 18,
-    "89": 102,
     "91": 68,
     "93": 4,
     "102": 97,
@@ -136,8 +135,7 @@
     "bg_waves",
     "bg_waves2",
     "map_fiber",
-    "prob_zaps",
-    "ambient_light"
+    "prob_zaps"
   ],
   "muted": [],
   "name": "Otomo"
