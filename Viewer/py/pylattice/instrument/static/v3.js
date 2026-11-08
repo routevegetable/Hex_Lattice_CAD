@@ -2447,8 +2447,10 @@ function setChannel(n, position) {
 // ---- writing
 
 // Change the playing preset's own gradients: `change` is handed a copy of them
-// and returns what they should be. Nothing checks them but the editor that made
-// them, so it has already seen to the name, the position and the stops.
+// and returns what they should be. The editor that made them has seen to the name
+// and the stops, and keeps the position to 64-127; the server refuses a position
+// outside that or one that is taken, and what it says is shown, so a gradient that
+// did not go in is never silently dropped.
 async function writeGradients(change) {
   const n = rig.selected;
   if (n === null) return false;
@@ -2456,7 +2458,7 @@ async function writeGradients(change) {
   const fresh = await get(`/presets/${n}`);
   remember(n, fresh.live);
   const r = await put(`/presets/${n}`, {...fresh.live, gradients: change({...(fresh.live.gradients ?? {})})});
-  if (!r.ok) { alert((await r.json()).detail); return false; }
+  if (!r.ok) { alert(`The gradient was not saved: ${(await r.json()).detail}`); return false; }
   await refresh();
   return true;
 }
