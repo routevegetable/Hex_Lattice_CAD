@@ -2374,8 +2374,17 @@ const mk = (tag, cls, text) => {
 const round4 = (x) => Math.round(x * 10000) / 10000;
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
+// The hue k (0-1) of the way from h0 to h1, the short way round the wheel: 0.95 to
+// 0.01 is a step of 0.06 through red, not a sweep back through every other colour.
+// Exactly opposite hues go down the wheel. The same as the server's _hue_toward.
+const hueToward = (h0, h1, k) => {
+  const delta = (((h1 - h0 + 0.5) % 1) + 1) % 1 - 0.5;           // -0.5 <= delta < 0.5
+  return (((h0 + delta * k) % 1) + 1) % 1;
+};
+
 // The same walk as gradient_hs on the server: eased with smoothstep between
-// stops, two stops at one frac make a hard step, and the ends clamp.
+// stops, hue the short way round, two stops at one frac make a hard step, and the
+// ends clamp.
 function gradientHs(stops, t) {
   if (t <= stops[0][0]) return [stops[0][1], stops[0][2]];
   for (let i = 1; i < stops.length; i++) {
@@ -2383,7 +2392,7 @@ function gradientHs(stops, t) {
     if (f0 <= t && t < f1) {
       const u = (t - f0) / (f1 - f0);
       const k = u * u * (3 - 2 * u);
-      return [h0 + (h1 - h0) * k, s0 + (s1 - s0) * k];
+      return [hueToward(h0, h1, k), s0 + (s1 - s0) * k];
     }
   }
   const last = stops[stops.length - 1];
