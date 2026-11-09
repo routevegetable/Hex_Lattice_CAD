@@ -1,0 +1,166 @@
+{
+  "ccs": {
+    "10": 0,
+    "14": 0,
+    "15": 0,
+    "16": 127,
+    "17": 98,
+    "18": 86,
+    "19": 112,
+    "71": 17,
+    "72": 0,
+    "73": 79,
+    "74": 0,
+    "75": 1,
+    "76": 0,
+    "77": 66,
+    "79": 9,
+    "81": 1,
+    "82": 0,
+    "83": 0,
+    "84": 0,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
+    "89": 102,
+    "91": 68,
+    "93": 4,
+    "102": 11,
+    "103": 4,
+    "104": 6,
+    "105": 10,
+    "106": 0,
+    "107": 42,
+    "108": 22,
+    "109": 3,
+    "110": 0,
+    "111": 8,
+    "112": 5,
+    "113": 80,
+    "114": 37,
+    "115": 13,
+    "116": 35,
+    "117": 5,
+    "118": 0,
+    "119": 2,
+    "120": 5,
+    "121": 70,
+    "122": 47,
+    "123": 0,
+    "124": 45,
+    "125": 2,
+    "126": 80,
+    "127": 79
+  },
+  "slots": {
+    "bg_waves.hue": 0.13,
+    "bg_waves.flow": {
+      "op": "add",
+      "args": [
+        "wipe1",
+        "strobe1"
+      ],
+      "mod": false
+    },
+    "bg_waves.value": {
+      "op": "mul",
+      "args": [
+        "fader_a",
+        0.3
+      ],
+      "mod": false
+    },
+    "bg_waves.sat": 0.97,
+    "bg_waves2.flow": 0.0,
+    "bg_waves2.value": {
+      "op": "mul",
+      "args": [
+        "fire",
+        "fader_b"
+      ],
+      "mod": false
+    },
+    "bg_waves2.sat": 1.0,
+    "bg_waves2.hue": "fire",
+    "map_fiber.value": {
+      "op": "mul",
+      "args": [
+        0.53,
+        "ripple"
+      ],
+      "mod": false
+    },
+    "map_fiber.hue": 0.0,
+    "map_fiber.sat": 0.86,
+    "glitter.hue_1": 0.13,
+    "glitter.hue_2": 0.0,
+    "glitter.sat_2": 1.0,
+    "glitter.sat_1": 0.97,
+    "glitter.value": {
+      "op": "sub",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            0.79,
+            "burst"
+          ],
+          "mod": false
+        },
+        "strobe0"
+      ],
+      "mod": false
+    },
+    "glitter.spin_rate": {
+      "op": "add",
+      "args": [
+        {
+          "op": "div",
+          "args": [
+            "burst",
+            0.77
+          ],
+          "mod": false
+        },
+        0.1
+      ],
+      "mod": false
+    },
+    "prob_zaps.hue": 0.0,
+    "prob_zaps.value": {
+      "op": "add",
+      "args": [
+        0.16,
+        {
+          "op": "mul",
+          "args": [
+            "fader_a",
+            0.3
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
+    },
+    "prob_zaps.prob": {
+      "op": "mul",
+      "args": [
+        "strobe0",
+        0.14
+      ],
+      "mod": false
+    }
+  },
+  "cc_map": {},
+  "active": [
+    "bg_waves",
+    "glitter",
+    "bg_waves2",
+    "prob_zaps",
+    "ambient_light"
+  ],
+  "muted": [],
+  "name": "chili-dog",
+  "notes": {}
+}

@@ -1,10 +1,9 @@
 {
   "ccs": {
-    "10": 7,
-    "12": 0,
-    "13": 0,
-    "14": 70,
-    "15": 0,
+    "12": 82,
+    "13": 77,
+    "14": 22,
+    "15": 69,
     "16": 0,
     "17": 31,
     "18": 127,
@@ -13,12 +12,10 @@
     "71": 37,
     "72": 0,
     "73": 23,
-    "74": 127,
     "75": 24,
     "76": 0,
     "77": 127,
     "79": 0,
-    "81": 0,
     "82": 0,
     "83": 0,
     "84": 0,
@@ -64,18 +61,25 @@
           "op": "mul",
           "args": [
             {
-              "op": "select",
+              "op": "mul",
               "args": [
-                "d1_edges",
-                "d2_edges"
+                {
+                  "op": "select",
+                  "args": [
+                    "d1_edges",
+                    "d2_edges"
+                  ],
+                  "mod": false
+                },
+                "strobe0"
               ],
               "mod": false
             },
-            "strobe0"
+            "fader_b"
           ],
           "mod": false
         },
-        "fader_b"
+        0.4
       ],
       "mod": false
     },
@@ -86,12 +90,19 @@
         {
           "op": "mul",
           "args": [
-            "hexes",
-            "strobe1"
+            {
+              "op": "mul",
+              "args": [
+                "hexes",
+                "strobe1"
+              ],
+              "mod": false
+            },
+            "fader_a"
           ],
           "mod": false
         },
-        "fader_a"
+        0.8
       ],
       "mod": false
     },
@@ -106,7 +117,7 @@
           ],
           "mod": false
         },
-        0.98
+        1.0
       ],
       "mod": true
     },

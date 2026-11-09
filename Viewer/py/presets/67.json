@@ -1,6 +1,8 @@
 {
   "ccs": {
-    "10": 127,
+    "10": 0,
+    "14": 0,
+    "15": 0,
     "16": 127,
     "17": 98,
     "18": 86,
@@ -12,7 +14,15 @@
     "75": 1,
     "76": 38,
     "77": 66,
-    "79": 0,
+    "79": 9,
+    "81": 1,
+    "82": 0,
+    "83": 0,
+    "84": 0,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
     "89": 102,
     "91": 68,
     "93": 4,
@@ -30,75 +40,135 @@
     "113": 35,
     "114": 20,
     "115": 13,
-    "116": 0,
+    "116": 35,
     "117": 0,
+    "118": 0,
+    "119": 2,
+    "120": 5,
+    "121": 70,
+    "122": 47,
+    "123": 0,
+    "124": 45,
+    "125": 2,
     "126": 79,
     "127": 79
   },
   "slots": {
     "bg_waves.hue": {
       "op": "add",
-      "a": {
-        "op": "sub",
-        "a": {
-          "op": "add",
-          "a": {
-            "op": "add",
-            "a": "param_a",
-            "b": {
-              "op": "mul",
-              "a": "d2_edges",
-              "b": 0.24
-            }
-          },
-          "b": {
-            "op": "mul",
-            "a": "burst",
-            "b": 0.21
-          }
+      "args": [
+        {
+          "op": "sub",
+          "args": [
+            {
+              "op": "add",
+              "args": [
+                {
+                  "op": "add",
+                  "args": [
+                    "param_a",
+                    {
+                      "op": "mul",
+                      "args": [
+                        "d2_edges",
+                        0.24
+                      ],
+                      "mod": false
+                    }
+                  ],
+                  "mod": false
+                },
+                {
+                  "op": "mul",
+                  "args": [
+                    "burst",
+                    0.21
+                  ],
+                  "mod": false
+                }
+              ],
+              "mod": false
+            },
+            "strobe0"
+          ],
+          "mod": false
         },
-        "b": "strobe0"
-      },
-      "b": {
-        "op": "mul",
-        "a": "strobe1",
-        "b": 0.3
-      }
+        {
+          "op": "mul",
+          "args": [
+            "strobe1",
+            0.3
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
     },
     "bg_waves.sat": {
       "op": "add",
-      "a": {
-        "op": "add",
-        "a": {
-          "op": "mul",
-          "a": 1.0,
-          "b": "h_edges"
+      "args": [
+        {
+          "op": "add",
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                1.0,
+                "h_edges"
+              ],
+              "mod": false
+            },
+            "strobe0"
+          ],
+          "mod": false
         },
-        "b": "strobe0"
-      },
-      "b": "strobe1"
+        "strobe1"
+      ],
+      "mod": false
     },
     "bg_waves.value": {
       "op": "add",
-      "a": {
-        "op": "add",
-        "a": 0.31,
-        "b": {
+      "args": [
+        {
+          "op": "add",
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                0.31,
+                "fader_a"
+              ],
+              "mod": false
+            },
+            {
+              "op": "mul",
+              "args": [
+                "burst",
+                0.39
+              ],
+              "mod": false
+            }
+          ],
+          "mod": false
+        },
+        {
           "op": "mul",
-          "a": "burst",
-          "b": 0.39
+          "args": [
+            "strobe2",
+            0.3
+          ],
+          "mod": false
         }
-      },
-      "b": {
-        "op": "mul",
-        "a": "strobe2",
-        "b": 0.3
-      }
+      ],
+      "mod": false
     },
     "bg_waves.flow": {
       "op": "add",
-      "a": "burst",
-      "b": "strobe2"
+      "args": [
+        "burst",
+        "strobe2"
+      ],
+      "mod": false
     }
   },
   "cc_map": {
@@ -109,5 +179,6 @@
     "ambient_light"
   ],
   "muted": [],
-  "name": "Swing Star"
+  "name": "Swing Star",
+  "notes": {}
 }
