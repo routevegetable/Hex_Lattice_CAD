@@ -1,7 +1,7 @@
 {
   "ccs": {
     "10": 64,
-    "12": 91,
+    "12": 0,
     "13": 127,
     "14": 0,
     "15": 82,
@@ -10,7 +10,7 @@
     "18": 0,
     "19": 0,
     "22": 0,
-    "23": 127,
+    "23": 0,
     "24": 28,
     "25": 0,
     "26": 0,
@@ -136,7 +136,7 @@
           ],
           "mod": false
         },
-        0.9
+        0.97
       ],
       "mod": false
     },
@@ -228,16 +228,93 @@
       ],
       "mod": false
     },
-    "light_all_fibers3.hue": 0.99,
-    "light_all_fibers3.value": {
-      "op": "mul",
+    "light_all_fibers3.hue": {
+      "op": "add",
       "args": [
-        "burst",
-        0.4
+        {
+          "op": "mul",
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                {
+                  "op": "sub",
+                  "args": [
+                    1.0,
+                    "strobe0"
+                  ],
+                  "mod": false
+                },
+                0.03
+              ],
+              "mod": false
+            },
+            1.0
+          ],
+          "mod": false
+        },
+        {
+          "op": "mul",
+          "args": [
+            0.99,
+            "strobe0"
+          ],
+          "mod": false
+        }
       ],
       "mod": false
     },
-    "light_all_fibers3.sat": "strobe0"
+    "light_all_fibers3.value": {
+      "op": "add",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "burst",
+            0.4
+          ],
+          "mod": false
+        },
+        {
+          "op": "mul",
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                "strobe0",
+                "burst"
+              ],
+              "mod": false
+            },
+            0.1
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
+    },
+    "light_all_fibers3.sat": {
+      "op": "mul",
+      "args": [
+        "strobe0",
+        {
+          "op": "mul",
+          "args": [
+            {
+              "op": "sub",
+              "args": [
+                1.0,
+                "strobe0"
+              ],
+              "mod": false
+            },
+            0.999
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
+    }
   },
   "cc_map": {
     "fader_a.value": 12,
@@ -266,7 +343,7 @@
     "bg_waves": "background",
     "light_all_fibers2": "hexes",
     "map_fiber2": "scope",
-    "light_all_fibers3": "other burst"
+    "light_all_fibers3": "bursts"
   },
   "gradients": [
     {
@@ -425,6 +502,36 @@
         [
           1.0,
           0.75,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "gradient_7",
+      "stops": [
+        [
+          0.0,
+          0.08,
+          1.0
+        ],
+        [
+          0.1891,
+          0.2099,
+          0.0531
+        ],
+        [
+          0.3663,
+          0.3235,
+          0.0111
+        ],
+        [
+          0.6194,
+          0.7073,
+          0.2598
+        ],
+        [
+          1.0,
+          0.6546,
           1.0
         ]
       ]
