@@ -2382,21 +2382,38 @@ const hueToward = (h0, h1, k) => {
   return (((h0 + delta * k) % 1) + 1) % 1;
 };
 
+// A stop paler than this is white, with no hue worth keeping. The same as the server's
+// WHITE_BELOW, and what the wheel snaps to.
+const GRADIENT_WHITE_BELOW = 0.1;
+
+// The two ends of a segment, with a white one made exactly white and given the other
+// end's hue: arriving at white keeps the colour you came from, and leaving it heads
+// straight for the next. The same as the server's _white_aware.
+function whiteAware(h0, s0, h1, s1) {
+  const white0 = s0 < GRADIENT_WHITE_BELOW, white1 = s1 < GRADIENT_WHITE_BELOW;
+  if (white0) s0 = 0;
+  if (white1) s1 = 0;
+  if (white0 && !white1) h0 = h1;
+  else if (white1 && !white0) h1 = h0;
+  return [h0, s0, h1, s1];
+}
+
 // The same walk as gradient_hs on the server: eased with smoothstep between
-// stops, hue the short way round, two stops at one frac make a hard step, and the
-// ends clamp.
+// stops, hue the short way round, a white stop taking its neighbour's hue, two
+// stops at one frac make a hard step, and the ends clamp.
 function gradientHs(stops, t) {
-  if (t <= stops[0][0]) return [stops[0][1], stops[0][2]];
+  if (t <= stops[0][0]) return [stops[0][1], stops[0][2] < GRADIENT_WHITE_BELOW ? 0 : stops[0][2]];
   for (let i = 1; i < stops.length; i++) {
-    const [f0, h0, s0] = stops[i - 1], [f1, h1, s1] = stops[i];
+    const [f0, a0, b0] = stops[i - 1], [f1, a1, b1] = stops[i];
     if (f0 <= t && t < f1) {
+      const [h0, s0, h1, s1] = whiteAware(a0, b0, a1, b1);
       const u = (t - f0) / (f1 - f0);
       const k = u * u * (3 - 2 * u);
       return [hueToward(h0, h1, k), s0 + (s1 - s0) * k];
     }
   }
   const last = stops[stops.length - 1];
-  return [last[1], last[2]];
+  return [last[1], last[2] < GRADIENT_WHITE_BELOW ? 0 : last[2]];
 }
 
 // Full brightness: a gradient has no value of its own, so what is drawn here is
@@ -2853,7 +2870,9 @@ function openGradientEditor({gradient = null, copy = false, onSaved = null} = {}
       const r = wheel.getBoundingClientRect(), k = SZ / r.width, r0 = SZ / 2;
       const dx = (ev.clientX - r.left) * k - r0, dy = (ev.clientY - r.top) * k - r0;
       sel.hue = round4((((Math.atan2(dy, dx) / (2 * Math.PI)) % 1) + 1) % 1);
-      sel.sat = round4(Math.min(Math.hypot(dx, dy) / r0, 1));
+      const sat = Math.min(Math.hypot(dx, dy) / r0, 1);
+      // Close to the middle is white: a hue that close to the centre means nothing.
+      sel.sat = sat < GRADIENT_WHITE_BELOW ? 0 : round4(sat);
       redraw();
     };
     wheel.onpointerdown = (ev) => {
@@ -2888,7 +2907,7 @@ function openGradientEditor({gradient = null, copy = false, onSaved = null} = {}
       readonly ? 'A global gradient is declared in the server\'s code and cannot be changed here. '
                  + 'Make a copy to change it for this preset, or copy it as Python.'
                : 'Click the path to add a stop, drag one to move it, click the wheel to colour it. '
-                 + 'Hue is not wrapped between stops. A hard step is two stops at one place.'));
+                 + 'Hue goes the short way round between stops, and a stop near the middle is white and takes the hue of the stop beside it. A hard step is two stops at one place.'));
   side.querySelector('.gbtns').append(removeBtn, splitBtn);
 
   const body = mk('div', 'gbody');
