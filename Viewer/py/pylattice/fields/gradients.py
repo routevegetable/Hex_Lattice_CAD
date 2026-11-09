@@ -42,24 +42,59 @@ def _hue_toward(h0, h1, k):
     return (h0 + delta * k) % 1
 
 
+# A stop paler than this is white. Hue is the direction away from the centre of the
+# colour wheel, and at the centre there is none, so a stop that close has no hue worth
+# keeping: a stop nearly white is exactly white, whatever hue it was dragged in.
+WHITE_BELOW = 0.1
+
+
+def _white_aware(h0, s0, h1, s1):
+    """The two ends of a segment, with a white one made exactly white and given the
+    other end's hue.
+
+    So arriving at white keeps the colour you came from all the way to the centre, and
+    leaving it heads straight for the colour you are going to, with no detour through
+    whatever hue the white stop happened to be carrying. Two white ends stay white.
+    """
+    white0, white1 = s0 < WHITE_BELOW, s1 < WHITE_BELOW
+
+    if white0:
+        s0 = 0.0
+    if white1:
+        s1 = 0.0
+
+    if white0 and not white1:
+        h0 = h1
+    elif white1 and not white0:
+        h1 = h0
+
+    return h0, s0, h1, s1
+
+
 def gradient_hs(stops, t):
     """Sample a (frac, hue, sat) gradient at t, returning (hue, sat).
 
     stops: [(frac, hue, sat), ...] sorted by frac, hue and sat in 0-1.
     Each segment is eased with smoothstep, like interp_points. Hue goes the short
     way round the wheel between two stops, so pink to orange passes through red,
-    not through every other colour; saturation is a plain blend. Two stops with
-    the same frac make a hard step there. t outside the range clamps to the
-    first or last stop. Value is not part of the gradient.
+    not through every other colour; saturation is a plain blend. A stop paler than
+    WHITE_BELOW is white and takes the hue of the stop beside it (see
+    `_white_aware`). Two stops with the same frac make a hard step there. t outside
+    the range clamps to the first or last stop. Value is not part of the gradient.
     """
     if t <= stops[0][0]:
-        return stops[0][1], stops[0][2]
+        _, h, s = stops[0]
+        return h, (0.0 if s < WHITE_BELOW else s)
+
     for (f0, h0, s0), (f1, h1, s1) in zip(stops, stops[1:]):
         if f0 <= t < f1:
+            h0, s0, h1, s1 = _white_aware(h0, s0, h1, s1)
             u = (t - f0) / (f1 - f0)
             k = u * u * (3 - 2 * u)  # smoothstep
             return _hue_toward(h0, h1, k), s0 + (s1 - s0) * k
-    return stops[-1][1], stops[-1][2]
+
+    _, h, s = stops[-1]
+    return h, (0.0 if s < WHITE_BELOW else s)
 
 
 @dataclass
