@@ -31,11 +31,24 @@ OWN_FIRST = 64
 OWN_SLOTS = 64
 
 
+def _hue_toward(h0, h1, k):
+    """The hue `k` (0-1) of the way from h0 to h1, going the short way round.
+
+    Hue is a circle, so 0.95 to 0.01 is a step of 0.06 through red and not a
+    sweep of 0.94 back through every other colour. Exactly opposite hues (0.5 apart)
+    go down the wheel, toward lower hues. The result is 0-1, as a hue is wherever it is read.
+    """
+    delta = (h1 - h0 + 0.5) % 1 - 0.5           # -0.5 <= delta < 0.5
+    return (h0 + delta * k) % 1
+
+
 def gradient_hs(stops, t):
     """Sample a (frac, hue, sat) gradient at t, returning (hue, sat).
 
     stops: [(frac, hue, sat), ...] sorted by frac, hue and sat in 0-1.
-    Each segment is eased with smoothstep, like interp_points. Two stops with
+    Each segment is eased with smoothstep, like interp_points. Hue goes the short
+    way round the wheel between two stops, so pink to orange passes through red,
+    not through every other colour; saturation is a plain blend. Two stops with
     the same frac make a hard step there. t outside the range clamps to the
     first or last stop. Value is not part of the gradient.
     """
@@ -45,7 +58,7 @@ def gradient_hs(stops, t):
         if f0 <= t < f1:
             u = (t - f0) / (f1 - f0)
             k = u * u * (3 - 2 * u)  # smoothstep
-            return h0 + (h1 - h0) * k, s0 + (s1 - s0) * k
+            return _hue_toward(h0, h1, k), s0 + (s1 - s0) * k
     return stops[-1][1], stops[-1][2]
 
 
