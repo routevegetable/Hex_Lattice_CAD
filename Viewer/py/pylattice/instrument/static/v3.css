@@ -395,6 +395,5 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 
 /* history: the page's own autosaves of every preset, to go back to */
 #history { flex: none; }
-#history .fpick-list { left: auto; right: 0; min-width: 240px; }
-#history .fpick-item[aria-disabled=true] { color: var(--dim); cursor: default; }
-#history .fpick-item[aria-disabled=true]:hover { background: none; }
+#history .fpick-list { left: auto; right: 0; min-width: 260px; }
+#history .fpick-body { max-height: 70vh; }

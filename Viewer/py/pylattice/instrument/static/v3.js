@@ -3595,23 +3595,60 @@ const patchMap = () => views[rig.selected]?.live?.cc_map ?? {};
 //
 // A save is only made when something changed, so the state at any moment is the
 // newest save at or before it. Each step asks for the state that long ago, and a
-// save that answers no step is dropped. As time passes a save moves from the
-// one-minute step to the five-minute step and so on, until a newer one takes over
-// and it falls off.
+// save that answers no step is dropped. The steps are every minute for the last 15
+// minutes, 30 minutes, and every hour for the last 24 hours. As time passes a save
+// moves from one step to the next until a newer one takes over and it falls off.
+//
+// A save does not hold the presets, only which version of each. A version is kept
+// once, in the pool, however many saves use it, so a save costs what changed since
+// the one before and not all 128 presets again.
 const HISTORY_KEY = 'v3.history';
 const HISTORY_EVERY = 15 * 1000;        // how often to look for a change
 const MIN = 60 * 1000;
-const HISTORY_STEPS = [['1 minute', MIN], ['5 minutes', 5 * MIN], ['10 minutes', 10 * MIN],
-                       ['30 minutes', 30 * MIN], ['1 hour', 60 * MIN], ['1 day', 24 * 60 * MIN]];
+const HOUR = 60 * MIN;
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const HISTORY_STEPS = [
+  ...Array.from({length: 15}, (_, i) => [plural(i + 1, 'minute'), (i + 1) * MIN]),
+  ['30 minutes', 30 * MIN],
+  ...Array.from({length: 24}, (_, i) => [plural(i + 1, 'hour'), (i + 1) * HOUR]),
+];
 
-let saves = (() => {
-  try { const h = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]'); return Array.isArray(h) ? h : []; }
-  catch { return []; }
-})();                                    // {at, selected, key, live: {number: patch}}, oldest first
+// A short fingerprint of some text: enough to tell two versions of a preset apart.
+function fingerprint(text) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
 
-// Where the knobs sit changes all the time and is no edit, so it is left out of
-// the comparison (it is still kept, and comes back with the rest).
-const historyKey = (live) => JSON.stringify(Object.entries(live).map(([n, p]) => [n, {...p, ccs: null}]));
+let pool = {};      // fingerprint -> a preset's patch
+let saves = [];     // {at, selected, key, presets: {number: fingerprint}}, oldest first
+
+(() => {
+  try {
+    const kept = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? 'null');
+    if (Array.isArray(kept)) {
+      // The first form kept every preset whole in every save: {at, selected, key, live}.
+      for (const old of kept) {
+        const presets = {};
+        for (const [n, patch] of Object.entries(old.live ?? {})) {
+          const f = fingerprint(JSON.stringify(patch));
+          pool[f] = patch;
+          presets[n] = f;
+        }
+        saves.push({at: old.at, selected: old.selected, key: old.key, presets});
+      }
+    } else if (kept && Array.isArray(kept.saves)) {
+      pool = kept.pool ?? {};
+      saves = kept.saves;
+    }
+  } catch { /* start with nothing */ }
+})();
 
 const stateAt = (when) => {
   let found = null;
@@ -3619,18 +3656,25 @@ const stateAt = (when) => {
   return found;
 };
 
+// Drop the versions no save uses any more.
+function tidyPool() {
+  const used = new Set(saves.flatMap(s => Object.values(s.presets)));
+  for (const f of Object.keys(pool)) if (!used.has(f)) delete pool[f];
+}
+
 // The saves worth keeping: the newest, and the one each step points at.
 function thin(now) {
   const keep = new Set([saves[saves.length - 1]]);
   for (const [, age] of HISTORY_STEPS) { const s = stateAt(now - age); if (s) keep.add(s); }
   saves = saves.filter(s => keep.has(s));
+  tidyPool();
 }
 
 function storeHistory() {
   // Out of room: let the oldest go and try again, down to the newest alone.
   for (;;) {
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(saves)); return; }
-    catch { if (saves.length <= 1) return; saves.shift(); }
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify({pool, saves})); return; }
+    catch { if (saves.length <= 1) return; saves.shift(); tidyPool(); }
   }
 }
 
@@ -3640,12 +3684,22 @@ async function saveHistory(force = false) {
   historyBusy = true;
   try {
     const all = await get('/presets');
-    const live = Object.fromEntries(Object.entries(all).map(([n, v]) => [n, v.live]));
-    const key = historyKey(live);
+    const presets = {}, seen = {};
+
+    for (const [n, view] of Object.entries(all)) {
+      presets[n] = fingerprint(JSON.stringify(view.live));
+      // Where the knobs sit changes all the time and is no edit, so it is left out
+      // of the comparison (it is still kept, and comes back with the rest).
+      seen[n] = fingerprint(JSON.stringify({...view.live, ccs: null}));
+    }
+
+    const key = fingerprint(JSON.stringify(seen));
     const last = saves[saves.length - 1];
+
     if (force || !last || last.key !== key) {
+      for (const [n, f] of Object.entries(presets)) if (!(f in pool)) pool[f] = all[n].live;
       const now = Date.now();
-      saves.push({at: now, selected: rig.selected, key, live});
+      saves.push({at: now, selected: rig.selected, key, presets});
       thin(now);
       storeHistory();
     }
@@ -3665,8 +3719,8 @@ async function revertTo(snap) {
                + 'What they are now is kept in history, so this can be undone.')) return;
   await saveHistory(true);
 
-  for (const [n, patch] of Object.entries(snap.live)) {
-    const r = await put(`/presets/${n}`, patch);
+  for (const [n, f] of Object.entries(snap.presets)) {
+    const r = await put(`/presets/${n}`, pool[f]);
     if (!r.ok) { alert(`preset ${n}: ${problem(await r.json())}`); break; }
   }
 
@@ -3681,6 +3735,9 @@ const historyOpen = document.getElementById('history-open');
 
 function closeHistory() { historyBox.querySelector('.fpick-list')?.remove(); }
 
+// Every step that has a different picture from the one before it, newest first.
+// Two steps with nothing between them are the same save, so it is listed once, at
+// the first step that reaches it; and what is there now needs no way back to it.
 function openHistory() {
   if (historyBox.querySelector('.fpick-list')) return closeHistory();
 
@@ -3692,28 +3749,39 @@ function openHistory() {
 
   const now = Date.now();
   const current = saves.length ? saves[saves.length - 1].key : null;
-  let shown = null;
+  let shown = null, group = null;
 
   for (const [label, age] of HISTORY_STEPS) {
     const snap = stateAt(now - age);
+    if (!snap || snap.key === current || snap === shown) continue;
+    shown = snap;
+
+    const heading = age < HOUR ? 'minute by minute' : 'hour by hour';
+    if (heading !== group) {
+      group = heading;
+      const head = document.createElement('div');
+      head.className = 'fpick-group';
+      head.textContent = heading;
+      body.append(head);
+    }
+
     const row = document.createElement('div');
     row.className = 'fpick-item';
-    // A step is out of reach when nothing is old enough, when it is the same
-    // picture as the step before, or when it is what is there already.
-    const useless = !snap || snap.key === current || snap === shown;
-    row.setAttribute('aria-disabled', String(useless));
-
     const name = document.createElement('span');
     name.textContent = label + ' ago';
     const when = document.createElement('span');
     when.className = 'dim';
-    when.textContent = !snap ? 'no save that old' : snap.key === current ? 'same as now'
-                     : snap === shown ? 'same as above' : `saved ${ago(now - snap.at)}`;
+    when.textContent = `saved ${ago(now - snap.at)}`;
     row.append(name, when);
-
-    if (!useless) row.onclick = () => { closeHistory(); revertTo(snap); };
-    if (snap && !useless) shown = snap;
+    row.onclick = () => { closeHistory(); revertTo(snap); };
     body.append(row);
+  }
+
+  if (!shown) {
+    const none = document.createElement('div');
+    none.className = 'fpick-none';
+    none.textContent = 'nothing to go back to yet';
+    body.append(none);
   }
 
   historyBox.append(list);
