@@ -1,0 +1,433 @@
+{
+  "ccs": {
+    "10": 64,
+    "12": 0,
+    "13": 127,
+    "14": 0,
+    "15": 82,
+    "16": 0,
+    "17": 0,
+    "18": 61,
+    "19": 0,
+    "22": 0,
+    "23": 127,
+    "24": 28,
+    "25": 0,
+    "26": 0,
+    "27": 0,
+    "71": 127,
+    "72": 2,
+    "73": 5,
+    "74": 0,
+    "75": 127,
+    "76": 87,
+    "77": 0,
+    "79": 4,
+    "81": 0,
+    "82": 69,
+    "83": 66,
+    "84": 127,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
+    "89": 0,
+    "91": 68,
+    "93": 0,
+    "102": 37,
+    "103": 0,
+    "104": 3,
+    "105": 30,
+    "106": 62,
+    "107": 61,
+    "108": 91,
+    "109": 18,
+    "110": 0,
+    "111": 31,
+    "112": 4,
+    "113": 12,
+    "114": 0,
+    "115": 0,
+    "116": 0,
+    "117": 40,
+    "118": 0,
+    "119": 2,
+    "120": 0,
+    "121": 48,
+    "122": 25,
+    "123": 0,
+    "124": 27,
+    "125": 3,
+    "126": 29,
+    "127": 115
+  },
+  "slots": {
+    "bg_waves.hue": 0.67,
+    "bg_waves.value": {
+      "op": "mul",
+      "args": [
+        "fader_a",
+        {
+          "op": "add",
+          "args": [
+            {
+              "op": "sub",
+              "args": [
+                1.0,
+                "fader_b"
+              ],
+              "mod": false
+            },
+            {
+              "op": "mul",
+              "args": [
+                "fader_b",
+                "random"
+              ],
+              "mod": false
+            }
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
+    },
+    "bg_waves.sat": 1.0,
+    "bg_waves.flow": 0.0,
+    "bg_waves2.hue": 0.0,
+    "bg_waves2.value": "strobe0",
+    "bg_waves2.sat": 1.0,
+    "bg_waves2.flow": 0.0,
+    "net.hue": "param_b",
+    "net.value": 0.0,
+    "net.sat": 1.0,
+    "net.amp": "ripple2",
+    "sunrise.value": 0.0,
+    "bisexual.value": 0.0,
+    "bisexual.speed": 0.0,
+    "prob_zaps.hue": 0.0,
+    "prob_zaps.value": {
+      "op": "mul",
+      "args": [
+        "ripple",
+        "fader_c"
+      ],
+      "mod": false
+    },
+    "prob_zaps.prob": 0.26,
+    "map_fiber.hue": 0.03,
+    "map_fiber.value": {
+      "op": "mul",
+      "args": [
+        "ripple2",
+        "fader_d"
+      ],
+      "mod": false
+    },
+    "map_fiber.sat": 0.98,
+    "map_fiber2.hue": {
+      "op": "add",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "scope",
+            0.36
+          ],
+          "mod": false
+        },
+        0.9
+      ],
+      "mod": false
+    },
+    "map_fiber2.value": {
+      "op": "mul",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            {
+              "op": "sub",
+              "args": [
+                "scope",
+                0.9
+              ],
+              "mod": false
+            },
+            50.0
+          ],
+          "mod": false
+        },
+        "fader_e"
+      ],
+      "mod": false
+    },
+    "map_fiber2.sat": 0.99,
+    "map_fiber3.hue": 0.0,
+    "map_fiber3.value": 0.0,
+    "map_fiber3.sat": 1.0,
+    "glitter.hue_1": {
+      "op": "gradient_2_h",
+      "args": [
+        "fader_a"
+      ],
+      "mod": false
+    },
+    "glitter.hue_2": 0.99,
+    "glitter.value": {
+      "op": "mul",
+      "args": [
+        "ripple",
+        "fader_f"
+      ],
+      "mod": false
+    },
+    "glitter.spin_rate": 10.0,
+    "sparks.value": 0.0,
+    "sparks.sat": 1.0,
+    "sparks.prob": 0.0,
+    "sparks.hue": 0.0,
+    "glitter.sat_1": {
+      "op": "gradient_2_s",
+      "args": [
+        "fader_a"
+      ],
+      "mod": false
+    },
+    "glitter.sat_2": 0.4,
+    "light_all_fibers.value": {
+      "op": "mul",
+      "args": [
+        "burst",
+        0.3
+      ],
+      "mod": false
+    },
+    "light_all_fibers.hue": 0.7,
+    "light_all_fibers2.sat": 0.99,
+    "light_all_fibers2.hue": {
+      "op": "add",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "loops",
+            0.45
+          ],
+          "mod": false
+        },
+        0.68
+      ],
+      "mod": true
+    },
+    "light_all_fibers2.value": {
+      "op": "mul",
+      "args": [
+        "loops",
+        "fader_g"
+      ],
+      "mod": false
+    },
+    "light_all_fibers3.hue": 0.99,
+    "light_all_fibers3.value": {
+      "op": "mul",
+      "args": [
+        "burst",
+        0.4
+      ],
+      "mod": false
+    },
+    "light_all_fibers3.sat": "strobe0"
+  },
+  "cc_map": {
+    "fader_a.value": 12,
+    "fader_b.value": 13,
+    "param_a.value": 14,
+    "param_b.value": 15,
+    "rotary.shape": 22,
+    "random.period": 23,
+    "rotary.period": 24,
+    "trace.aim": 25,
+    "rotary.parts": 26,
+    "ripple.speed": 27
+  },
+  "active": [
+    "bg_waves",
+    "map_fiber2",
+    "light_all_fibers2",
+    "map_fiber",
+    "light_all_fibers3"
+  ],
+  "muted": [],
+  "name": "believe-alt",
+  "notes": {
+    "light_all_fibers": "twinkle bursts",
+    "map_fiber": "ripple",
+    "bg_waves": "background",
+    "light_all_fibers2": "hexes",
+    "map_fiber2": "scope",
+    "light_all_fibers3": "other burst"
+  },
+  "gradients": [
+    {
+      "name": "orangey",
+      "stops": [
+        [
+          0.0,
+          0.08,
+          1.0
+        ],
+        [
+          0.515,
+          0.0083,
+          0.898
+        ],
+        [
+          1.0,
+          0.1185,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "gradient",
+      "stops": [
+        [
+          0.0,
+          0.8227,
+          0.777
+        ],
+        [
+          0.3915,
+          0.9175,
+          0.0652
+        ],
+        [
+          1.0,
+          0.75,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "gradient_2",
+      "stops": [
+        [
+          0.0,
+          0.6353,
+          0.8857
+        ],
+        [
+          1.0,
+          0.75,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "gradient_3",
+      "stops": [
+        [
+          0.0,
+          0.65,
+          1.0
+        ],
+        [
+          0.0887,
+          0.762,
+          1.0
+        ],
+        [
+          0.9288,
+          0.898,
+          1.0
+        ],
+        [
+          1.0,
+          0.9946,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "gradient_4",
+      "stops": [
+        [
+          0.0,
+          0.8506,
+          0.1918
+        ],
+        [
+          0.7286,
+          0.8648,
+          1.0
+        ],
+        [
+          1.0,
+          0.8537,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "gradient_5",
+      "stops": [
+        [
+          0.0,
+          0.9112,
+          1.0
+        ],
+        [
+          0.3238,
+          0.9624,
+          0.9546
+        ],
+        [
+          0.9868,
+          0.9802,
+          0.9365
+        ],
+        [
+          0.9869,
+          0.0049,
+          1.0
+        ],
+        [
+          1.0,
+          0.0208,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "gradient_6",
+      "stops": [
+        [
+          0.0,
+          0.8854,
+          0.9343
+        ],
+        [
+          0.387,
+          0.9617,
+          0.9322
+        ],
+        [
+          0.6968,
+          0.0611,
+          0.9236
+        ],
+        [
+          0.9073,
+          0.1114,
+          0.919
+        ],
+        [
+          1.0,
+          0.75,
+          1.0
+        ]
+      ]
+    }
+  ]
+}
