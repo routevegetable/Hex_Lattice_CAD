@@ -1,0 +1,178 @@
+{
+  "ccs": {
+    "10": 127,
+    "14": 0,
+    "15": 0,
+    "16": 127,
+    "17": 62,
+    "18": 127,
+    "19": 14,
+    "71": 0,
+    "72": 5,
+    "73": 72,
+    "74": 0,
+    "75": 24,
+    "76": 0,
+    "77": 95,
+    "79": 20,
+    "81": 1,
+    "82": 0,
+    "83": 0,
+    "84": 0,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
+    "89": 102,
+    "91": 127,
+    "93": 0,
+    "102": 6,
+    "103": 3,
+    "104": 3,
+    "105": 0,
+    "106": 0,
+    "107": 79,
+    "108": 0,
+    "109": 0,
+    "110": 0,
+    "111": 43,
+    "112": 0,
+    "113": 23,
+    "114": 49,
+    "115": 0,
+    "116": 0,
+    "117": 0,
+    "118": 0,
+    "119": 1,
+    "120": 3,
+    "121": 103,
+    "122": 0,
+    "123": 0,
+    "124": 0,
+    "125": 0,
+    "126": 78,
+    "127": 0
+  },
+  "slots": {
+    "bg_waves.flow": {
+      "op": "select",
+      "args": [
+        "d1_edges",
+        "d2_edges"
+      ],
+      "mod": false
+    },
+    "bg_waves.value": {
+      "op": "sub",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                0.18,
+                "fader_a"
+              ],
+              "mod": false
+            },
+            {
+              "op": "sub",
+              "args": [
+                1.0,
+                {
+                  "op": "mul",
+                  "args": [
+                    {
+                      "op": "mul",
+                      "args": [
+                        "strobe0",
+                        2.0
+                      ],
+                      "mod": false
+                    },
+                    {
+                      "op": "sub",
+                      "args": [
+                        1.0,
+                        {
+                          "op": "select",
+                          "args": [
+                            "d1_edges",
+                            "d2_edges"
+                          ],
+                          "mod": false
+                        }
+                      ],
+                      "mod": false
+                    }
+                  ],
+                  "mod": false
+                }
+              ],
+              "mod": false
+            }
+          ],
+          "mod": false
+        },
+        {
+          "op": "mul",
+          "args": [
+            "wipe1",
+            {
+              "op": "select",
+              "args": [
+                "d1_edges",
+                "d2_edges"
+              ],
+              "mod": false
+            }
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
+    },
+    "bg_waves.sat": 1.0,
+    "bg_waves.hue": 0.18,
+    "prob_zaps.value": 0.53,
+    "prob_zaps.hue": 0.96,
+    "prob_zaps.prob": {
+      "op": "mul",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            {
+              "op": "sub",
+              "args": [
+                1.0,
+                {
+                  "op": "select",
+                  "args": [
+                    "d1_edges",
+                    "d2_edges"
+                  ],
+                  "mod": false
+                }
+              ],
+              "mod": false
+            },
+            0.3
+          ],
+          "mod": false
+        },
+        "strobe0"
+      ],
+      "mod": false
+    }
+  },
+  "cc_map": {},
+  "active": [
+    "bg_waves",
+    "prob_zaps"
+  ],
+  "muted": [],
+  "name": "dubstep-14",
+  "notes": {}
+}
