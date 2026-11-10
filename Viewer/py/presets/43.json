@@ -1,14 +1,15 @@
 {
   "ccs": {
-    "12": 49,
-    "13": 74,
+    "12": 0,
+    "13": 0,
     "14": 0,
     "15": 0,
     "16": 0,
     "17": 0,
     "18": 0,
     "19": 36,
-    "22": 99,
+    "22": 0,
+    "23": 0,
     "71": 86,
     "72": 2,
     "73": 0,
@@ -55,7 +56,7 @@
     "127": 0
   },
   "slots": {
-    "map_fiber.hue": 0.7,
+    "map_fiber.hue": 0.03,
     "map_fiber.value": {
       "op": "mul",
       "args": [
@@ -68,7 +69,7 @@
                 {
                   "op": "sub",
                   "args": [
-                    0.6,
+                    0.8,
                     "rotary"
                   ],
                   "mod": false
@@ -88,7 +89,7 @@
           ],
           "mod": false
         },
-        5.0
+        2.0
       ],
       "mod": false
     },
@@ -100,23 +101,37 @@
           "op": "mul",
           "args": [
             "param_a",
-            0.1
+            0.05
           ],
           "mod": false
         },
-        1.05
+        0.98
       ],
       "mod": true
     },
     "map_fiber2.sat": {
-      "op": "add",
+      "op": "sub",
       "args": [
-        0.85,
+        {
+          "op": "add",
+          "args": [
+            0.85,
+            {
+              "op": "mul",
+              "args": [
+                "fader_e",
+                0.15
+              ],
+              "mod": false
+            }
+          ],
+          "mod": false
+        },
         {
           "op": "mul",
           "args": [
-            "fader_e",
-            0.15
+            "param_b",
+            0.8
           ],
           "mod": false
         }
@@ -176,7 +191,7 @@
       "mod": false
     },
     "map_fiber3.hue": 0.7,
-    "map_fiber3.sat": 0.8,
+    "map_fiber3.sat": 0.95,
     "net.hue": 0.67,
     "net.value": {
       "op": "mul",
@@ -189,7 +204,7 @@
               "op": "mul",
               "args": [
                 "fire",
-                2.0
+                1.5
               ],
               "mod": false
             }
@@ -203,11 +218,11 @@
     "net.sat": {
       "op": "sub",
       "args": [
-        0.9,
+        0.99,
         {
           "op": "mul",
           "args": [
-            0.2,
+            0.3,
             "param_a"
           ],
           "mod": false
@@ -216,17 +231,24 @@
       "mod": false
     },
     "net.amp": {
-      "op": "add",
+      "op": "mul",
       "args": [
         {
-          "op": "mul",
+          "op": "add",
           "args": [
-            "param_a",
-            0.8
+            {
+              "op": "mul",
+              "args": [
+                "param_a",
+                0.8
+              ],
+              "mod": false
+            },
+            0.02
           ],
           "mod": false
         },
-        0.02
+        "rotary"
       ],
       "mod": false
     },
@@ -248,7 +270,8 @@
       "mod": false
     },
     "prob_zaps.prob": 0.5,
-    "bg_waves2.value": 0.0
+    "bg_waves2.value": 0.0,
+    "light_all_fibers.value": "trace"
   },
   "cc_map": {
     "fader_a.value": 12,
@@ -260,7 +283,8 @@
     "fader_h.value": 127,
     "v_gradient.origin": 19,
     "trace_lines.speed": 126,
-    "param_a.value": 22
+    "param_a.value": 22,
+    "param_b.value": 23
   },
   "active": [
     "net",
@@ -277,6 +301,7 @@
     "map_fiber": "rotary/wipe scrape",
     "map_fiber3": "kick",
     "bg_waves": "red trace",
-    "prob_zaps": "zappy trace"
+    "prob_zaps": "zappy trace",
+    "map_fiber2": "hexes"
   }
 }
