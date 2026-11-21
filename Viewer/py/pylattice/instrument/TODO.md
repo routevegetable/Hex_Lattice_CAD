@@ -23,3 +23,26 @@
 * Some way that a 'nonterminal' field can have memory or parameters. Hysteresis etc...
 
 * Synced LFO field?
+
+
+
+
+
+
+FFT things, where we have:
+* A field which just provides a constant for a given frequency band
+* A field which is a spectrogram moving from L to R, with lowest frequencies at the bottom
+* Operator that maps a given frequency range to a magnitude
+* “Bar Graph” field
+
+
+Make field evaluation non-capturing (purely based on patch lookup)
+Replace expression trees with straight python to evaluate
+Make control detection dynamic rather than based on static analysis, to support that
+Make notes remappable and able to be triggered from the web UI.
+Pipeline Is now: Notes/ccs -> fields/operators -> effects
+Web UI test/preview area
+Web UI beat detection/FFT stuff which can trigger notes and CCs
+The ability to mark a CC as ‘force restore’?
+Every effect’s UI shows pic of the/a MIDI controller, with the buttons/knobs labeled appropriately.
+An interp(f1, f2, f3) operator, which takes a CC and interpolates between multiple input fields

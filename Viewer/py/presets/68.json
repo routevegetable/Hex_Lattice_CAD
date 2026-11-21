@@ -1,6 +1,8 @@
 {
   "ccs": {
     "10": 127,
+    "14": 0,
+    "15": 0,
     "16": 127,
     "17": 98,
     "18": 86,
@@ -8,11 +10,19 @@
     "71": 40,
     "72": 0,
     "73": 4,
-    "74": 0,
+    "74": 85,
     "75": 1,
     "76": 38,
     "77": 66,
     "79": 25,
+    "81": 0,
+    "82": 0,
+    "83": 0,
+    "84": 0,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
     "89": 102,
     "91": 68,
     "93": 4,
@@ -32,178 +42,303 @@
     "115": 3,
     "116": 0,
     "117": 62,
+    "118": 0,
+    "119": 1,
+    "120": 0,
+    "121": 0,
+    "122": 0,
+    "123": 0,
+    "124": 0,
+    "125": 0,
     "126": 79,
     "127": 79
   },
   "slots": {
     "bg_waves.hue": {
       "op": "add",
-      "a": {
-        "op": "sub",
-        "a": {
-          "op": "add",
-          "a": {
-            "op": "add",
-            "a": "param_a",
-            "b": {
-              "op": "mul",
-              "a": "d2_edges",
-              "b": 0.24
-            }
-          },
-          "b": {
-            "op": "mul",
-            "a": "burst",
-            "b": 0.21
-          }
+      "args": [
+        {
+          "op": "sub",
+          "args": [
+            {
+              "op": "add",
+              "args": [
+                {
+                  "op": "add",
+                  "args": [
+                    "param_a",
+                    {
+                      "op": "mul",
+                      "args": [
+                        "d2_edges",
+                        0.24
+                      ],
+                      "mod": false
+                    }
+                  ],
+                  "mod": false
+                },
+                {
+                  "op": "mul",
+                  "args": [
+                    "burst",
+                    0.21
+                  ],
+                  "mod": false
+                }
+              ],
+              "mod": false
+            },
+            "strobe0"
+          ],
+          "mod": false
         },
-        "b": "strobe0"
-      },
-      "b": {
-        "op": "mul",
-        "a": "strobe1",
-        "b": 0.3
-      }
+        {
+          "op": "mul",
+          "args": [
+            "strobe1",
+            0.3
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
     },
     "bg_waves.sat": {
       "op": "add",
-      "a": {
-        "op": "add",
-        "a": {
-          "op": "mul",
-          "a": 1.0,
-          "b": "h_edges"
+      "args": [
+        {
+          "op": "add",
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                1.0,
+                "h_edges"
+              ],
+              "mod": false
+            },
+            "strobe0"
+          ],
+          "mod": false
         },
-        "b": "strobe0"
-      },
-      "b": "strobe1"
+        "strobe1"
+      ],
+      "mod": false
     },
     "bg_waves.value": {
       "op": "mul",
-      "a": "fader_a",
-      "b": {
-        "op": "add",
-        "a": {
+      "args": [
+        "fader_a",
+        {
           "op": "add",
-          "a": 0.31,
-          "b": {
-            "op": "mul",
-            "a": "burst",
-            "b": 0.59
-          }
-        },
-        "b": {
-          "op": "mul",
-          "a": "strobe2",
-          "b": 0.2
+          "args": [
+            {
+              "op": "add",
+              "args": [
+                0.31,
+                {
+                  "op": "mul",
+                  "args": [
+                    "burst",
+                    0.59
+                  ],
+                  "mod": false
+                }
+              ],
+              "mod": false
+            },
+            {
+              "op": "mul",
+              "args": [
+                "strobe2",
+                0.2
+              ],
+              "mod": false
+            }
+          ],
+          "mod": false
         }
-      }
+      ],
+      "mod": false
     },
     "bg_waves.flow": {
       "op": "add",
-      "a": "burst",
-      "b": "strobe2"
+      "args": [
+        "burst",
+        "strobe2"
+      ],
+      "mod": false
     },
     "prob_zaps.value": {
       "op": "mul",
-      "a": 0.5,
-      "b": "fader_b"
+      "args": [
+        0.5,
+        "fader_b"
+      ],
+      "mod": false
     },
     "prob_zaps.hue": 0.38,
     "prob_zaps.prob": {
       "op": "mul",
-      "a": "loops",
-      "b": 0.4
+      "args": [
+        "loops",
+        0.4
+      ],
+      "mod": false
     },
     "bg_waves2.hue": {
       "op": "add",
-      "a": 0.63,
-      "b": {
-        "op": "mul",
-        "a": "rotary",
-        "b": 0.18
-      }
+      "args": [
+        0.63,
+        {
+          "op": "mul",
+          "args": [
+            "rotary",
+            0.18
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
     },
     "bg_waves2.sat": {
       "op": "sub",
-      "a": {
-        "op": "sub",
-        "a": 1.0,
-        "b": {
-          "op": "mul",
-          "a": "rotary",
-          "b": 0.47
-        }
-      },
-      "b": "burst"
+      "args": [
+        {
+          "op": "sub",
+          "args": [
+            1.0,
+            {
+              "op": "mul",
+              "args": [
+                "rotary",
+                0.47
+              ],
+              "mod": false
+            }
+          ],
+          "mod": false
+        },
+        "burst"
+      ],
+      "mod": false
     },
     "bg_waves2.value": {
       "op": "add",
-      "a": {
-        "op": "add",
-        "a": {
-          "op": "mul",
-          "a": 0.2,
-          "b": "fader_a"
-        },
-        "b": {
-          "op": "mul",
-          "a": "strobe0",
-          "b": {
-            "op": "add",
-            "a": {
+      "args": [
+        {
+          "op": "add",
+          "args": [
+            {
               "op": "mul",
-              "a": 0.27,
-              "b": "fader_a"
+              "args": [
+                0.31,
+                "fader_a"
+              ],
+              "mod": false
             },
-            "b": 0.07
-          }
+            {
+              "op": "mul",
+              "args": [
+                "strobe0",
+                {
+                  "op": "add",
+                  "args": [
+                    {
+                      "op": "mul",
+                      "args": [
+                        0.27,
+                        "fader_a"
+                      ],
+                      "mod": false
+                    },
+                    0.07
+                  ],
+                  "mod": false
+                }
+              ],
+              "mod": false
+            }
+          ],
+          "mod": false
+        },
+        {
+          "op": "mul",
+          "args": [
+            "burst",
+            0.22
+          ],
+          "mod": false
         }
-      },
-      "b": {
-        "op": "mul",
-        "a": "burst",
-        "b": 0.22
-      }
+      ],
+      "mod": false
     },
     "bg_waves2.flow": {
       "op": "add",
-      "a": "strobe0",
-      "b": {
-        "op": "div",
-        "a": "burst",
-        "b": 0.16
-      }
+      "args": [
+        "strobe0",
+        {
+          "op": "div",
+          "args": [
+            "burst",
+            0.16
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
     },
     "map_fiber.value": {
       "op": "mul",
-      "a": {
-        "op": "div",
-        "a": "fire",
-        "b": 0.7
-      },
-      "b": {
-        "op": "mul",
-        "a": "strobe1",
-        "b": 0.79
-      }
+      "args": [
+        {
+          "op": "div",
+          "args": [
+            "fire",
+            0.7
+          ],
+          "mod": false
+        },
+        {
+          "op": "mul",
+          "args": [
+            "strobe1",
+            0.79
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
     },
     "map_fiber.hue": {
       "op": "add",
-      "a": {
-        "op": "add",
-        "a": 0.0,
-        "b": {
+      "args": [
+        {
+          "op": "add",
+          "args": [
+            0.0,
+            {
+              "op": "mul",
+              "args": [
+                "fire",
+                0.3
+              ],
+              "mod": false
+            }
+          ],
+          "mod": false
+        },
+        {
           "op": "mul",
-          "a": "fire",
-          "b": 0.3
+          "args": [
+            "v_gradient",
+            0.3
+          ],
+          "mod": false
         }
-      },
-      "b": {
-        "op": "mul",
-        "a": "v_gradient",
-        "b": 0.3
-      }
+      ],
+      "mod": false
     },
     "map_fiber.sat": 1.0
   },
@@ -217,5 +352,6 @@
     "ambient_light"
   ],
   "muted": [],
-  "name": "Cobalt"
+  "name": "Cobalt",
+  "notes": {}
 }

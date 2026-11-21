@@ -11,7 +11,7 @@ from pylattice.examples.midi import (
 from pylattice.examples.tempo import ZERO, Event, EventLatch, periodic, sweep
 from pylattice.fields.gradients import GradientDef
 from pylattice.fields.types import ScalarField
-from pylattice.graph import EndRef, Graph
+from pylattice.graph import EdgeClass, EndRef, Graph
 
 
 class Arity(StrEnum):
@@ -227,6 +227,36 @@ class GradientChooser(Operator):
         hue, sat = gradient.at(args[0].get(now, end))
 
         return hue if self._hue else sat
+
+
+def _exists(end: EndRef) -> bool:
+    """Whether an end is on the lattice: F edges on the bottom row are not."""
+    return not (end.y == 0 and end.edge_class == EdgeClass.F)
+
+
+class AvgVerts(Operator):
+    """Its argument averaged over the ends that meet at this end's vertex."""
+
+    arity = Arity.UNARY
+
+    def __init__(self, graph: Graph):
+        self._groups = {
+            end: tuple(e for e in end.vertex().ends_cw() if _exists(e))
+            for end in graph.ends()
+        }
+
+    def get(self, now: Event, end: EndRef, *args: ScalarField) -> float:
+        group = self._groups[end]
+        return sum(args[0].get(now, e) for e in group) / len(group)
+
+
+class AvgEdges(Operator):
+    """Its argument averaged over both ends of this end's edge."""
+
+    arity = Arity.UNARY
+
+    def get(self, now: Event, end: EndRef, *args: ScalarField) -> float:
+        return (args[0].get(now, end) + args[0].get(now, end.other())) / 2
 
 
 class OperatorField(ScalarField):

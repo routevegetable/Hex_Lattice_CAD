@@ -18,6 +18,8 @@ from pylattice.fields.hexes import HexesField
 from pylattice.fields.mask import D1, D2, EdgeMaskField, H, RandomLinesField, V
 from pylattice.fields.operators import (
     Arity,
+    AvgEdges,
+    AvgVerts,
     Cycle,
     GradientChooser,
     Randomize,
@@ -120,6 +122,9 @@ class FIELDS:
 
     # Every edge jumps to a new random number
     random = NoteRandomField(midi.for_("random"), note=PB6, period=KA8)
+
+    # Every end jumps to a new random number, on the same pad and knob
+    rand = NoteRandomField(midi.for_("rand"), note=PB6, period=KA8, per_end=True)
 
     # Wipes
     wipe1 = NoteWipeField(midi.for_("wipe1"), note=PB3, speed=KB3)
@@ -255,6 +260,10 @@ class OPERATORS:
     mul = Math(operator.mul, Arity.BINARY)
     div = Math(divide, Arity.BINARY)
     avg = Math(average, Arity.NARY)
+
+    # The argument averaged over the ends at this end's vertex, or on its edge.
+    avg_verts = AvgVerts(graph)
+    avg_edges = AvgEdges()
 
     # One field out of several, picked by a knob - `select(ripple, wipe1, fire)`
     select = Select(midi.for_("select"), select=81)

@@ -1,4 +1,4 @@
-"""A random number per edge, re-rolled on a note."""
+"""A random number per edge, or per end, re-rolled on a note."""
 
 from pylattice.examples.midi import FloatRange, MIDIFor
 from pylattice.examples.tempo import Event, ZERO, sweep
@@ -11,8 +11,9 @@ class NoteRandomField(ScalarField):
     A note that re-rolls every edge to a new random number.
 
     One value per edge, so both of its ends read the same - they are two ends
-    of the same thing. A press glides every edge from where it was to a fresh
-    number, all of them together, over however long the knob says.
+    of the same thing - or, with `per_end`, one value per end. A press glides
+    every edge from where it was to a fresh number, all of them together, over
+    however long the knob says.
 
     What an edge lands on comes out of the press event itself, so nothing is
     stored but the two presses being crossfaded between. Both start seeded at
@@ -26,8 +27,10 @@ class NoteRandomField(ScalarField):
     # in the first sixth.
     PERIOD = FloatRange(4000, 30, "ms", geometric=True)
 
-    def __init__(self, midi: MIDIFor, *, note: int, period: int):
+    def __init__(self, midi: MIDIFor, *, note: int, period: int,
+                 per_end: bool = False):
         self._note = midi.note(note)
+        self._per_end = per_end
         self._period_cc = midi.cc(period, "period", meta=self.PERIOD)
 
         # The press being faded from and the one being faded to.
@@ -56,8 +59,8 @@ class NoteRandomField(ScalarField):
     def get(self, now: Event, end: EndRef) -> float:
         self._consume_note()
 
-        # Both ends of an edge answer with the edge's own number.
-        edge = end if end.top else end.other()
+        # Both ends of an edge answer with the edge's own number, unless per end.
+        edge = end if self._per_end or end.top else end.other()
 
         period = self.PERIOD.at(self._period_cc().data)
         return sweep(now, self._to, period,

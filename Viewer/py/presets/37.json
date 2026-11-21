@@ -1,16 +1,16 @@
 {
   "ccs": {
-    "12": 125,
+    "12": 42,
     "13": 0,
-    "14": 127,
-    "15": 0,
-    "16": 113,
-    "17": 72,
-    "18": 127,
-    "19": 113,
+    "14": 0,
+    "15": 70,
+    "16": 0,
+    "17": 0,
+    "18": 0,
+    "19": 0,
     "22": 0,
     "23": 0,
-    "24": 106,
+    "24": 0,
     "25": 0,
     "26": 0,
     "27": 122,
@@ -19,16 +19,25 @@
     "72": 3,
     "73": 57,
     "74": 80,
-    "75": 24,
+    "75": 0,
     "76": 0,
     "77": 69,
-    "79": 71,
+    "79": 0,
+    "81": 0,
+    "82": 69,
+    "83": 66,
+    "84": 127,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
+    "89": 12,
     "91": 123,
-    "93": 10,
-    "102": 13,
+    "93": 0,
+    "102": 0,
     "103": 0,
     "104": 3,
-    "105": 19,
+    "105": 0,
     "106": 0,
     "107": 0,
     "108": 0,
@@ -40,7 +49,17 @@
     "114": 47,
     "115": 0,
     "116": 0,
-    "117": 0
+    "117": 0,
+    "118": 0,
+    "119": 2,
+    "120": 0,
+    "121": 48,
+    "122": 25,
+    "123": 0,
+    "124": 27,
+    "125": 3,
+    "126": 29,
+    "127": 115
   },
   "slots": {
     "net.hue": 0.9,
@@ -49,76 +68,119 @@
     "net.amp": 0.3,
     "map_fiber.hue": {
       "op": "add",
-      "a": {
-        "op": "mul",
-        "a": "v_rotary",
-        "b": 0.35
-      },
-      "b": 0.3
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "v_rotary",
+            0.35
+          ],
+          "mod": false
+        },
+        0.3
+      ],
+      "mod": false
     },
     "map_fiber2.hue": {
       "op": "add",
-      "a": {
-        "op": "mul",
-        "a": "v_rotary",
-        "b": 0.22
-      },
-      "b": 0.8,
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "v_rotary",
+            0.22
+          ],
+          "mod": false
+        },
+        0.8
+      ],
       "mod": true
     },
     "map_fiber.value": {
       "op": "mul",
-      "a": {
-        "op": "mul",
-        "a": {
+      "args": [
+        {
           "op": "mul",
-          "a": "d1_edges",
-          "b": "hexes"
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                "d1_edges",
+                "hexes"
+              ],
+              "mod": false
+            },
+            "fader_a"
+          ],
+          "mod": false
         },
-        "b": "fader_a"
-      },
-      "b": 0.68
+        0.68
+      ],
+      "mod": false
     },
     "map_fiber.sat": 1.0,
     "map_fiber2.value": {
       "op": "mul",
-      "a": {
-        "op": "mul",
-        "a": {
-          "op": "sub",
-          "a": {
-            "op": "mul",
-            "a": "d2_edges",
-            "b": "hexes"
-          },
-          "b": "h_edges"
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            {
+              "op": "sub",
+              "args": [
+                {
+                  "op": "mul",
+                  "args": [
+                    "d2_edges",
+                    "hexes"
+                  ],
+                  "mod": false
+                },
+                "h_edges"
+              ],
+              "mod": false
+            },
+            "fader_b"
+          ],
+          "mod": false
         },
-        "b": "fader_b"
-      },
-      "b": 0.87
+        0.87
+      ],
+      "mod": false
     },
     "map_fiber2.sat": 1.0,
     "glitter.value": {
       "op": "mul",
-      "a": 0.5,
-      "b": "param_b"
+      "args": [
+        0.5,
+        "param_b"
+      ],
+      "mod": false
     },
     "glitter.spin_rate": 0.52,
     "glitter.hue_1": 0.97,
     "glitter.hue_2": 0.9,
     "sparks.prob": {
       "op": "mul",
-      "a": 0.2,
-      "b": "rotary180"
+      "args": [
+        0.2,
+        "rotary180"
+      ],
+      "mod": false
     },
     "sparks.hue": {
       "op": "add",
-      "a": {
-        "op": "mul",
-        "a": "v_rotary",
-        "b": 0.45
-      },
-      "b": 0.67,
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "v_rotary",
+            0.45
+          ],
+          "mod": false
+        },
+        0.67
+      ],
       "mod": true
     },
     "sparks.value": "param_a",
@@ -141,8 +203,10 @@
     "glitter",
     "sparks",
     "map_fiber",
-    "map_fiber2"
+    "map_fiber2",
+    "ambient_light"
   ],
   "muted": [],
-  "name": "sleep-sounds-2"
+  "name": "sleep-sounds-2",
+  "notes": {}
 }

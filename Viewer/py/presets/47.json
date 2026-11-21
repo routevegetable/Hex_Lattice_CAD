@@ -2,13 +2,13 @@
   "ccs": {
     "12": 82,
     "13": 77,
-    "14": 22,
+    "14": 36,
     "15": 69,
     "16": 0,
     "17": 31,
     "18": 127,
     "19": 80,
-    "22": 0,
+    "22": 1,
     "71": 37,
     "72": 0,
     "73": 23,
@@ -23,7 +23,7 @@
     "86": 0,
     "87": 0,
     "88": 0,
-    "89": 127,
+    "89": 46,
     "91": 64,
     "93": 14,
     "102": 87,
@@ -107,19 +107,12 @@
       "mod": false
     },
     "light_all_fibers2.hue": {
-      "op": "add",
+      "op": "mul",
       "args": [
-        {
-          "op": "mul",
-          "args": [
-            "strobe1",
-            0.05
-          ],
-          "mod": false
-        },
-        1.0
+        "strobe1",
+        0.05
       ],
-      "mod": true
+      "mod": false
     },
     "bg_waves.value": {
       "op": "mul",
@@ -204,7 +197,8 @@
     "light_all_fibers2",
     "light_all_fibers",
     "map_fiber",
-    "prob_zaps"
+    "prob_zaps",
+    "ambient_light"
   ],
   "muted": [],
   "name": "goldfisch-1",
