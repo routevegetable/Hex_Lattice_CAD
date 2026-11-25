@@ -10,6 +10,7 @@ from pylattice.examples.midi import (
 )
 from pylattice.examples.tempo import ZERO, Event, EventLatch, periodic, sweep
 from pylattice.fields.gradients import GradientDef
+from pylattice.fields.mask import lines
 from pylattice.fields.types import ScalarField
 from pylattice.graph import EdgeClass, EndRef, Graph
 
@@ -257,6 +258,41 @@ class AvgEdges(Operator):
 
     def get(self, now: Event, end: EndRef, *args: ScalarField) -> float:
         return (args[0].get(now, end) + args[0].get(now, end.other())) / 2
+
+
+class LineAvg(Operator):
+    """Its argument averaged along the `family` line through this end's vertex.
+
+    Each line's average is worked out once per frame per argument, and every
+    end on that line reads it from there.
+    """
+
+    arity = Arity.UNARY
+
+    def __init__(self, graph: Graph, family: frozenset[EdgeClass]):
+        self._lines = [[e for end in line for e in (end, end.other())]
+                       for line in lines(graph, family)]
+
+        line_at = {e.vertex(): i for i, line in enumerate(self._lines) for e in line}
+        self._line_of = {end: line_at[end.vertex()] for end in graph.ends()}
+
+        self._now: Event | None = None
+        self._averages: dict[ScalarField, list[float]] = {}
+
+    def get(self, now: Event, end: EndRef, *args: ScalarField) -> float:
+        if now is not self._now:
+            self._now = now
+            self._averages = {}
+
+        field = args[0]
+        averages = self._averages.get(field)
+
+        if averages is None:
+            averages = [sum(field.get(now, e) for e in line) / len(line)
+                        for line in self._lines]
+            self._averages[field] = averages
+
+        return averages[self._line_of[end]]
 
 
 class OperatorField(ScalarField):
