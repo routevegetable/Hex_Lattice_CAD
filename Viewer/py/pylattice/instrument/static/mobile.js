@@ -9,7 +9,7 @@ const post = (p, body) => send('POST', p, body);
 const put = (p, body) => send('PUT', p, body);
 
 // Three tabs up top; the bar under them is whatever that tab needs.
-const TABS = [['effects', 'Effects'], ['controls', 'Controls'], ['system', 'System']];
+const TABS = [['effects', 'Effects'], ['audio', 'Audio'], ['controls', 'Controls'], ['system', 'System']];
 const SECTIONS = [['stats', 'Stats'], ['timing', 'Timing'], ['midi', 'MIDI'],
                   ['presets', 'Presets'], ['surface', 'Surface']];
 
@@ -40,6 +40,12 @@ let surfaces = {};
 let surfaceId = localStorage.getItem('surface') || 'beatstep-pro';
 let surfaceSvg = '';       // the picture, fetched once per choice
 let wire = null;            // the socket, for sending a knob back the other way
+let audio = null;           // the latest FFTStatus off /ws/fft
+let pressesSeen = [];       // each range's press count, as last flashed
+let visibleRange = null;    // the one fft range drawn on the spectrum, or none
+let rangeDrag = null;       // {index, edge, from, start, min, max} while an fft range is dragged
+// Which the spectrum shows, 'loudness' or 'flux', remembered per browser.
+let spectrumView = (() => { try { return localStorage.getItem('spectrumView'); } catch { return null; } })() || 'flux';
 let editing = {};           // slot edits, held until every operand is filled
 
 // Whether a preset has drifted from its file is a question about two patches,
@@ -280,12 +286,18 @@ function describe(node, nested = false) {
   // A call brackets its own arguments and separates them with commas, so an
   // operation inside one needs no brackets of its own; between two operands
   // with only a glyph to go on, it does.
-  if (!infix(node, OPS))
-    return `${node.op}(${node.args.map(arg => describe(arg)).join(', ')})`;
+  //
+  // An operation that wraps round rather than clamping has a % in front, and
+  // between two operands it is bracketed so the % takes the whole of it.
+  if (!infix(node, OPS)) {
+    const call = `${node.op}(${node.args.map(arg => describe(arg)).join(', ')})`;
+    return node.mod ? `%${call}` : call;
+  }
 
   const parts = node.args.map(arg => describe(arg, true));
   const shown = `${parts[0]} ${OPS[node.op]} ${parts[1]}`;
 
+  if (node.mod) return `%(${shown})`;
   return nested ? `(${shown})` : shown;
 }
 
@@ -303,17 +315,20 @@ function toText(node, nested = false) {
   if (typeof node === 'number') return String(node);
   if (typeof node === 'string') return node;
 
-  if (!infix(node, TEXT_OPS))
-    return `${node.op}(${node.args.map(arg => toText(arg)).join(', ')})`;
+  if (!infix(node, TEXT_OPS)) {
+    const call = `${node.op}(${node.args.map(arg => toText(arg)).join(', ')})`;
+    return node.mod ? `%${call}` : call;
+  }
 
   const parts = node.args.map(arg => toText(arg, true));
   const shown = `${parts[0]} ${TEXT_OPS[node.op]} ${parts[1]}`;
 
+  if (node.mod) return `%(${shown})`;
   return nested ? `(${shown})` : shown;
 }
 
 function tokens(text) {
-  const grab = /\s*([(),]|[+\-*/~]|[A-Za-z_][\w.]*|\d*\.?\d+)/y;
+  const grab = /\s*([(),%]|[+\-*/~]|[A-Za-z_][\w.]*|\d*\.?\d+)/y;
   const out = [];
   let at = 0;
 
@@ -346,6 +361,14 @@ function parse(text) {
       const inner = sum();
       if (t[i++] !== ')') throw new Error('a ( with no )');
       return inner;
+    }
+
+    // `%(a + b)` or `%fft0(x)`: that operation wraps round past 1.
+    if (tok === '%') {
+      const inner = operand();
+      if (inner === null || typeof inner !== 'object')
+        throw new Error('% goes in front of an operation: %(a + b) or %fft0(x)');
+      return {...inner, mod: true};
     }
 
     if (tok === ')') throw new Error('a ) with no (');
@@ -671,6 +694,14 @@ function nodeView(key, tree, path) {
   wrap.onclick = () => redrawSlot(key, replace(tree, path,
                                                {op: 'mul', args: [node, null]}));
 
+  // Past 1, wrap round rather than stopping at 1: 1.25 reads as 0.25.
+  const mod = document.createElement('button');
+  mod.className = 'mod' + (node.mod ? ' on' : '');
+  mod.textContent = '%1';
+  mod.title = node.mod ? 'wraps round past 1 (1.25 reads 0.25) - tap to clamp to 0-1 instead'
+                       : 'clamped to 0-1 - tap to wrap round past 1 instead (1.25 reads 0.25)';
+  mod.onclick = () => redrawSlot(key, replace(tree, path, {...node, mod: !node.mod}));
+
   const drop = document.createElement('button');
   drop.className = 'unwrap';
   drop.textContent = '⨯';
@@ -690,7 +721,7 @@ function nodeView(key, tree, path) {
   const arity = arityOf(node.op);
 
   head.append(ops, ...(arity === 'nary' ? [plus] : []),
-              ...(node.args.length > 1 ? [swap] : []), wrap, drop);
+              ...(node.args.length > 1 ? [swap] : []), mod, wrap, drop);
 
   // A binary operator sits between the two operands it joins rather than
   // above them, because which way round they are is the whole point of - and
@@ -891,7 +922,7 @@ function controlList(found) {
 
       mapping = waiting ? null : name;
       mappingSince = Date.now();
-      drawSlots();
+      drawPage();
     };
 
     row.append(makeDial(liveValue(c), meta));
@@ -1313,7 +1344,7 @@ function drawSubBar() {
     for (const name of effectsWithControls())
       cell(name, 'effect', name === chosen,
            () => { chosen = name; drawSubBar(); drawPage(); });
-  } else {
+  } else if (tab === 'system') {
     for (const [key, label] of SECTIONS)
       cell(label, '', key === section,
            () => { section = key; drawSubBar(); drawPage(); });
@@ -1322,11 +1353,12 @@ function drawSubBar() {
 
 // Whether the page is being used right now, rather than just looked at. An
 // open select keeps focus, which is the case that matters.
-const inUse = () => document.activeElement?.closest?.('#page') != null;
+const inUse = () => rangeDrag !== null || document.activeElement?.closest?.('#page') != null;
 
 function drawPage() {
   if (tab === 'effects') return drawSlots();
   if (tab === 'controls') return drawFieldPage();
+  if (tab === 'audio') return drawAudioPage();
   return drawSystemPage();
 }
 
@@ -1475,6 +1507,401 @@ function drawFieldPage() {
   }
 
   box.append(changesList());
+}
+
+// ---- Audio ---------------------------------------------------------------
+
+const DB_FLOOR = -60;           // the bottom of the spectrum, in dB of full scale
+const FLUX_TOP = 0.5;           // the top of the spectrum's flux scale, outside the ranges
+const AXIS_HZ = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 16000];
+const OPERATOR_RANGES = 3;         // ranges 0-2 are also the operators fft0-fft2
+const RANGE_COLOURS = ['#e0b070', '#7fc97f', '#d67fd0', '#6fc3df', '#e07070', '#c0c060'];
+const NEW_RANGE = {min_hz: 200, max_hz: 400, agc_half_life_ms: 1000, bins: 8, smooth_ms: 0, beat_note: null};
+const GRAB = 10;                // px either side of a band edge that picks it up
+
+const colourOf = (i) => RANGE_COLOURS[i % RANGE_COLOURS.length];
+const rangeName = (i) => i < OPERATOR_RANGES ? `fft${i}` : `range ${i}`;
+
+function drawAudioPage() {
+  const box = document.getElementById('page');
+  box.innerHTML = '';
+
+  const canvas = document.createElement('canvas');
+  canvas.id = 'spectrum';
+  dragRanges(canvas);
+  box.append(canvas);
+  drawSpectrum();
+  box.append(viewSwitch());
+
+  const ranges = patch.fft_config.ranges;
+  ranges.forEach((r, i) => box.append(rangeRow(ranges, i)));
+
+  const add = document.createElement('button');
+  add.className = 'add-range';
+  add.textContent = '➕ range';
+  add.onclick = () => writeRanges([...ranges, {...NEW_RANGE}]);
+  box.append(add);
+}
+
+// Loudness or flux, under the spectrum.
+function viewSwitch() {
+  const bar = document.createElement('div');
+  bar.className = 'view-switch';
+
+  for (const [key, label] of [['loudness', 'Loudness'], ['flux', 'Flux']]) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.className = key === spectrumView ? 'on' : '';
+    b.onclick = () => {
+      spectrumView = key;
+      try { localStorage.setItem('spectrumView', key); } catch { /* not remembered */ }
+      for (const other of bar.children) other.className = other === b ? 'on' : '';
+      drawSpectrum();
+    };
+    bar.append(b);
+  }
+
+  return bar;
+}
+
+// One range: its name, where it is, which note it plays, and a way to drop it.
+function rangeRow(ranges, i) {
+  const r = ranges[i];
+  const row = infoRow(rangeName(i), '');
+  row.querySelector('.name').style.color = colourOf(i);
+  const value = row.querySelector('.value');
+  value.classList.add('range');
+
+  // Flashes each time the range presses its note.
+  const light = document.createElement('span');
+  light.className = 'beat-light';
+  light.dataset.range = i;
+  light.style.background = colourOf(i);
+
+  const where = document.createElement('span');
+  where.textContent = `${Math.round(r.min_hz)}–${Math.round(r.max_hz)} Hz `;
+
+  const pick = document.createElement('select');
+  const notes = controls.filter(c => c.kind === 'note').sort((a, b) => a.number - b.number);
+
+  for (const [v, label] of [['', 'no note'],
+       ...notes.map(c => [String(c.number), `${c.comments.join(', ') || 'unnamed'} (${c.number})`])]) {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = label;
+    opt.selected = v === String(r.beat_note ?? '');
+    pick.append(opt);
+  }
+
+  pick.onchange = () => writeRanges(ranges.map((x, j) => j === i
+      ? {...x, beat_note: pick.value === '' ? null : Number(pick.value)} : x));
+
+  // A number of the range's own, in a small box, written back on change.
+  const setting = (label, unit, key, min, step) => {
+    const box = document.createElement('label');
+    box.className = 'smooth';
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = String(min);
+    input.step = String(step);
+    input.value = String(r[key]);
+    input.onchange = () => writeRanges(ranges.map((x, j) => j === i
+        ? {...x, [key]: Math.max(min, Math.round((Number(input.value) || 0) / step) * step)} : x));
+    box.append(label, input, unit);
+    return box;
+  };
+
+  const bins = setting('bins ', '', 'bins', 2, 1);
+  const smooth = setting('smooth ', ' ms', 'smooth_ms', 0, 10);
+
+  const kill = document.createElement('button');
+  kill.className = 'kill';
+  kill.textContent = '\u{1F5D1}️';
+  kill.title = `remove ${rangeName(i)}`;
+  kill.onclick = () => {
+    // The one on show keeps being the one on show, wherever it moves to.
+    if (visibleRange === i) visibleRange = null;
+    else if (visibleRange > i) visibleRange -= 1;
+    writeRanges(ranges.filter((_, j) => j !== i));
+  };
+
+  const show = document.createElement('button');
+  show.className = 'show-range' + (visibleRange === i ? ' on' : '');
+  show.dataset.range = i;
+  show.textContent = '\u{1F441}';
+  show.title = `show ${rangeName(i)} on the spectrum`;
+  show.onclick = () => setVisibleRange(visibleRange === i ? null : i);
+
+  value.append(light, show, where, bins, smooth, pick, kill);
+  return row;
+}
+
+// Flash the light of every range that has pressed its note since the last
+// frame. Counted rather than read off `held`, since a press can begin and end
+// between two frames.
+function flashBeats() {
+  audio.ranges.forEach((st, i) => {
+    if (st.presses === pressesSeen[i]) return;
+    const fired = pressesSeen[i] !== undefined;
+    pressesSeen[i] = st.presses;
+    if (!fired) return;
+
+    const light = document.querySelector(`.beat-light[data-range="${i}"]`);
+    light?.animate([{opacity: 1, transform: 'scale(1.3)'}, {opacity: .15, transform: 'scale(1)'}],
+                   {duration: 250, easing: 'ease-out'});
+  });
+}
+
+async function writeRanges(ranges) {
+  remember();
+  const r = await put(`/presets/${rig.selected}`,
+                      {...patch, ccs: liveCCs(), fft_config: {...patch.fft_config, ranges}});
+  if (!r.ok) { alert((await r.json()).detail); return; }
+  await load();
+}
+
+// Where a pointer is, in Hz along the spectrum's log axis.
+function hzAt(canvas, clientX) {
+  const r = canvas.getBoundingClientRect();
+  const at = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+  return audio.low_hz * (audio.high_hz / audio.low_hz) ** at;
+}
+
+// Show one range on the spectrum, or none, and light its button to match.
+function setVisibleRange(index) {
+  visibleRange = index;
+  for (const b of document.querySelectorAll('.show-range'))
+    b.classList.toggle('on', Number(b.dataset.range) === index);
+  drawSpectrum();
+}
+
+// Drag an edge of the range on show to move it, or its middle to slide both
+// edges, and write the new range into the playing preset on letting go. A
+// press anywhere else on the spectrum puts it away.
+function dragRanges(canvas) {
+  canvas.onpointerdown = (e) => {
+    if (!audio || visibleRange === null) return;
+
+    const range = patch.fft_config.ranges[visibleRange];
+    const r = canvas.getBoundingClientRect();
+    const span = Math.log(audio.high_hz / audio.low_hz);
+    const x = (hz) => r.left + Math.log(hz / audio.low_hz) / span * r.width;
+    const toMin = Math.abs(e.clientX - x(range.min_hz)), toMax = Math.abs(e.clientX - x(range.max_hz));
+
+    const edge = Math.min(toMin, toMax) <= GRAB ? (toMin < toMax ? 'min' : 'max')
+               : e.clientX > x(range.min_hz) && e.clientX < x(range.max_hz) ? 'both' : null;
+
+    if (edge === null) {
+      setVisibleRange(null);
+      return;
+    }
+
+    const {min_hz: min, max_hz: max} = range;
+    rangeDrag = {index: visibleRange, edge, from: hzAt(canvas, e.clientX),
+                 start: {min, max}, min, max};
+    canvas.setPointerCapture(e.pointerId);
+  };
+
+  canvas.onpointermove = (e) => {
+    if (rangeDrag === null) return;
+
+    const hz = hzAt(canvas, e.clientX);
+    const {low_hz: low, high_hz: high} = audio;
+    const {edge, start} = rangeDrag;
+
+    if (edge === 'min') rangeDrag.min = Math.min(hz, rangeDrag.max / 1.05);
+    else if (edge === 'max') rangeDrag.max = Math.max(hz, rangeDrag.min * 1.05);
+    else {
+      // Slid along a log axis, so by a ratio, and kept on the spectrum.
+      const ratio = Math.max(low / start.min, Math.min(high / start.max, hz / rangeDrag.from));
+      rangeDrag.min = start.min * ratio;
+      rangeDrag.max = start.max * ratio;
+    }
+
+    drawSpectrum();
+  };
+
+  canvas.onpointerup = () => {
+    const done = rangeDrag;
+    rangeDrag = null;
+    if (!done || (done.min === done.start.min && done.max === done.start.max)) return;
+
+    const ranges = patch.fft_config.ranges;
+    writeRanges(ranges.map((x, j) => j === done.index
+        ? {...x, min_hz: Math.round(done.min), max_hz: Math.round(done.max)} : x));
+  };
+
+  canvas.onpointercancel = () => { rangeDrag = null; drawSpectrum(); };
+}
+
+// The band a frequency's level is measured over, as the instrument has it:
+// half the width either side in octaves, never narrower than one bin.
+function bandOf(centre, half, perBin) {
+  const lo = centre / half, hi = centre * half;
+  const mid = (lo + hi) / 2, span = Math.max(hi - lo, perBin) / 2;
+  return [mid - span, mid + span];
+}
+
+// Bars side by side, each as wide as the band it is measured over, on a log
+// axis: the level in dB of full scale, or the spectral flux from 0 to
+// FLUX_TOP, as the switch says. Inside a range, its own bins instead, as a
+// line through their centres scaled to the range's AGC - what its operators
+// read, 0 at the bottom and 1 at the top. In the flux view, each range also
+// has its flux, threshold and release on that same scale.
+function drawSpectrum() {
+  const canvas = document.getElementById('spectrum');
+  if (!canvas || !audio) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== Math.round(w * dpr)) {
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+  }
+
+  const g = canvas.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+
+  const {low_hz: low, high_hz: high, per_bin_hz: perBin, width_octaves: width, bins, flux} = audio;
+  const axis = 14;
+  const span = Math.log(high / low);
+  const x = (hz) => Math.log(hz / low) / span * w;
+  const y = (level) => {
+    const db = 20 * Math.log10(Math.max(level, 1e-9));
+    return (h - axis) * (1 - Math.max(0, Math.min(1, (db - DB_FLOOR) / -DB_FLOOR)));
+  };
+
+  // A value at any frequency, between the ones the instrument worked out.
+  const valueAt = (values, hz) => {
+    const at = Math.max(0, Math.min(1, Math.log(hz / low) / span)) * (values.length - 1);
+    const i = Math.min(Math.floor(at), values.length - 2);
+    return values[i] + (values[i + 1] - values[i]) * (at - i);
+  };
+
+  // Linear, from 0 at the bottom to `top` at the top.
+  const linear = (top) => (v) => (h - axis) * (1 - Math.max(0, Math.min(1, v / top)));
+  const fy = linear(FLUX_TOP);
+
+  // Where each range is drawn - where it is being dragged to, or where it is -
+  // and its own scale, topping out at its AGC.
+  const shown = patch.fft_config.ranges.map((r, i) => {
+    const at = rangeDrag?.index === i ? rangeDrag : {min: r.min_hz, max: r.max_hz};
+    const st = audio.ranges[i];
+    return {index: i, left: x(at.min), right: x(at.max), min: at.min, max: at.max,
+            status: st, colour: colourOf(i),
+            scale: st && linear(spectrumView === 'flux' ? st.flux_agc : st.level_agc)};
+  }).filter(r => r.index === visibleRange);
+
+  for (const r of shown) {
+    g.globalAlpha = .12;
+    g.fillStyle = r.colour;
+    g.fillRect(r.left, 0, r.right - r.left, h - axis);
+  }
+  g.globalAlpha = 1;
+
+  const half = 2 ** (width / 2);
+
+  const inRange = (hz) => shown.some(r => hz >= r.min && hz <= r.max);
+
+  for (let centre = low; ; ) {
+    const [lo, hi] = bandOf(centre, half, perBin);
+    if (lo >= high) break;
+    if (inRange(centre)) {
+      centre = Math.max(hi * half, (2 * hi + perBin) / (1 / half + half));
+      continue;
+    }
+
+    const left = Math.max(0, x(lo)), wide = Math.max(1, Math.min(w, x(hi)) - left - 1);
+    const top = spectrumView === 'flux' ? fy(valueAt(flux, centre)) : y(valueAt(bins, centre));
+    g.fillStyle = spectrumView === 'flux' ? '#e8b46a' : '#5b8bd6';
+    g.fillRect(left, top, wide, h - axis - top);
+
+    // The next band starts where this one ends.
+    centre = Math.max(hi * half, (2 * hi + perBin) / (1 / half + half));
+  }
+
+  // Across each range, on its scale: its flux, the flux that presses its note
+  // (spread deviations above the median), and the median, which a held note
+  // lets go below.
+  const across = (r, value, style, dash) => {
+    g.strokeStyle = style;
+    g.setLineDash(dash);
+    g.beginPath();
+    g.moveTo(r.left, r.scale(value));
+    g.lineTo(r.right, r.scale(value));
+    g.stroke();
+  };
+
+  // Each range's bins: flat from its edge to the first centre, straight
+  // between centres, flat again to the other edge.
+  for (const r of shown) {
+    const values = r.status && (spectrumView === 'flux' ? r.status.fluxes : r.status.levels);
+    if (!values?.length) continue;
+
+    const scale = r.scale;
+    const at = (k) => r.left + (k + 0.5) / values.length * (r.right - r.left);
+    const path = [[r.left, scale(values[0])], ...values.map((v, k) => [at(k), scale(v)]),
+                  [r.right, scale(values[values.length - 1])]];
+
+    g.beginPath();
+    path.forEach(([px, py], k) => k ? g.lineTo(px, py) : g.moveTo(px, py));
+    g.lineTo(r.right, h - axis);
+    g.lineTo(r.left, h - axis);
+    g.closePath();
+    g.globalAlpha = .25;
+    g.fillStyle = spectrumView === 'flux' ? '#e8b46a' : '#5b8bd6';
+    g.fill();
+    g.globalAlpha = 1;
+
+    g.beginPath();
+    path.forEach(([px, py], k) => k ? g.lineTo(px, py) : g.moveTo(px, py));
+    g.strokeStyle = spectrumView === 'flux' ? '#e8b46a' : '#5b8bd6';
+    g.lineWidth = 2;
+    g.setLineDash([]);
+    g.stroke();
+
+    g.fillStyle = g.strokeStyle;
+    for (let k = 0; k < values.length; k++) g.fillRect(at(k) - 2, scale(values[k]) - 2, 4, 4);
+  }
+
+  g.font = '10px system-ui';
+  g.textAlign = 'left';
+  g.textBaseline = 'top';
+
+  shown.forEach((r) => {
+    // The edges, to show they can be picked up.
+    g.fillStyle = r.colour;
+    g.fillRect(r.left - 1, 0, 2, h - axis);
+    g.fillRect(r.right - 1, 0, 2, h - axis);
+
+    const st = r.status;
+    if (st && spectrumView === 'flux') {
+      g.lineWidth = 2;
+      across(r, st.median + st.spread * st.deviation, r.colour, []);
+      across(r, st.median, r.colour, [4, 3]);
+      g.lineWidth = 3;
+      across(r, st.flux, st.held ? '#fff' : '#bbb', []);
+      g.setLineDash([]);
+    }
+
+    g.fillStyle = r.colour;
+    g.fillText(rangeName(r.index), r.left + 3, 2);
+  });
+
+  g.textAlign = 'right';
+  g.fillStyle = spectrumView === 'flux' ? '#e8b46a' : '#5b8bd6';
+  g.fillText(spectrumView === 'flux' ? `flux, 0 to ${FLUX_TOP}` : `level, ${DB_FLOOR} to 0 dB`, w - 4, 2);
+  g.fillStyle = '#888';
+  g.fillText('ranges: 0 to their AGC', w - 4, 13);
+
+  g.fillStyle = '#888';
+  g.textBaseline = 'bottom';
+  for (const hz of AXIS_HZ) {
+    const label = hz >= 1000 ? `${hz / 1000}k` : String(hz);
+    g.textAlign = hz === low ? 'left' : hz === high ? 'right' : 'center';
+    g.fillText(label, x(hz), h);
+  }
 }
 
 // ---- System --------------------------------------------------------------
@@ -1865,3 +2292,13 @@ function listen() {
 }
 
 listen();
+
+function listenAudio() {
+  const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
+  const socket = new WebSocket(`${scheme}://${location.host}/ws/fft`);
+
+  socket.onmessage = (e) => { audio = JSON.parse(e.data); drawSpectrum(); flashBeats(); };
+  socket.onclose = () => setTimeout(listenAudio, 1000);
+}
+
+listenAudio();

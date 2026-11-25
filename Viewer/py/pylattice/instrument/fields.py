@@ -11,6 +11,7 @@ from pylattice.fields.artnet import artnet_universes
 from pylattice.fields.burst import BurstField
 from pylattice.fields.controls import CCField, StrobeField
 from pylattice.fields.loops import LoopsField, LoopTracesField
+from pylattice.audio import Spectrum
 from pylattice.fields.fire import FireField
 from pylattice.fields.gradient import VGradientField
 from pylattice.fields.lfo import LFOField
@@ -20,6 +21,7 @@ from pylattice.fields.operators import (
     Arity,
     AvgEdges,
     AvgVerts,
+    LineAvg,
     Cycle,
     GradientChooser,
     Randomize,
@@ -249,6 +251,11 @@ class FIELDS:
     kick = (((0.3 - v_gradient) * 10) * v_edges) * strobe0
 
 
+
+# The audio input.
+spectrum = Spectrum(midi)
+
+
 class OPERATORS:
     """
     Long-lived, like the fields: one object per operator, shared by every
@@ -264,6 +271,10 @@ class OPERATORS:
     # The argument averaged over the ends at this end's vertex, or on its edge.
     avg_verts = AvgVerts(graph)
     avg_edges = AvgEdges()
+
+    # The argument averaged along the d1 line, or the h line, through this end.
+    h_avg = LineAvg(graph, D1)
+    d_avg = LineAvg(graph, H)
 
     # One field out of several, picked by a knob - `select(ripple, wipe1, fire)`
     select = Select(midi.for_("select"), select=81)
@@ -296,3 +307,12 @@ class OPERATORS:
     # The prob_zaps effect as a value: `prob_zap(fader_a)` flashes ends at the
     # rate that knob asks for, and whatever is reading it gets the flash.
     prob_zap = ProbZap(graph, midi.for_("prob_zap"), length=85)
+
+    # Across the playing patch's first three fft ranges, the level, then the
+    # flux: `fft0(v_gradient)` puts range 0's lowest frequency at the bottom.
+    fft0 = spectrum.range_level(0)
+    fft1 = spectrum.range_level(1)
+    fft2 = spectrum.range_level(2)
+    fftflux_0 = spectrum.range_flux(0)
+    fftflux_1 = spectrum.range_flux(1)
+    fftflux_2 = spectrum.range_flux(2)

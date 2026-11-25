@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pylattice.examples.midi import CCMeta, MIDI
 from pylattice.examples.tempo import Event
 from pylattice.instrument.gradients import GLOBAL_GRADIENTS
+from pylattice.audio import Spectrum
 from pylattice.fields.operators import Arity, Operator
 from pylattice.fields.types import ScalarField, Timing
 from pylattice.instrument.patch import Patch, PresetBank, named
@@ -135,12 +136,43 @@ class Rig:
     size: int = 16
 
 
+@dataclass
+class RangeStatus:
+    """How one of the playing patch's fft ranges is being judged, on its
+    spectral flux per bin. Its note goes down at median + spread * deviation
+    and comes up below the median."""
+    flux: float                 # the band's flux, smoothed
+    median: float               # its median of late
+    deviation: float            # its median absolute deviation, scaled like a standard deviation
+    spread: float               # deviations above the median that press the note
+    held: bool
+    presses: int                # how many times its note has gone down
+    levels: list[float]         # its bins' levels, low to high, smoothed as it says
+    fluxes: list[float]         # and their flux
+    level_agc: float            # the level its operators read the levels against
+    flux_agc: float             # and the flux
+
+
+@dataclass
+class FFTStatus:
+    """The audio input as the fft operator and the fft ranges hear it. Levels
+    are amplitudes against full scale, before any smoothing or scaling."""
+    low_hz: float
+    high_hz: float
+    per_bin_hz: float           # the narrowest a band gets
+    width_octaves: float        # how wide each band is
+    bins: list[float]           # level per frequency, low to high
+    flux: list[float]           # spectral flux per bin at the same frequencies
+    ranges: list[RangeStatus]   # the playing patch's ranges, in order
+
+
 class Console:
     """Thread-safe access to the patch. Every method takes the lock."""
 
     def __init__(self, midi: MIDI, fields: type, operators: type, effects: type,
-                 bank: PresetBank):
+                 bank: PresetBank, spectrum: Spectrum):
         self.lock = threading.RLock()
+        self._spectrum = spectrum
         self._midi = midi
         self._fields = fields
         self._operators = operators
@@ -234,6 +266,23 @@ class Console:
             return [self._by_effect[name] for name in names
                     if name in self._by_effect
                     and name not in patch.muted]
+
+    def listen(self, now: Event):
+        """Let the spectrum hear the audio input against the playing patch's ranges."""
+        with self.lock:
+            patch = self._bank.playing()
+            self._spectrum.listen(now, [] if patch is None else patch.fft_config.ranges)
+
+    def fft_status(self) -> FFTStatus:
+        """What the audio input sounds like right now, and how each range is
+        being judged."""
+        with self.lock:
+            fft = self._spectrum
+            return FFTStatus(fft.LOW, fft.HIGH, fft.per_bin, fft.width, fft.bins(),
+                             fft.fluxes(),
+                             [RangeStatus(r.flux, r.median, r.deviation, r.SPREAD, r.held, r.presses,
+                                          r.level_bins, r.flux_bins, r.level_agc, r.flux_agc)
+                              for r in fft.ranges])
 
     def _apply(self, patch: Patch):
         """Put a patch into the rig. Knobs it does not mention are left alone,

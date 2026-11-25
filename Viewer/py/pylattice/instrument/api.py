@@ -8,6 +8,7 @@ static/, read per request, so editing it only needs a browser reload.
 """
 import asyncio
 import threading
+from collections.abc import Callable
 from pathlib import Path
 
 import uvicorn
@@ -22,6 +23,43 @@ from pylattice.instrument.console import (Console, ControlInfo, Knob, PresetView
 from pylattice.instrument.patch import Patch
 
 STATIC = Path(__file__).parent / "static"
+
+
+async def push(socket: WebSocket, hz: float, frame: Callable[[], object]):
+    """A frame per tick, and never a wait for room to put one.
+
+    A frame is the whole state of something rather than a change to it,
+    so one that could not be sent is worth nothing: the next frame
+    says everything it would have. That makes dropping the right
+    answer, and it is why this loop never awaits the send.
+
+    The send goes out as a task of its own and the loop only sleeps.
+    If that task is still going when the next tick comes round -
+    a client that has stopped reading, a link that has stalled - the
+    tick is skipped rather than queued, so there is at most one frame
+    in flight and never a backlog to work through. A slow client slows
+    only itself.
+    """
+    sending: asyncio.Task | None = None
+
+    try:
+        while True:
+            if sending is None or sending.done():
+                if sending is not None:
+                    # A send that failed - the far end gone - raises
+                    # here, which is how this loop finds out.
+                    sending.result()
+
+                # frame() takes the render lock, which the loop holds for a
+                # frame - under a millisecond, so the event loop can wear it.
+                sending = asyncio.create_task(socket.send_json(frame()))
+
+            await asyncio.sleep(1 / hz)
+    finally:
+        # Going away mid-send: nothing is waiting on this task, so it
+        # has to be called off rather than left to finish alone.
+        if sending is not None and not sending.done():
+            sending.cancel()
 
 
 def make_app(console: Console) -> FastAPI:
@@ -65,45 +103,6 @@ def make_app(console: Console) -> FastAPI:
         """
         await socket.accept()
 
-        async def push():
-            """A frame per tick, and never a wait for room to put one.
-
-            A frame is the whole state of the desk rather than a change to it,
-            so one that could not be sent is worth nothing: the next frame
-            says everything it would have. That makes dropping the right
-            answer, and it is why this loop never awaits the send.
-
-            The send goes out as a task of its own and the loop only sleeps.
-            If that task is still going when the next tick comes round -
-            a client that has stopped reading, a link that has stalled - the
-            tick is skipped rather than queued, so there is at most one frame
-            in flight and never a backlog to work through. A slow client slows
-            only itself.
-            """
-            sending: asyncio.Task | None = None
-
-            try:
-                while True:
-                    if sending is None or sending.done():
-                        if sending is not None:
-                            # A send that failed - the far end gone - raises
-                            # here, which is how this loop finds out.
-                            sending.result()
-
-                        # console.knobs takes the render lock, which the loop
-                        # holds for a frame - under a millisecond, so the event
-                        # loop can wear it.
-                        frame = {str(cc): asdict(knob)
-                                 for cc, knob in console.knobs().items()}
-                        sending = asyncio.create_task(socket.send_json(frame))
-
-                    await asyncio.sleep(1 / KNOB_HZ)
-            finally:
-                # Going away mid-send: nothing is waiting on this task, so it
-                # has to be called off rather than left to finish alone.
-                if sending is not None and not sending.done():
-                    sending.cancel()
-
         async def pull():
             while True:
                 moved = await socket.receive_json()
@@ -114,7 +113,28 @@ def make_app(console: Console) -> FastAPI:
                     pass            # not something we can act on; keep listening
 
         try:
-            await asyncio.gather(push(), pull())
+            await asyncio.gather(
+                push(socket, KNOB_HZ, lambda: {str(cc): asdict(knob)
+                                               for cc, knob in console.knobs().items()}),
+                pull())
+        except WebSocketDisconnect:
+            pass
+
+    FFT_HZ = 30
+
+    @app.websocket("/ws/fft")
+    async def fft(socket: WebSocket):
+        """Out: an FFTStatus thirty times a second, for as long as anyone is
+        listening."""
+        await socket.accept()
+
+        async def drain():
+            while True:
+                await socket.receive_text()
+
+        try:
+            await asyncio.gather(push(socket, FFT_HZ, lambda: asdict(console.fft_status())),
+                                 drain())
         except WebSocketDisconnect:
             pass
 

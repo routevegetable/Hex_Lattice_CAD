@@ -21,7 +21,14 @@ dependencies = [
     # portmidi backend is used instead (brew install portmidi).
     "python-rtmidi; platform_python_implementation == 'CPython'",
     "fastapi>=0.141.1",
+    # Audio in and its spectrum, for the fft operator.
+    "numpy",
+    "sounddevice",
 ]
+
+[tool.uv]
+# sounddevice asks for cffi, which PyPy has built in and uv cannot see.
+override-dependencies = ["cffi; platform_python_implementation == 'CPython'"]
 
 # Every pylattice subpackage - examples, effects, instrument, fields - not a hand-kept list.
 [tool.setuptools.packages.find]

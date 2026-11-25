@@ -1,6 +1,7 @@
 """Saving and restoring a patch: where the knobs are, and what drives what."""
 
 import copy
+import dataclasses
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -126,6 +127,36 @@ def named(namespace: type, kind: type) -> dict[str, object]:
 
 
 @dataclass
+class FFTRange:
+    """A band of the audio input, judged for loudness."""
+
+    min_hz: float = 40.0
+    max_hz: float = 120.0
+
+    # How far back, in ms, the band's flux is looked at for its median.
+    agc_half_life_ms: float = 1000.0
+
+    # How many bins its span is divided into, evenly in log frequency, for its
+    # operators and its beat. At least 2.
+    bins: int = 8
+
+    # The time constant, in ms, its operators' bins are smoothed with both
+    # ways, or 0 for none.
+    smooth_ms: float = 0.0
+
+    # The note it plays while loud enough, or None for no note.
+    beat_note: int | None = None
+
+
+@dataclass
+class FFTConfig:
+    """The bands of the audio input the patch listens to. The first three are
+    also operators, fft0 to fft2."""
+
+    ranges: list[FFTRange] = field(default_factory=list)
+
+
+@dataclass
 class Patch:
     """Every setting there is: where the knobs are, and what drives what.
 
@@ -172,6 +203,8 @@ class Patch:
     # it. Empty - which is also what a file written before gradients gives - means
     # it uses only the declared ones.
     gradients: list[GradientDef] = field(default_factory=list)
+
+    fft_config: FFTConfig = field(default_factory=FFTConfig)
 
     def check_gradients(self):
         """Raise ValueError if this preset's own gradients cannot be reached or
@@ -273,6 +306,7 @@ class Patch:
             name=self.name,
             notes=dict(self.notes),
             gradients=copy.deepcopy(self.gradients),
+            fft_config=copy.deepcopy(self.fft_config),
         )
 
     def save(self, path: str):
@@ -285,6 +319,7 @@ class Patch:
             "muted": sorted(self.muted),
             "name": self.name,
             "notes": self.notes,
+            "fft_config": dataclasses.asdict(self.fft_config),
         }
 
         # Only when there are some, so a preset that has none is written as it
@@ -312,6 +347,8 @@ class Patch:
             name=saved.get("name"),
             notes=dict(saved.get("notes", {})),
             gradients=_gradients_from_json(saved.get("gradients", [])),
+            fft_config=FFTConfig([FFTRange(**r) for r in
+                                  saved.get("fft_config", {}).get("ranges", [])]),
         )
 
 

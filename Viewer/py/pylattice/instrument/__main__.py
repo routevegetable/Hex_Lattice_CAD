@@ -30,7 +30,7 @@ from pylattice.graph import EdgeClass, EndRef, Graph
 from pylattice.lattice_writer import LatticeWriter
 from pathlib import Path
 from pylattice.instrument.api import serve
-from pylattice.instrument.fields import FIELDS, OPERATORS
+from pylattice.instrument.fields import FIELDS, OPERATORS, spectrum
 from pylattice.instrument.bank import BANK
 from pylattice.instrument.hardware import graph, lattice, midi
 from pylattice.instrument.console import Console
@@ -81,7 +81,7 @@ class EFFECTS:
 init_boom_zaps(graph, lattice)
 
 
-CONSOLE = Console(midi, FIELDS, OPERATORS, EFFECTS, BANK)
+CONSOLE = Console(midi, FIELDS, OPERATORS, EFFECTS, BANK, spectrum)
 serve(CONSOLE)
 
 
@@ -125,6 +125,7 @@ while True:
 
         now = Event.for_now()
         midi.tick()
+        CONSOLE.listen(now)
 
         for effect in CONSOLE.chain():
             effect.render(now, lattice, graph)

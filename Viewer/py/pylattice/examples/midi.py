@@ -332,6 +332,22 @@ class MIDI:
 
         return state
 
+    def set_note(self, id: int, held: bool, velocity: int = 127):
+        """Press or release a watched note from here, if it is not already so."""
+        state = self._notes.get(self.pad(id))
+        if state is None:
+            return
+
+        down = state.on.read() is not None and state.off.read() is None
+
+        if held and not down:
+            state.off.clear()
+            state.on.put(velocity)
+            state.pressure = velocity
+        elif down and not held:
+            state.off.put(0)
+            state.pressure = 0
+
     def polytouch(self, id: int, comment: str | None = None) -> Callable[[], int]:
         """Watch how hard a note is being leaned on. Shares its state with
         note(), so either call registers the key."""
