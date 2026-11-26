@@ -1,0 +1,21 @@
+{
+  "ccs": {},
+  "slots": {},
+  "cc_map": {
+    "fader_a.value": 12,
+    "fader_b.value": 13,
+    "fader_c.value": 14,
+    "fader_d.value": 15,
+    "fader_e.value": 16,
+    "fader_f.value": 17,
+    "fader_g.value": 18,
+    "fader_h.value": 19
+  },
+  "active": [],
+  "muted": [],
+  "name": "play-with-gradients",
+  "notes": {},
+  "fft_config": {
+    "ranges": []
+  }
+}
