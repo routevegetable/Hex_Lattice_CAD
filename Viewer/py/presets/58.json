@@ -95,14 +95,7 @@
     "map_fiber.value": {
       "op": "mul",
       "args": [
-        {
-          "op": "mul",
-          "args": [
-            "hexes",
-            "fader_b"
-          ],
-          "mod": false
-        },
+        "hexes",
         "fader_b"
       ],
       "mod": false
@@ -184,10 +177,12 @@
   "active": [
     "bg_waves",
     "map_fiber",
-    "map_fiber2",
-    "ambient_light"
+    "map_fiber2"
   ],
   "muted": [],
   "name": "party-5",
-  "notes": {}
+  "notes": {},
+  "fft_config": {
+    "ranges": []
+  }
 }
