@@ -200,7 +200,7 @@ class FIELDS:
 
     # Fire climbing from the bottom, as hard as its knob says. No pad: it
     # burns at whatever the knob is left at.
-    fire = FireField(graph, midi.for_("fire"), rate=117)
+    fire = FireField(graph, midi.for_("fire"), rate=117, speed=90)
 
     # Rotary
     rotary = RotaryField(graph, midi.for_("rotary"), period=KA5, parts=KA6, shape=KA7)

@@ -32,20 +32,26 @@ class FireField(ScalarField):
     CC:
         * rate - how often the embers throw, 0 for none and 1 for every
           ember on every tick
+        * speed - how long a particle takes to climb one edge, 360ms at 0
+          down to 22.5ms at 127; 90ms, half way, is how it always climbed
     """
 
     # The vertices with an edge going straight up out of them.
     UP = (VertexClass.CDE, VertexClass.ABF)
 
     SPAWN = 100         # ms between an ember's chances to throw one
-    SPEED = 90          # ms a particle takes to climb one edge
     TAIL = 3.0          # edges of trail behind the head
+
+    # ms a particle takes to climb one edge, geometric so the middle of the
+    # knob is the 90ms it was before it had one.
+    SPEED = FloatRange(360, 22.5, "ms", geometric=True)
 
     # The chance an ember takes any given tick, straight through.
     RATE = FloatRange(0, 1)
 
-    def __init__(self, graph: Graph, midi: MIDIFor, *, rate: int):
+    def __init__(self, graph: Graph, midi: MIDIFor, *, rate: int, speed: int):
         self._rate_cc = midi.cc(rate, "rate", meta=self.RATE)
+        self._speed_cc = midi.cc(speed, "speed", meta=self.SPEED)
 
         # The bottom row: the DEF of each tile along the bottom, which is the
         # lowest vertex there is.
@@ -54,9 +60,6 @@ class FireField(ScalarField):
 
         # Four vertex rows to a tile, and every step up crosses one of them.
         self._rows = graph.height * 4
-
-        # How far back to look for particles still in the air.
-        self._slots = self._rows * self.SPEED // self.SPAWN + 2
 
         self._state: dict[EndRef, float] = {}
         self._generated: int | None = None
@@ -101,19 +104,24 @@ class FireField(ScalarField):
         if chance <= 0:
             return                          # the knob is at the bottom
 
+        speed = self.SPEED.at(self._speed_cc().data)
+
+        # How far back to look for particles still in the air.
+        slots = int(self._rows * speed // self.SPAWN) + 2
+
         for ember in range(len(self._embers)):
             # Embers are offset against each other, or the whole bottom row
             # would throw in step.
             offset = ember * self.SPAWN // len(self._embers)
             latest = periodic(now, self.SPAWN, offset)
 
-            for back in range(self._slots):
+            for back in range(slots):
                 ev = Event(when=latest.when - back * self.SPAWN, data=None)
 
                 if ev.rand(ember) % 100 >= chance * 100:
                     continue                # this ember let that tick pass
 
-                head = (now.when - ev.when) / self.SPEED
+                head = (now.when - ev.when) / speed
 
                 for i, end in enumerate(self._climb(ev, ember)):
                     if i > head:
