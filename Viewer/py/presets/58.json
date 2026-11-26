@@ -1,9 +1,9 @@
 {
   "ccs": {
-    "12": 0,
-    "13": 0,
-    "14": 0,
-    "15": 0,
+    "12": 3,
+    "13": 93,
+    "14": 127,
+    "15": 6,
     "16": 0,
     "17": 0,
     "18": 0,
@@ -14,13 +14,10 @@
     "25": 0,
     "26": 106,
     "27": 0,
-    "28": 1,
+    "28": 0,
     "29": 0,
-    "72": 3,
     "73": 57,
     "75": 24,
-    "77": 69,
-    "79": 71,
     "81": 0,
     "82": 64,
     "83": 66,
@@ -37,7 +34,7 @@
     "104": 3,
     "105": 19,
     "106": 0,
-    "107": 0,
+    "107": 29,
     "108": 0,
     "109": 0,
     "110": 0,
@@ -48,7 +45,7 @@
     "115": 0,
     "116": 0,
     "117": 0,
-    "118": 0,
+    "118": 22,
     "119": 1,
     "120": 0,
     "121": 0,
@@ -95,7 +92,14 @@
     "map_fiber.value": {
       "op": "mul",
       "args": [
-        "hexes",
+        {
+          "op": "mul",
+          "args": [
+            "hexes",
+            "fader_b"
+          ],
+          "mod": false
+        },
         "fader_b"
       ],
       "mod": false
@@ -122,7 +126,7 @@
         {
           "op": "mul",
           "args": [
-            "param_a",
+            "lfo",
             0.1
           ],
           "mod": false
@@ -136,8 +140,8 @@
         {
           "op": "mul",
           "args": [
-            "scope",
-            0.35
+            "trace",
+            0.61
           ],
           "mod": false
         },
@@ -148,12 +152,23 @@
     "map_fiber2.value": {
       "op": "mul",
       "args": [
-        "scope",
-        "param_b"
+        {
+          "op": "mul",
+          "args": [
+            "trace",
+            0.75
+          ],
+          "mod": false
+        },
+        "fader_c"
       ],
       "mod": false
     },
-    "map_fiber2.sat": 1.0
+    "map_fiber2.sat": 1.0,
+    "sparks.prob": 0.1,
+    "sparks.value": "hexes",
+    "sparks.hue": 0.03,
+    "sparks.sat": 0.6
   },
   "cc_map": {
     "fader_a.value": 12,
@@ -177,12 +192,22 @@
   "active": [
     "bg_waves",
     "map_fiber",
-    "map_fiber2"
+    "map_fiber2",
+    "sparks"
   ],
   "muted": [],
   "name": "party-5",
   "notes": {},
   "fft_config": {
-    "ranges": []
+    "ranges": [
+      {
+        "min_hz": 60.0,
+        "max_hz": 153.0,
+        "agc_half_life_ms": 1000.0,
+        "bins": 15,
+        "smooth_ms": 0.0,
+        "beat_note": null
+      }
+    ]
   }
 }
