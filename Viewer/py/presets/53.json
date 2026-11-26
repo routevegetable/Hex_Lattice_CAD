@@ -1,12 +1,12 @@
 {
   "ccs": {
-    "12": 57,
-    "13": 80,
-    "14": 47,
-    "15": 0,
+    "12": 127,
+    "13": 127,
+    "14": 127,
+    "15": 127,
     "16": 0,
     "17": 91,
-    "18": 97,
+    "18": 99,
     "19": 34,
     "71": 86,
     "72": 0,
@@ -25,7 +25,7 @@
     "88": 0,
     "89": 0,
     "91": 66,
-    "93": 0,
+    "93": 127,
     "102": 68,
     "103": 2,
     "104": 4,
@@ -60,8 +60,8 @@
         {
           "op": "mul",
           "args": [
-            "v_rotary",
-            "rotary"
+            "rotary",
+            "v_rotary"
           ],
           "mod": false
         }
@@ -71,7 +71,14 @@
     "bg_waves.sat": {
       "op": "gradient_1_s",
       "args": [
-        "fader_a"
+        {
+          "op": "mul",
+          "args": [
+            "rotary",
+            "v_rotary"
+          ],
+          "mod": false
+        }
       ],
       "mod": false
     },
@@ -89,24 +96,24 @@
               ],
               "mod": false
             },
-            "fader_c"
+            {
+              "op": "mul",
+              "args": [
+                {
+                  "op": "fftflux_1",
+                  "args": [
+                    "v_gradient"
+                  ],
+                  "mod": false
+                },
+                3.0
+              ],
+              "mod": false
+            }
           ],
           "mod": false
         },
-        {
-          "op": "mul",
-          "args": [
-            {
-              "op": "fftflux_1",
-              "args": [
-                "v_gradient"
-              ],
-              "mod": false
-            },
-            3.0
-          ],
-          "mod": false
-        }
+        "fader_a"
       ],
       "mod": false
     },
@@ -120,14 +127,7 @@
     },
     "net.sat": 0.9,
     "net.hue": 0.04,
-    "prob_zaps.value": {
-      "op": "mul",
-      "args": [
-        "hexes",
-        "fader_b"
-      ],
-      "mod": false
-    },
+    "prob_zaps.value": "hexes",
     "prob_zaps.prob": 0.9,
     "prob_zaps.hue": 0.77,
     "net.amp": "ripple",
@@ -138,12 +138,19 @@
         {
           "op": "mul",
           "args": [
-            "burst",
-            0.31
+            {
+              "op": "mul",
+              "args": [
+                "burst",
+                0.31
+              ],
+              "mod": false
+            },
+            "loops"
           ],
           "mod": false
         },
-        "loops"
+        "fader_d"
       ],
       "mod": false
     },
@@ -152,8 +159,15 @@
     "map_fiber.value": {
       "op": "mul",
       "args": [
-        "ripple",
-        0.46
+        {
+          "op": "mul",
+          "args": [
+            "ripple",
+            0.46
+          ],
+          "mod": false
+        },
+        "fader_b"
       ],
       "mod": false
     },
@@ -161,8 +175,15 @@
     "map_fiber2.value": {
       "op": "mul",
       "args": [
-        "ripple2",
-        0.3
+        {
+          "op": "mul",
+          "args": [
+            "ripple2",
+            0.3
+          ],
+          "mod": false
+        },
+        "fader_c"
       ],
       "mod": false
     },
@@ -185,9 +206,7 @@
     "map_fiber2",
     "light_all_fibers"
   ],
-  "muted": [
-    "map_fiber2"
-  ],
+  "muted": [],
   "name": "party-1",
   "notes": {},
   "fft_config": {

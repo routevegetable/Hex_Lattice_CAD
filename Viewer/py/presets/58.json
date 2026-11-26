@@ -180,7 +180,14 @@
       ],
       "mod": false
     },
-    "sparks.value": "hexes",
+    "sparks.value": {
+      "op": "mul",
+      "args": [
+        "hexes",
+        "fader_d"
+      ],
+      "mod": false
+    },
     "sparks.hue": 0.03,
     "sparks.sat": 0.6
   },
