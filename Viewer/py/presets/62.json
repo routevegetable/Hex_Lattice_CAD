@@ -55,8 +55,10 @@
     "127": 95
   },
   "slots": {
-    "map_fiber.value": {
-      "op": "mul",
+    "map_fiber.value": 0.5,
+    "map_fiber.sat": 1,
+    "map_fiber.hue": {
+      "op": "add",
       "args": [
         {
           "op": "mul",
@@ -102,87 +104,7 @@
       ],
       "mod": false
     },
-    "map_fiber2.sat": 1.0,
-    "bg_waves.flow": {
-      "op": "sub",
-      "args": [
-        0.8,
-        "ripple"
-      ],
-      "mod": false
-    },
-    "bg_waves.value": {
-      "op": "add",
-      "args": [
-        0.2,
-        {
-          "op": "mul",
-          "args": [
-            {
-              "op": "mul",
-              "args": [
-                "ripple",
-                3.0
-              ],
-              "mod": false
-            },
-            0.3
-          ],
-          "mod": false
-        }
-      ],
-      "mod": false
-    },
-    "bg_waves.sat": 1.0,
-    "bg_waves.hue": 0.93,
-    "glitter.hue_1": 0.82,
-    "glitter.hue_2": 0.55,
-    "glitter.sat_1": 1.0,
-    "glitter.sat_2": 0.7,
-    "glitter.value": {
-      "op": "mul",
-      "args": [
-        {
-          "op": "mul",
-          "args": [
-            3.0,
-            {
-              "op": "sub",
-              "args": [
-                "rotary",
-                0.5
-              ],
-              "mod": false
-            }
-          ],
-          "mod": false
-        },
-        {
-          "op": "mul",
-          "args": [
-            "fire",
-            3.0
-          ],
-          "mod": false
-        }
-      ],
-      "mod": false
-    },
-    "glitter.spin_rate": {
-      "op": "add",
-      "args": [
-        {
-          "op": "mul",
-          "args": [
-            0.54,
-            "rotary"
-          ],
-          "mod": false
-        },
-        0.2
-      ],
-      "mod": false
-    }
+    "map_fiber2.sat": 1
   },
   "cc_map": {},
   "active": [
@@ -196,13 +118,20 @@
   "fft_config": {
     "ranges": [
       {
-        "min_hz": 48.0,
-        "max_hz": 134.0,
-        "agc_half_life_ms": 1000.0,
-        "bins": 32,
-        "smooth_ms": 0.0,
-        "deviations": 0.5,
+        "min_hz": 131,
+        "max_hz": 410,
+        "agc_half_life_ms": 1000,
+        "bins": 8,
+        "smooth_ms": 200,
         "beat_note": 36
+      },
+      {
+        "min_hz": 483,
+        "max_hz": 982,
+        "agc_half_life_ms": 1000,
+        "bins": 8,
+        "smooth_ms": 200,
+        "beat_note": 37
       }
     ]
   }

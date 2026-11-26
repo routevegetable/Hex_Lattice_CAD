@@ -69,7 +69,14 @@
       ],
       "mod": false
     },
-    "sparks.value": 1.0,
+    "sparks.value": {
+      "op": "mul",
+      "args": [
+        1.0,
+        "fader_b"
+      ],
+      "mod": false
+    },
     "sparks.prob": 0.1,
     "sparks.sat": 0.9,
     "bg_waves.hue": 0.9,
@@ -93,32 +100,39 @@
           "op": "mul",
           "args": [
             {
-              "op": "add",
+              "op": "mul",
               "args": [
                 {
-                  "op": "mul",
+                  "op": "add",
                   "args": [
-                    "ripple",
-                    "d1_edges"
+                    {
+                      "op": "mul",
+                      "args": [
+                        "ripple",
+                        "d1_edges"
+                      ],
+                      "mod": false
+                    },
+                    {
+                      "op": "mul",
+                      "args": [
+                        "ripple2",
+                        "d2_edges"
+                      ],
+                      "mod": false
+                    }
                   ],
                   "mod": false
                 },
-                {
-                  "op": "mul",
-                  "args": [
-                    "ripple2",
-                    "d2_edges"
-                  ],
-                  "mod": false
-                }
+                "v_rotary"
               ],
               "mod": false
             },
-            "v_rotary"
+            0.5
           ],
           "mod": false
         },
-        0.5
+        "fader_c"
       ],
       "mod": false
     },
