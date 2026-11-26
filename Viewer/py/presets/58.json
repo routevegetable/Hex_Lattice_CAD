@@ -1,0 +1,193 @@
+{
+  "ccs": {
+    "12": 0,
+    "13": 0,
+    "14": 0,
+    "15": 0,
+    "16": 0,
+    "17": 0,
+    "18": 0,
+    "19": 0,
+    "22": 63,
+    "23": 41,
+    "24": 63,
+    "25": 0,
+    "26": 106,
+    "27": 0,
+    "28": 1,
+    "29": 0,
+    "72": 3,
+    "73": 57,
+    "75": 24,
+    "77": 69,
+    "79": 71,
+    "81": 0,
+    "82": 64,
+    "83": 66,
+    "84": 127,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
+    "89": 16,
+    "91": 123,
+    "93": 10,
+    "102": 13,
+    "103": 0,
+    "104": 3,
+    "105": 19,
+    "106": 0,
+    "107": 0,
+    "108": 0,
+    "109": 0,
+    "110": 0,
+    "111": 0,
+    "112": 0,
+    "113": 0,
+    "114": 47,
+    "115": 0,
+    "116": 0,
+    "117": 0,
+    "118": 0,
+    "119": 1,
+    "120": 0,
+    "121": 0,
+    "122": 0,
+    "123": 0,
+    "124": 0,
+    "125": 0,
+    "126": 127,
+    "127": 0
+  },
+  "slots": {
+    "bg_waves.hue": {
+      "op": "add",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                "rotary",
+                "v_rotary"
+              ],
+              "mod": false
+            },
+            0.1
+          ],
+          "mod": false
+        },
+        0.67
+      ],
+      "mod": false
+    },
+    "bg_waves.value": {
+      "op": "mul",
+      "args": [
+        1.0,
+        "fader_a"
+      ],
+      "mod": false
+    },
+    "bg_waves.sat": 1.0,
+    "bg_waves.flow": 0.1,
+    "map_fiber.value": {
+      "op": "mul",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "hexes",
+            "fader_b"
+          ],
+          "mod": false
+        },
+        "fader_b"
+      ],
+      "mod": false
+    },
+    "map_fiber.sat": 1.0,
+    "map_fiber.hue": {
+      "op": "add",
+      "args": [
+        {
+          "op": "add",
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                "v_rotary",
+                0.3
+              ],
+              "mod": false
+            },
+            0.65
+          ],
+          "mod": false
+        },
+        {
+          "op": "mul",
+          "args": [
+            "param_a",
+            0.1
+          ],
+          "mod": false
+        }
+      ],
+      "mod": true
+    },
+    "map_fiber2.hue": {
+      "op": "add",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "scope",
+            0.35
+          ],
+          "mod": false
+        },
+        0.63
+      ],
+      "mod": false
+    },
+    "map_fiber2.value": {
+      "op": "mul",
+      "args": [
+        "scope",
+        "param_b"
+      ],
+      "mod": false
+    },
+    "map_fiber2.sat": 1.0
+  },
+  "cc_map": {
+    "fader_a.value": 12,
+    "fader_b.value": 13,
+    "param_a.value": 14,
+    "param_b.value": 15,
+    "wipe2.speed": 106,
+    "trace.speed": 107,
+    "ripple2.speed": 108,
+    "wipe1.speed": 109,
+    "rotary.period": 23,
+    "rotary.parts": 24,
+    "v_rotary.shape": 25,
+    "v_rotary.period": 26,
+    "v_rotary.parts": 27,
+    "hexes.pattern": 28,
+    "scope.pattern": 22,
+    "rotary.shape": 29,
+    "scope.speed": 16
+  },
+  "active": [
+    "bg_waves",
+    "map_fiber",
+    "map_fiber2",
+    "ambient_light"
+  ],
+  "muted": [],
+  "name": "party-5",
+  "notes": {}
+}

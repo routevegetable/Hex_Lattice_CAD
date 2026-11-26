@@ -1,4 +1,5 @@
 """One sinusoid, the same at every end, going round at whatever rate the knob says."""
+
 import copy
 import math
 from typing import Callable
@@ -25,7 +26,7 @@ class Cycle:
     # A rate knob, so up is faster and the period shrinks as it rises.
     # Geometric, so each step is the same proportion rather than the slow end
     # being crowded into the first few.
-    RATE = FloatRange(1000, 100, "ms", geometric=True)
+    RATE = FloatRange(100_000, 100, "ms", geometric=True)
 
     def __init__(self, rate: Callable[[], Event[int]]):
         self._rate = rate

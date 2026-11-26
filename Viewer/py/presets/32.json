@@ -2,9 +2,9 @@
   "ccs": {
     "12": 0,
     "13": 0,
-    "14": 0,
-    "15": 0,
-    "16": 0,
+    "14": 58,
+    "15": 21,
+    "16": 127,
     "17": 0,
     "18": 0,
     "19": 0,
@@ -14,11 +14,12 @@
     "25": 0,
     "26": 106,
     "27": 0,
-    "28": 1,
+    "28": 0,
     "29": 0,
     "72": 3,
     "73": 57,
     "75": 24,
+    "76": 0,
     "77": 69,
     "79": 71,
     "81": 0,
@@ -74,7 +75,7 @@
               ],
               "mod": false
             },
-            0.1
+            0.15
           ],
           "mod": false
         },
@@ -143,7 +144,7 @@
         {
           "op": "mul",
           "args": [
-            "scope",
+            "trace_lines",
             0.35
           ],
           "mod": false
@@ -160,13 +161,54 @@
       ],
       "mod": false
     },
-    "map_fiber2.sat": 1.0
+    "map_fiber2.sat": 1.0,
+    "sparks.value": "hexes",
+    "sparks.prob": "fader_d",
+    "light_all_fibers.hue": {
+      "op": "add",
+      "args": [
+        {
+          "op": "add",
+          "args": [
+            {
+              "op": "mul",
+              "args": [
+                "v_rotary",
+                0.3
+              ],
+              "mod": false
+            },
+            0.65
+          ],
+          "mod": false
+        },
+        {
+          "op": "mul",
+          "args": [
+            "param_a",
+            0.1
+          ],
+          "mod": false
+        }
+      ],
+      "mod": true
+    },
+    "light_all_fibers.value": {
+      "op": "mul",
+      "args": [
+        "hexes",
+        "fader_b"
+      ],
+      "mod": false
+    },
+    "light_all_fibers.sat": 1.0,
+    "sparks.hue": 0.95,
+    "sparks.sat": "fader_e"
   },
   "cc_map": {
     "fader_a.value": 12,
     "fader_b.value": 13,
     "param_a.value": 14,
-    "param_b.value": 15,
     "wipe2.speed": 106,
     "trace.speed": 107,
     "ripple2.speed": 108,
@@ -183,9 +225,8 @@
   },
   "active": [
     "bg_waves",
-    "map_fiber",
-    "map_fiber2",
-    "ambient_light"
+    "light_all_fibers",
+    "sparks"
   ],
   "muted": [],
   "name": "mysterons-1",
