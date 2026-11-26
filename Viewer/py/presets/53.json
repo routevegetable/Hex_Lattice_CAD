@@ -1,0 +1,217 @@
+{
+  "ccs": {
+    "12": 57,
+    "13": 80,
+    "14": 47,
+    "15": 0,
+    "16": 0,
+    "17": 91,
+    "18": 97,
+    "19": 34,
+    "71": 86,
+    "72": 0,
+    "73": 93,
+    "75": 24,
+    "76": 0,
+    "77": 127,
+    "79": 0,
+    "81": 0,
+    "82": 64,
+    "83": 0,
+    "84": 0,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
+    "89": 0,
+    "91": 66,
+    "93": 0,
+    "102": 68,
+    "103": 2,
+    "104": 4,
+    "105": 0,
+    "106": 0,
+    "107": 35,
+    "108": 0,
+    "109": 30,
+    "110": 127,
+    "111": 127,
+    "112": 0,
+    "113": 23,
+    "114": 0,
+    "115": 0,
+    "116": 0,
+    "117": 21,
+    "118": 0,
+    "119": 1,
+    "120": 3,
+    "121": 103,
+    "122": 0,
+    "123": 0,
+    "124": 0,
+    "125": 0,
+    "126": 127,
+    "127": 127
+  },
+  "slots": {
+    "bg_waves.hue": {
+      "op": "gradient_1_h",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "v_rotary",
+            "rotary"
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
+    },
+    "bg_waves.sat": {
+      "op": "gradient_1_s",
+      "args": [
+        "fader_a"
+      ],
+      "mod": false
+    },
+    "bg_waves.value": {
+      "op": "mul",
+      "args": [
+        {
+          "op": "add",
+          "args": [
+            "ripple2",
+            0.5
+          ],
+          "mod": false
+        },
+        "fader_c"
+      ],
+      "mod": false
+    },
+    "net.value": {
+      "op": "mul",
+      "args": [
+        "ripple",
+        0.5
+      ],
+      "mod": false
+    },
+    "net.sat": 0.9,
+    "net.hue": 0.04,
+    "prob_zaps.value": {
+      "op": "mul",
+      "args": [
+        "hexes",
+        "fader_b"
+      ],
+      "mod": false
+    },
+    "prob_zaps.prob": 0.9,
+    "prob_zaps.hue": 0.77,
+    "net.amp": "ripple",
+    "light_all_fibers.hue": 0.04,
+    "light_all_fibers.value": {
+      "op": "mul",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "burst",
+            0.31
+          ],
+          "mod": false
+        },
+        "loops"
+      ],
+      "mod": false
+    },
+    "light_all_fibers.sat": "fader_g",
+    "map_fiber.hue": 0.04,
+    "map_fiber.value": {
+      "op": "mul",
+      "args": [
+        "ripple",
+        0.46
+      ],
+      "mod": false
+    },
+    "map_fiber.sat": 0.9,
+    "map_fiber2.value": {
+      "op": "mul",
+      "args": [
+        "ripple2",
+        0.3
+      ],
+      "mod": false
+    },
+    "map_fiber2.hue": 0.9,
+    "map_fiber2.sat": 0.9
+  },
+  "cc_map": {
+    "fader_a.value": 12,
+    "fader_b.value": 13,
+    "fader_c.value": 14,
+    "fader_d.value": 15,
+    "fader_e.value": 16,
+    "fader_f.value": 17,
+    "fader_g.value": 18,
+    "fader_h.value": 19
+  },
+  "active": [
+    "bg_waves",
+    "map_fiber",
+    "map_fiber2",
+    "light_all_fibers"
+  ],
+  "muted": [
+    "map_fiber2"
+  ],
+  "name": "party-1",
+  "notes": {},
+  "fft_config": {
+    "ranges": [
+      {
+        "min_hz": 2922.0,
+        "max_hz": 5914.0,
+        "agc_half_life_ms": 1000.0,
+        "bins": 11,
+        "smooth_ms": 40.0,
+        "beat_note": 37
+      }
+    ]
+  },
+  "gradients": [
+    {
+      "name": "sunny",
+      "stops": [
+        [
+          0.0,
+          0.8873,
+          1.0
+        ],
+        [
+          0.1963,
+          0.0622,
+          0.3433
+        ],
+        [
+          0.4108,
+          0.0107,
+          0.9153
+        ],
+        [
+          0.6888,
+          0.0029,
+          1.0
+        ],
+        [
+          1.0,
+          0.8558,
+          0.5508
+        ]
+      ]
+    }
+  ]
+}

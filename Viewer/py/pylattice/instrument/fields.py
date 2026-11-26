@@ -77,7 +77,6 @@ from pylattice.instrument.hardware import (
 ARTNET = artnet_universes(graph, count=4)
 
 
-
 def _gradient_at(idx: int) -> GradientDef | None:
     """What a gradient knob at `idx` is on: a declared gradient, or one of the
     playing preset's own."""
@@ -249,7 +248,6 @@ class FIELDS:
     burst = BurstField(graph, midi.for_("burst"), note=PB8, decay=KA7, attack=109)
 
     kick = (((0.3 - v_gradient) * 10) * v_edges) * strobe0
-
 
 
 # The audio input.

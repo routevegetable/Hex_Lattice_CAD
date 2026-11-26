@@ -1,0 +1,152 @@
+{
+  "ccs": {
+    "12": 6,
+    "13": 0,
+    "14": 0,
+    "15": 0,
+    "16": 113,
+    "17": 78,
+    "18": 19,
+    "19": 0,
+    "71": 86,
+    "72": 0,
+    "73": 21,
+    "75": 24,
+    "76": 0,
+    "77": 127,
+    "79": 0,
+    "81": 0,
+    "82": 64,
+    "83": 0,
+    "84": 0,
+    "85": 0,
+    "86": 0,
+    "87": 0,
+    "88": 0,
+    "89": 0,
+    "91": 66,
+    "93": 20,
+    "102": 41,
+    "103": 0,
+    "104": 5,
+    "105": 0,
+    "106": 0,
+    "107": 35,
+    "108": 0,
+    "109": 0,
+    "110": 9,
+    "111": 0,
+    "112": 0,
+    "113": 23,
+    "114": 19,
+    "115": 0,
+    "116": 0,
+    "117": 21,
+    "118": 32,
+    "119": 1,
+    "120": 6,
+    "121": 103,
+    "122": 0,
+    "123": 0,
+    "124": 48,
+    "125": 1,
+    "126": 127,
+    "127": 127
+  },
+  "slots": {
+    "sparks.hue": {
+      "op": "add",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            "rotary",
+            0.43
+          ],
+          "mod": false
+        },
+        0.42
+      ],
+      "mod": false
+    },
+    "sparks.value": 1.0,
+    "sparks.prob": 0.1,
+    "sparks.sat": 0.9,
+    "bg_waves.hue": 0.9,
+    "bg_waves.value": {
+      "op": "mul",
+      "args": [
+        0.5,
+        "fader_a"
+      ],
+      "mod": false
+    },
+    "bg_waves.sat": 1.0,
+    "glitter.hue_1": 0.9,
+    "glitter.sat_1": 1.0,
+    "glitter.hue_2": 0.7,
+    "glitter.sat_2": 1.0,
+    "glitter.value": {
+      "op": "mul",
+      "args": [
+        {
+          "op": "mul",
+          "args": [
+            {
+              "op": "add",
+              "args": [
+                {
+                  "op": "mul",
+                  "args": [
+                    "ripple",
+                    "d1_edges"
+                  ],
+                  "mod": false
+                },
+                {
+                  "op": "mul",
+                  "args": [
+                    "ripple2",
+                    "d2_edges"
+                  ],
+                  "mod": false
+                }
+              ],
+              "mod": false
+            },
+            "v_rotary"
+          ],
+          "mod": false
+        },
+        0.5
+      ],
+      "mod": false
+    },
+    "glitter.spin_rate": 0.1
+  },
+  "cc_map": {
+    "fader_a.value": 12,
+    "fader_b.value": 13,
+    "fader_c.value": 14,
+    "fader_d.value": 15,
+    "fader_e.value": 16,
+    "fader_f.value": 17,
+    "fader_g.value": 18,
+    "fader_h.value": 19
+  },
+  "active": [
+    "bg_waves",
+    "sparks",
+    "glitter"
+  ],
+  "muted": [],
+  "name": "party-3",
+  "notes": {
+    "bg_waves": "pink waves",
+    "sparks": "cyan and blue sparks",
+    "glitter": "diagonal glitter"
+  },
+  "fft_config": {
+    "ranges": []
+  }
+}

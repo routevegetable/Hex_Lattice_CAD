@@ -97,9 +97,28 @@ const numBox = document.getElementById('preset-num');
 const namedBox = document.getElementById('named');
 const namedOpen = document.getElementById('named-open');
 
+// Rename the playing preset in place. Enter keeps it, Escape puts the old one back.
+nameBox.onchange = async () => {
+  const n = rig.selected, name = nameBox.value.trim();
+  if (n === null || name === (nameOf(n) ?? '')) return;
+  const why = nameProblem(name, n);
+  if (why) { alert(why); nameBox.value = nameOf(n) ?? ''; return; }
+
+  const fresh = await get(`/presets/${n}`);
+  remember(n, fresh.live);
+  const r = await put(`/presets/${n}`, {...fresh.live, name});
+  if (!r.ok) { alert(problem(await r.json())); nameBox.value = nameOf(n) ?? ''; return; }
+  await refresh();
+};
+nameBox.onkeydown = (ev) => {
+  if (ev.key === 'Enter') nameBox.blur();
+  if (ev.key === 'Escape') { nameBox.value = nameOf(rig.selected) ?? ''; nameBox.blur(); }
+};
+
 function drawName() {
   const n = rig.selected;
-  nameBox.textContent = nameOf(n) ?? '';
+  if (document.activeElement !== nameBox) nameBox.value = nameOf(n) ?? '';
+  nameBox.disabled = n === null;
   nameBox.classList.toggle('dirty', n !== null && isDirty(views[n]));
   numBox.textContent = n === null ? '' : `#${n}`;
   namedOpen.disabled = !namedNumbers().length;
@@ -816,16 +835,23 @@ function leaveFormula(key) {
   trimmed.delete(key);
 }
 
+// Not every formula is a slot's own. A gradient's driver is written into two slots
+// at once, so its editor is keyed by a name of its own and says here where a
+// finished formula goes. Anything not listed is a slot, and goes to that slot.
+const virtualSlots = {};
+const handEdit = new Set();            // gradient-driven slots unlocked for editing by hand
+const emit = (key, tree) => key in virtualSlots ? virtualSlots[key](tree) : writeSlot(key, tree);
+
 function setFormula(key, tree) {
   trimmed.add(key);                     // edited by hand: show it as it is from here on
   if (isLeaf(tree)) {            // down to one operand: no longer a formula
     leaveFormula(key);
-    if (tree === null) drawEffects(); else writeSlot(key, tree);
+    if (tree === null) drawEffects(); else emit(key, tree);
     return;
   }
 
   editing[key] = tree;
-  if (complete(tree)) { delete editing[key]; writeSlot(key, tree); }
+  if (complete(tree)) { delete editing[key]; emit(key, tree); }
   else drawEffects();
 }
 
@@ -970,7 +996,7 @@ function textEditor(key, tree) {
     if (!area.value.trim()) {
       texting.delete(key);
       leaveFormula(key);
-      writeSlot(key, null);
+      if (key in virtualSlots) drawEffects(); else writeSlot(key, null);
       return;
     }
 
@@ -1810,7 +1836,7 @@ function listen() {
 
 listen();
 
-function slotRow(key, saved) {
+function slotRow(key, saved, lockable = false) {
   // A formula half-built in the editor is what is on show, not what is saved.
   const {fader, inner} = isValueSlot(key) ? splitFader(saved) : {fader: null, inner: saved};
   let tree = key in editing ? editing[key] : inner;
@@ -2050,6 +2076,25 @@ function slotRow(key, saved) {
   // The fader is not in the expression, but it is still turned from here.
   const found = controlsFor(fader === null ? shown : withFader(shown, fader));
   if (found.length) row.append(knobList(found));
+
+  // A gradient is setting this slot, so by default it is looked at and not touched.
+  if (lockable) {
+    const free = handEdit.has(key);
+    const lock = mk('label', 'handedit');
+    lock.title = free ? 'the gradient is setting this: edits here are overwritten when it changes'
+                      : 'the gradient is setting this; turn on to edit it by hand';
+    const box = mk('input');
+    box.type = 'checkbox';
+    box.checked = free;
+    box.onchange = () => { if (box.checked) handEdit.add(key); else handEdit.delete(key); drawEffects(); };
+    lock.append(box, mk('span', null, 'edit by hand'));
+    head.append(lock);
+
+    if (!free) {
+      row.classList.add('locked');
+      for (const el of [seg, pencil, ctl, ...row.querySelectorAll(':scope > :not(.slot-head)')]) el.inert = true;
+    }
+  }
   return row;
 }
 
@@ -2342,8 +2387,13 @@ function drawEffects() {
       const own = controlsOwnedBy(name);
       if (own.length) card.append(knobList(own));
 
-      for (const pair of gradientPairs(keys)) card.append(gradientRow(name, pair, view.live));
-      for (const key of keys) card.append(slotRow(key, view.live.slots[key] ?? null));
+      const pairs = gradientPairs(keys);
+      const driven = new Set();
+      for (const pair of pairs) {
+        card.append(gradientRow(name, pair, view.live));
+        if (pairState(view.live, pair).on) driven.add(pair.hue).add(pair.sat);
+      }
+      for (const key of keys) card.append(slotRow(key, view.live.slots[key] ?? null, driven.has(key)));
     }
     list.append(card);
   }
@@ -2666,21 +2716,47 @@ function gradientRow(effect, pair, live) {
     onclick: () => move({[pair.hue]: gradientOp(m, 'h', driver), [pair.sat]: gradientOp(m, 's', driver)}),
   })), true));
 
-  // The field that says where along the gradient to be, for both slots at once.
+  // What says where along the gradient to be, for both slots at once: a field, or
+  // fields combined with operators like any other formula.
+  const dkey = `${pair.hue}~driver`;
+  virtualSlots[dkey] = (tree) => move({[pair.hue]: gradientOp(n, 'h', tree), [pair.sat]: gradientOp(n, 's', tree)});
+  const shown = dkey in editing ? editing[dkey] : driver;
+  const open = !isLeaf(shown);
+
   head.append(mk('span', 'dim', 'moved by'));
   const by = mk('span', 'fpick');
-  const chip = mk('button', 'chip', `${describe(driver)} ▾`);
-  chip.onclick = fieldMenu(by, typeof driver === 'string' ? driver : null, (field) =>
-      move({[pair.hue]: gradientOp(n, 'h', field), [pair.sat]: gradientOp(n, 's', field)}));
-  by.append(chip);
-  head.append(by);
+  if (!open) {
+    const chip = mk('button', 'chip', `${describe(driver)} ▾`);
+    chip.onclick = fieldMenu(by, typeof driver === 'string' ? driver : null, (field) => emit(dkey, field));
+    by.append(chip);
+  }
+  const combine = mk('button', open ? 'on' : null, '\u0192');
+  combine.title = open ? 'one field again: keeps the first operand' : 'combine fields and constants with operators';
+  combine.onclick = () => {
+    if (open) {
+      leaveFormula(dkey);
+      const first = (t) => isLeaf(t) ? t : first(t.args[0]);
+      emit(dkey, first(shown) ?? FADERS[0]);
+    } else {
+      editing[dkey] = {op: 'mul', args: [driver, null]};
+      drawEffects();
+    }
+  };
+  head.append(by, combine);
+
+  if (open) {
+    const tree = mk('div', 'tree');
+    tree.append(nodeEditor(dkey, shown, []));
+    row.append(mk('div', 'words', explain(shown)), tree);
+    if (dkey in editing) row.append(mk('span', 'unapplied', 'not applied yet'));
+  }
 
   const edit = mk('button', null, 'edit');
   edit.title = 'change the gradient this knob is on';
   edit.onclick = () => { const g = gradientAt(ccValue(cc)); if (g) openGradientEditor({gradient: g}); };
   const off = mk('button', 'bin', '✕');
   off.title = 'take the gradient off: back to a plain hue';
-  off.onclick = () => move({[pair.hue]: typeof driver === 'string' ? driver : 0, [pair.sat]: 1});
+  off.onclick = () => { leaveFormula(dkey); move({[pair.hue]: driver, [pair.sat]: 1}); };
   head.append(...(cc === null ? [] : [edit]), off);
 
   // One knob for every pair on the channel, so choosing here chooses there.

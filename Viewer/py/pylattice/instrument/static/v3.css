@@ -397,3 +397,17 @@ dialog input[type=text] { width: 100%; margin-top: 4px; background: var(--bg); c
 #history { flex: none; }
 #history .fpick-list { left: auto; right: 0; min-width: 260px; }
 #history .fpick-body { max-height: 70vh; }
+
+/* a slot a gradient is setting: shown, not touched, until "edit by hand" is on */
+.slot.locked > :not(.slot-head), .slot.locked .slot-head > :not(.handedit) { opacity: .5; }
+.slot-head .handedit { margin-left: auto; display: flex; align-items: center; gap: 4px;
+                       font-size: 12px; color: var(--dim); cursor: pointer; }
+.slot-head .fade + .handedit { margin-left: 8px; }
+.gpair .tree { margin-top: 6px; }
+
+/* the preset name is an input, but reads as plain text until it is clicked */
+input.preset-name { background: none; border: 1px solid transparent; border-radius: 4px; color: inherit;
+                    font: inherit; font-weight: 600; padding: 1px 4px; margin-left: -4px; }
+input.preset-name:hover { border-color: var(--line); }
+input.preset-name:focus { border-color: var(--dim); outline: none; background: var(--bg); }
+input.preset-name::placeholder { color: var(--dim); font-weight: 400; }
