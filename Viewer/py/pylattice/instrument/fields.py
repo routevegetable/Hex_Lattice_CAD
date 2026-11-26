@@ -101,6 +101,10 @@ class Math(Operator):
         return self._c(*arg_values)
 
 
+# The audio input.
+spectrum = Spectrum(midi)
+
+
 class FIELDS:
 
     # CC fields
@@ -249,9 +253,14 @@ class FIELDS:
 
     kick = (((0.3 - v_gradient) * 10) * v_edges) * strobe0
 
+    # The playing patch's first three fft ranges, averaged over all their bins
+    fft_0_avg = spectrum.range_level_avg(0)
+    fft_1_avg = spectrum.range_level_avg(1)
+    fft_2_avg = spectrum.range_level_avg(2)
+    fftflux_0_avg = spectrum.range_flux_avg(0)
+    fftflux_1_avg = spectrum.range_flux_avg(1)
+    fftflux_2_avg = spectrum.range_flux_avg(2)
 
-# The audio input.
-spectrum = Spectrum(midi)
 
 
 class OPERATORS:
@@ -307,10 +316,10 @@ class OPERATORS:
     prob_zap = ProbZap(graph, midi.for_("prob_zap"), length=85)
 
     # Across the playing patch's first three fft ranges, the level, then the
-    # flux: `fft0(v_gradient)` puts range 0's lowest frequency at the bottom.
-    fft0 = spectrum.range_level(0)
-    fft1 = spectrum.range_level(1)
-    fft2 = spectrum.range_level(2)
+    # flux: `fft_0(v_gradient)` puts range 0's lowest frequency at the bottom.
+    fft_0 = spectrum.range_level(0)
+    fft_1 = spectrum.range_level(1)
+    fft_2 = spectrum.range_level(2)
     fftflux_0 = spectrum.range_flux(0)
     fftflux_1 = spectrum.range_flux(1)
     fftflux_2 = spectrum.range_flux(2)

@@ -1,6 +1,6 @@
 {
   "ccs": {
-    "12": 3,
+    "12": 16,
     "13": 93,
     "14": 127,
     "15": 6,
@@ -38,7 +38,7 @@
     "108": 0,
     "109": 0,
     "110": 0,
-    "111": 0,
+    "111": 26,
     "112": 0,
     "113": 0,
     "114": 47,
@@ -165,7 +165,21 @@
       "mod": false
     },
     "map_fiber2.sat": 1.0,
-    "sparks.prob": 0.1,
+    "sparks.prob": {
+      "op": "add",
+      "args": [
+        0.1,
+        {
+          "op": "mul",
+          "args": [
+            "strobe0",
+            0.67
+          ],
+          "mod": false
+        }
+      ],
+      "mod": false
+    },
     "sparks.value": "hexes",
     "sparks.hue": 0.03,
     "sparks.sat": 0.6
@@ -201,12 +215,13 @@
   "fft_config": {
     "ranges": [
       {
-        "min_hz": 60.0,
-        "max_hz": 153.0,
+        "min_hz": 61.0,
+        "max_hz": 168.0,
         "agc_half_life_ms": 1000.0,
-        "bins": 15,
+        "bins": 10,
         "smooth_ms": 0.0,
-        "beat_note": null
+        "deviations": 0.5,
+        "beat_note": 44
       }
     ]
   }

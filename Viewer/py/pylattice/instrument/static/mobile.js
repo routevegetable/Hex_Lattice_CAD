@@ -363,11 +363,11 @@ function parse(text) {
       return inner;
     }
 
-    // `%(a + b)` or `%fft0(x)`: that operation wraps round past 1.
+    // `%(a + b)` or `%fft_0(x)`: that operation wraps round past 1.
     if (tok === '%') {
       const inner = operand();
       if (inner === null || typeof inner !== 'object')
-        throw new Error('% goes in front of an operation: %(a + b) or %fft0(x)');
+        throw new Error('% goes in front of an operation: %(a + b) or %fft_0(x)');
       return {...inner, mod: true};
     }
 
@@ -1514,13 +1514,13 @@ function drawFieldPage() {
 const DB_FLOOR = -60;           // the bottom of the spectrum, in dB of full scale
 const FLUX_TOP = 0.5;           // the top of the spectrum's flux scale, outside the ranges
 const AXIS_HZ = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 16000];
-const OPERATOR_RANGES = 3;         // ranges 0-2 are also the operators fft0-fft2
+const OPERATOR_RANGES = 3;         // ranges 0-2 are also the operators fft_0-fft_2
 const RANGE_COLOURS = ['#e0b070', '#7fc97f', '#d67fd0', '#6fc3df', '#e07070', '#c0c060'];
-const NEW_RANGE = {min_hz: 200, max_hz: 400, agc_half_life_ms: 1000, bins: 8, smooth_ms: 0, beat_note: null};
+const NEW_RANGE = {min_hz: 200, max_hz: 400, agc_half_life_ms: 1000, bins: 8, smooth_ms: 0, deviations: 1.5, beat_note: null};
 const GRAB = 10;                // px either side of a band edge that picks it up
 
 const colourOf = (i) => RANGE_COLOURS[i % RANGE_COLOURS.length];
-const rangeName = (i) => i < OPERATOR_RANGES ? `fft${i}` : `range ${i}`;
+const rangeName = (i) => i < OPERATOR_RANGES ? `fft_${i}` : `range ${i}`;
 
 function drawAudioPage() {
   const box = document.getElementById('page');
@@ -1613,6 +1613,7 @@ function rangeRow(ranges, i) {
 
   const bins = setting('bins ', '', 'bins', 2, 1);
   const smooth = setting('smooth ', ' ms', 'smooth_ms', 0, 10);
+  const deviations = setting('beat at ', ' dev', 'deviations', 0.5, 0.5);
 
   const kill = document.createElement('button');
   kill.className = 'kill';
@@ -1632,7 +1633,7 @@ function rangeRow(ranges, i) {
   show.title = `show ${rangeName(i)} on the spectrum`;
   show.onclick = () => setVisibleRange(visibleRange === i ? null : i);
 
-  value.append(light, show, where, bins, smooth, pick, kill);
+  value.append(light, show, where, bins, smooth, deviations, pick, kill);
   return row;
 }
 
