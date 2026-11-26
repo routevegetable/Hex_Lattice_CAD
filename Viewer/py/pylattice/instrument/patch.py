@@ -144,6 +144,9 @@ class FFTRange:
     # ways, or 0 for none.
     smooth_ms: float = 0.0
 
+    # How many deviations above its flux's median presses its note.
+    deviations: float = 1.5
+
     # The note it plays while loud enough, or None for no note.
     beat_note: int | None = None
 
@@ -151,7 +154,7 @@ class FFTRange:
 @dataclass
 class FFTConfig:
     """The bands of the audio input the patch listens to. The first three are
-    also operators, fft0 to fft2."""
+    also operators, fft_0 to fft_2."""
 
     ranges: list[FFTRange] = field(default_factory=list)
 

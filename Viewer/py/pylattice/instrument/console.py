@@ -280,7 +280,7 @@ class Console:
             fft = self._spectrum
             return FFTStatus(fft.LOW, fft.HIGH, fft.per_bin, fft.width, fft.bins(),
                              fft.fluxes(),
-                             [RangeStatus(r.flux, r.median, r.deviation, r.SPREAD, r.held, r.presses,
+                             [RangeStatus(r.flux, r.median, r.deviation, r.spread, r.held, r.presses,
                                           r.level_bins, r.flux_bins, r.level_agc, r.flux_agc)
                               for r in fft.ranges])
 

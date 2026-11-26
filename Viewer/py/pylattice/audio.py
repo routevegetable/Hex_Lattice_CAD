@@ -90,6 +90,14 @@ class Spectrum:
         """An operator reading the flux across the playing patch's range `index`."""
         return RangeOperator(self, index, flux=True)
 
+    def range_level_avg(self, index: int) -> "RangeAverage":
+        """A field reading the mean level of the playing patch's range `index`."""
+        return RangeAverage(self, index, flux=False)
+
+    def range_flux_avg(self, index: int) -> "RangeAverage":
+        """A field reading the mean flux of the playing patch's range `index`."""
+        return RangeAverage(self, index, flux=True)
+
     def bins(self) -> list[float]:
         """The level at each frequency, LOW to HIGH."""
         return self._levels
@@ -221,6 +229,10 @@ class Spectrum:
             state.level_agc = max(float(levels.max()), state.level_agc * fall, self.LEVEL_FLOOR)
             state.flux_agc = max(float(fluxes.max()), state.flux_agc * fall, self.FLUX_FLOOR)
 
+            # The bins' means against the same AGC, for the range's averages.
+            state.level_avg = float(levels.mean()) / state.level_agc
+            state.flux_avg = float(fluxes.mean()) / state.flux_agc
+
 
 def _areas(values):
     """The area under a curve through `values`, one per point, from the first
@@ -242,7 +254,7 @@ class RangeState:
 
     The flux is smoothed with a time constant of SMOOTH, and the last
     agc_half_life_ms of the smoothed flux kept. The note goes down when the
-    smoothed flux rises SPREAD deviations above that stretch's median - if the
+    smoothed flux rises the range's `deviations` above that stretch's median - if the
     band is no quieter than FLOOR, and the last press was GAP ago or more - and
     comes up when it falls back below the median. A deviation is the median
     absolute deviation, scaled to match a standard deviation, so a few big hits
@@ -250,7 +262,6 @@ class RangeState:
     """
 
     SMOOTH = 15         # ms, the flux's time constant
-    SPREAD = 3.0        # deviations above the median that press the note
     FLOOR = 0.01        # the quietest band level, as an amplitude, that can press it
     GAP = 150           # ms between presses at the least
     MAD_SCALE = 1.4826  # median absolute deviation to standard deviation, for a normal spread
@@ -260,6 +271,7 @@ class RangeState:
         self.median = 0.0
         self.deviation = 0.0
         self.held = False
+        self.spread = 0.0       # deviations above the median that press the note, as last judged
         self.presses = 0        # how many times the note has gone down
         self._since = self.GAP  # ms since the note last went down
 
@@ -276,8 +288,11 @@ class RangeState:
         self.flux_bins: list[float] = []
         self.level_agc = Spectrum.LEVEL_FLOOR
         self.flux_agc = Spectrum.FLUX_FLOOR
+        self.level_avg = 0.0
+        self.flux_avg = 0.0
 
     def update(self, flux: float, energy: float, dt: int, r: "FFTRange"):
+        self.spread = r.deviations
         self.flux += (flux - self.flux) * (1 - math.exp(-dt / self.SMOOTH))
         flux = self.flux
 
@@ -295,7 +310,7 @@ class RangeState:
         if self.held:
             self.held = flux >= self.median
         else:
-            self.held = (flux >= self.median + self.SPREAD * self.deviation
+            self.held = (flux >= self.median + self.spread * self.deviation
                          and energy >= self.FLOOR and self._since >= self.GAP)
             if self.held:
                 self._since = 0
@@ -314,7 +329,7 @@ class RangeOperator(Operator):
     for the whole range, so the bins keep their sizes against each other.
 
     The argument runs across the range, 0 its lowest frequency and 1 its
-    highest, so `fft0(v_gradient)` spreads range 0 up the lattice. Each bin's
+    highest, so `fft_0(v_gradient)` spreads range 0 up the lattice. Each bin's
     value sits at its centre, with straight lines between, and the end bins'
     values hold out to the range's edges. 0 when the patch has no such range.
     """
@@ -340,3 +355,22 @@ class RangeOperator(Operator):
         at = min(max(args[0].get(now, end) * len(values) - 0.5, 0), last)
         i = min(int(at), last - 1)
         return (values[i] + (values[i + 1] - values[i]) * (at - i)) / agc
+
+
+class RangeAverage(ScalarField):
+    """The mean level, or the mean flux, of one of the playing patch's ranges
+    over all its bins, against the range's AGC - the same everywhere, and 0
+    when the patch has no such range."""
+
+    def __init__(self, spectrum: Spectrum, index: int, flux: bool):
+        self._spectrum = spectrum
+        self._index = index
+        self._flux = flux
+
+    def get(self, now: Event, end: EndRef) -> float:
+        ranges = self._spectrum.ranges
+        if self._index >= len(ranges):
+            return 0.0
+
+        state = ranges[self._index]
+        return state.flux_avg if self._flux else state.level_avg
