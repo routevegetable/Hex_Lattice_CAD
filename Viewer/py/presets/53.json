@@ -79,14 +79,34 @@
       "op": "mul",
       "args": [
         {
-          "op": "add",
+          "op": "mul",
           "args": [
-            "ripple2",
-            0.5
+            {
+              "op": "add",
+              "args": [
+                "ripple2",
+                0.5
+              ],
+              "mod": false
+            },
+            "fader_c"
           ],
           "mod": false
         },
-        "fader_c"
+        {
+          "op": "mul",
+          "args": [
+            {
+              "op": "fftflux_1",
+              "args": [
+                "v_gradient"
+              ],
+              "mod": false
+            },
+            3.0
+          ],
+          "mod": false
+        }
       ],
       "mod": false
     },
@@ -173,12 +193,22 @@
   "fft_config": {
     "ranges": [
       {
-        "min_hz": 2922.0,
-        "max_hz": 5914.0,
+        "min_hz": 47.0,
+        "max_hz": 204.0,
         "agc_half_life_ms": 1000.0,
-        "bins": 11,
+        "bins": 17,
         "smooth_ms": 40.0,
-        "beat_note": 37
+        "deviations": 1.0,
+        "beat_note": 36
+      },
+      {
+        "min_hz": 92.0,
+        "max_hz": 1024.0,
+        "agc_half_life_ms": 1000.0,
+        "bins": 16,
+        "smooth_ms": 400.0,
+        "deviations": 1.5,
+        "beat_note": null
       }
     ]
   },

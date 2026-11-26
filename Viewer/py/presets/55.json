@@ -129,7 +129,17 @@
     "glitter": "trace lines, star x 2 nodes"
   },
   "fft_config": {
-    "ranges": []
+    "ranges": [
+      {
+        "min_hz": 44.0,
+        "max_hz": 192.0,
+        "agc_half_life_ms": 1000.0,
+        "bins": 16,
+        "smooth_ms": 50.0,
+        "deviations": 0.5,
+        "beat_note": 42
+      }
+    ]
   },
   "gradients": [
     {
